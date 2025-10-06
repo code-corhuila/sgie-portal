@@ -2,9 +2,20 @@ import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { setupInterceptor } from './utils/interceptor';
 
 function App() {
   const [count, setCount] = useState(0)
+   const navigate = useNavigate();
+
+     useEffect(() => {
+    setupInterceptor(() => {
+      // Redirigir al login si la sesión expira
+      navigate('/login');
+    });
+  }, [navigate]);
 
   return (
     <>
