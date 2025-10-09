@@ -84,6 +84,7 @@ export function useUbicacion() {
       if (err.name !== "AbortError") {
         const msg = err?.message ?? "Error cargando instalaciones";
         setError(msg);
+        setRows([]); // Limpiar rows en caso de error
         toast({ title: "Error", description: msg, status: "error", duration: 4000, isClosable: true });
       }
     } finally {
@@ -314,6 +315,38 @@ setCategoriaInstalacion(res?.data ?? []);
   }, [toast]);
 
   // =====================
+  //   CRUD CATEGORÍA INSTALACIÓN
+  // =====================
+  const createCategoriaInstalacion = useCallback(async (payload: { nombre: string; descripcion?: string; }) => {
+    await apiCall(`/categoria-instalacion`, {
+      method: "POST",
+      body: JSON.stringify({ nombre: payload.nombre, descripcion: payload.descripcion ?? "" }),
+      credentials: "include"
+    });
+    toast({ title: "Categoría de instalación creada", status: "success", duration: 2000 });
+    await fetchCategoriaInstalacion();
+  }, [fetchCategoriaInstalacion, toast]);
+
+  const updateCategoriaInstalacion = useCallback(async (id: number, payload: { nombre: string; descripcion?: string; }) => {
+    await apiCall(`/categoria-instalacion/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ nombre: payload.nombre, descripcion: payload.descripcion ?? "" }),
+      credentials: "include"
+    });
+    toast({ title: "Categoría de instalación actualizada", status: "success", duration: 2000 });
+    await fetchCategoriaInstalacion();
+  }, [fetchCategoriaInstalacion, toast]);
+
+  const deleteCategoriaInstalacion = useCallback(async (id: number) => {
+    await apiCall(`/categoria-instalacion/${id}`, {
+      method: "DELETE",
+      credentials: "include"
+    });
+    toast({ title: "Categoría de instalación eliminada", status: "success", duration: 2000 });
+    await fetchCategoriaInstalacion();
+  }, [fetchCategoriaInstalacion, toast]);
+
+  // =====================
   //  PRELOAD PARA EDICIÓN (sin cambios funcionales)
   // =====================
   const preloadCascadeForCampus = useCallback(async (row: InstalacionCampusRow) => {
@@ -350,6 +383,8 @@ setCategoriaInstalacion(res?.data ?? []);
     preloadCascadeForCampus, preloadCascadeForInstalacion,categoriaInstalacion,fetchCategoriaInstalacion,
     // crud
     createCampus, updateCampus, createInstalacion, updateInstalacion, cambiarEstadoInstalacion,
+    // crud categoría instalación
+    createCategoriaInstalacion, updateCategoriaInstalacion, deleteCategoriaInstalacion,
     // setters para limpieza manual (si hace falta)
     setPaisesCascada, setDepartamentosCascada, setMunicipiosCascada, setCampusCascada,
     // cargar continentes SOLO al abrir modales

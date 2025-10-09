@@ -11,6 +11,11 @@ export interface Column<T> {
   hideOnMobile?: boolean; // 🔥 Ocultar columnas en móvil
 }
 
+// Helper function para convertir key a string de manera segura
+const getColumnKey = <T,>(key: keyof T | string): string => {
+  return typeof key === 'string' ? key : String(key);
+};
+
 interface DataTableProps<T> {
   columns: Column<T>[];
   data: T[];
@@ -83,7 +88,7 @@ export const DataTable = memo(<T extends Record<string, any>>({
                 if (col.key === 'actions') return null;
                 
                 return (
-                  <Box key={col.label} mb={2}>
+                  <Box key={`${keyExtractor(item)}-${getColumnKey(col.key)}`} mb={2}>
                     <strong>{col.label}:</strong>{' '}
                     {col.render 
                       ? col.render(item) 
@@ -118,16 +123,16 @@ export const DataTable = memo(<T extends Record<string, any>>({
       <Table variant="simple" size="sm">
         <Thead bg="gray.50">
           <Tr>
-            {columns.map(col => (
-              <Th key={col.label}>{col.label}</Th>
+            {columns.map((col, index) => (
+              <Th key={`header-${getColumnKey(col.key)}-${index}`}>{col.label}</Th>
             ))}
           </Tr>
         </Thead>
         <Tbody>
           {data.map(item => (
             <Tr key={keyExtractor(item)} _hover={{ bg: 'gray.50' }}>
-              {columns.map(col => (
-                <Td key={col.label}>
+              {columns.map((col, index) => (
+                <Td key={`${keyExtractor(item)}-${getColumnKey(col.key)}-${index}`}>
                   {col.render 
                     ? col.render(item) 
                     : String(item[col.key as keyof T] ?? '')}

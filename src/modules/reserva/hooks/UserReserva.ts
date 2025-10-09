@@ -20,24 +20,45 @@ export interface HoraDisponibleDTO {
 
 /** Coincide con IReservaGeneralDTO del backend */
 export interface ReservaGeneral {
+  // Identificadores principales
+  idReserva: number;
+  idDetalleRerservaEquipo?: number | null;
+  idDetalleRerservaInstalacion?: number | null;
+  idMantenimientoEquipo?: number | null;
+  idMantenimientoInstalacion?: number | null;
+
+  // Datos de la reserva
   tipoReserva: string;
   nombreReserva: string;
-  nombrePersona: string;
-  numeroIdentificacion: string;
-  nombreInstalacion?: string | null;
+  descripcionReserva?: string | null;
   fechaReserva: string;          // ISO (yyyy-MM-dd)
   horaInicioReserva: string;     // "HH:mm[:ss]"
   horaFinReserva: string;        // idem
-  nombreEquipo?: string | null;  // En backend viene del tipo de equipo
-  tipoMantenimiento?: string | null;
-  estadoMantenimiento?: string | boolean | null;
-  estadoReserva: string | boolean;
-  estadoDetalle?: string | boolean | null;
+  idTipoReserva?: number | null;
 
-  /** Si el backend lo agrega, habilita edición inmediata */
-  idReserva?: number;
-  idAsociado?: number; // id del detalle o mantenimiento
-  tipoAsociado?: 'DETALLE_EQUIPO' | 'DETALLE_INSTALACION' | 'MANTENIMIENTO_EQUIPO' | 'MANTENIMIENTO_INSTALACION';
+  // Persona asociada
+  idPersona: number;
+  nombrePersona: string;
+  numeroIdentificacion: string;
+
+  // Información adicional
+  nombreInstalacion?: string | null;
+  nombreEquipo?: string | null;
+
+  // Campos específicos de detalle de reserva
+  programaAcademico?: string | null;
+  numeroEstudiantes?: number | null;
+  idInstalacionDestino?: number | null;
+
+  // Campos específicos de mantenimiento
+  tipoMantenimiento?: string | null;
+  descripcionMantenimiento?: string | null;
+  idCategoriaMantenimiento?: number | null;
+  estadoMantenimiento?: string | null;
+
+  // Estados generales
+  estadoReserva: string | boolean;
+  estadoDetalle?: string | null;
 }
 
 /** Para selects */
@@ -157,24 +178,77 @@ export function userReserva() {
   }, [toast]);
 
   /** Fetch catálogos (incluye categorías de mantenimiento) */
-  const fetchCatalogs = useCallback(async () => {
-    try {
-      const [tiposRes, equiposRes, instRes, catEqRes, catInsRes] = await Promise.all([
-        apiCall<ApiResponse<TipoReserva[]>>('/tipo-reserva'),
-        apiCall<ApiResponse<EquipoAPI[]>>('/equipo'),
-        apiCall<ApiResponse<SimpleItem[]>>('/instalacion'),
-        apiCall<ApiResponse<SimpleItem[]>>('/categoria-mantenimiento-equipo'),
-        apiCall<ApiResponse<SimpleItem[]>>('/categoria-mantenimiento-instalacion'),
-      ]);
-      setTiposReserva(((tiposRes as any).data ?? tiposRes) as any);
-      setEquipos(((equiposRes as any).data ?? equiposRes) as any);
-      setInstalaciones(((instRes as any).data ?? instRes) as any);
-      setCatMtoEquipo(((catEqRes as any).data ?? catEqRes) as any);
-      setCatMtoInst(((catInsRes as any).data ?? catInsRes) as any);
-    } catch (err: any) {
-      toast({ title: 'Error cargando catálogos', description: err.message || '', status: 'error' });
-    }
-  }, [toast]);
+  const ensureData = <T,>(resp: ApiResponse<T> | T): T =>
+  (resp as any)?.data ?? (resp as T);
+
+const fetchCatalogs = useCallback(async () => {
+  const results = await Promise.allSettled([
+    apiCall<ApiResponse<TipoReserva[]>>('/tipo-reserva'),
+    apiCall<ApiResponse<EquipoAPI[]>>('/equipo'),
+    apiCall<ApiResponse<SimpleItem[]>>('/instalacion'),
+    apiCall<ApiResponse<SimpleItem[]>>('/categoria-mantenimiento-equipo'),
+    apiCall<ApiResponse<SimpleItem[]>>('/categoria-mantenimiento-instalacion'),
+  ]);
+
+  // 0: tipos-reserva
+  if (results[0].status === 'fulfilled') {
+    const tipos = ensureData(results[0].value);
+    setTiposReserva(tipos as any);
+  } else {
+    // AUN si falla, mostramos toast, pero no bloqueamos lo demás
+    toast({
+      title: 'Catálogo: tipos de reserva',
+      description: (results[0] as PromiseRejectedResult).reason?.message ?? 'No se pudo cargar',
+      status: 'error',
+      duration: 4000,
+      isClosable: true,
+    });
+  }
+
+  // 1: equipos
+  if (results[1].status === 'fulfilled') {
+    setEquipos(ensureData(results[1].value) as any);
+  } else {
+    toast({
+      title: 'Catálogo: equipos',
+      description: (results[1] as PromiseRejectedResult).reason?.message ?? 'No se pudo cargar',
+      status: 'warning',
+    });
+  }
+
+  // 2: instalaciones
+  if (results[2].status === 'fulfilled') {
+    setInstalaciones(ensureData(results[2].value) as any);
+  } else {
+    toast({
+      title: 'Catálogo: instalaciones',
+      description: (results[2] as PromiseRejectedResult).reason?.message ?? 'No se pudo cargar',
+      status: 'warning',
+    });
+  }
+
+  // 3: categorías mto equipo
+  if (results[3].status === 'fulfilled') {
+    setCatMtoEquipo(ensureData(results[3].value) as any);
+  } else {
+    toast({
+      title: 'Catálogo: categorías mto equipo',
+      description: (results[3] as PromiseRejectedResult).reason?.message ?? 'No se pudo cargar',
+      status: 'info',
+    });
+  }
+
+  // 4: categorías mto instalación
+  if (results[4].status === 'fulfilled') {
+    setCatMtoInst(ensureData(results[4].value) as any);
+  } else {
+    toast({
+      title: 'Catálogo: categorías mto instalación',
+      description: (results[4] as PromiseRejectedResult).reason?.message ?? 'No se pudo cargar',
+      status: 'info',
+    });
+  }
+}, [toast]);
 
   useEffect(() => {
     void fetchAll();
@@ -331,6 +405,136 @@ export function userReserva() {
     []
   );
 
+  /** Actualizar detalle de reserva instalación */
+  const updateDetalleReservaInstalacion = useCallback(
+    async (idDetalle: number, values: any) => {
+      const payload = {
+        nombreReserva: values.nombreReserva,
+        descripcionReserva: values.descripcionReserva,
+        fechaReserva: values.fechaReserva,
+        horaInicio: values.horaInicio,
+        horaFin: values.horaFin,
+        programaAcademico: values.programaAcademico,
+        numeroEstudiantes: values.numeroEstudiantes,
+        idInstalacion: values.idInstalacion,
+      };
+      await apiCall(`/detalle-reserva-instalacion/${idDetalle}/actualizar-detalle-reserva`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+    },
+    []
+  );
+
+  /** Actualizar detalle de reserva equipo */
+  const updateDetalleReservaEquipo = useCallback(
+    async (idDetalle: number, values: any) => {
+      const payload = {
+        nombreReserva: values.nombreReserva,
+        descripcionReserva: values.descripcionReserva,
+        fechaReserva: values.fechaReserva,
+        horaInicio: values.horaInicio,
+        horaFin: values.horaFin,
+        programaAcademico: values.programaAcademico,
+        numeroEstudiantes: values.numeroEstudiantes,
+        idEquipo: values.idEquipo,
+        idInstalacionDestino: values.idInstalacionDestino,
+      };
+      await apiCall(`/detalle-reserva-equipo/${idDetalle}/actualizar-detalle-reserva-equipo`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+    },
+    []
+  );
+
+  /** Actualizar mantenimiento instalación */
+  const updateMantenimientoInstalacion = useCallback(
+    async (idMantenimiento: number, values: any) => {
+      const payload = {
+        descripcion: values.descripcionMantenimiento,
+        fechaProximaMantenimiento: values.fechaProximaMantenimiento,
+        resultadoMantenimiento: values.resultadoMantenimiento,
+        nombreReserva: values.nombreReserva,
+        descripcionReserva: values.descripcionReserva,
+        fechaReserva: values.fechaReserva,
+        horaInicio: values.horaInicio,
+        horaFin: values.horaFin,
+      };
+      await apiCall(`/mantenimiento-instalacion/${idMantenimiento}/actualizar-mantenimiento-instalacion`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+    },
+    []
+  );
+
+  /** Actualizar mantenimiento equipo */
+  const updateMantenimientoEquipo = useCallback(
+    async (idMantenimiento: number, values: any) => {
+      const payload = {
+        descripcion: values.descripcionMantenimiento,
+        fechaProximaMantenimiento: values.fechaProximaMantenimiento,
+        resultadoMantenimiento: values.resultadoMantenimiento,
+        nombreReserva: values.nombreReserva,
+        descripcionReserva: values.descripcionReserva,
+        fechaReserva: values.fechaReserva,
+        horaInicio: values.horaInicio,
+        horaFin: values.horaFin,
+      };
+      await apiCall(`/mantenimiento-equipo/${idMantenimiento}/actualizar-mantenimiento-equipo`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+    },
+    []
+  );
+
+  /** Cerrar reserva según su tipo */
+  const cerrarReserva = useCallback(
+    async (idDetalle: number, tipoReserva: string, values: any) => {
+      const tipoReservaLower = tipoReserva.toLowerCase();
+      
+      if (tipoReservaLower.includes('instalacion') && !tipoReservaLower.includes('mantenimiento')) {
+        // Cerrar préstamo de instalación
+        await apiCall(`/detalle-reserva-instalacion/${idDetalle}/cerrar-detalle-reserva-instalacion`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            entregaInstalacion: values.entregaInstalacion
+          }),
+        });
+      } else if (tipoReservaLower.includes('equipo') && !tipoReservaLower.includes('mantenimiento')) {
+        // Cerrar préstamo de equipo
+        await apiCall(`/detalle-reserva-equipo/${idDetalle}/cerrar-detalle-reserva-equipo`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            entregaEquipo: values.entregaEquipo
+          }),
+        });
+      } else if (tipoReservaLower.includes('mantenimiento')) {
+        // Cerrar mantenimiento
+        if (tipoReservaLower.includes('instalacion')) {
+          await apiCall(`/mantenimiento-instalacion/${idDetalle}/cerrar-mantenimiento-instalacion`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              fechaProximaMantenimiento: values.fechaProximaMantenimiento,
+              resultadoMantenimiento: values.resultadoMantenimiento
+            }),
+          });
+        } else {
+          await apiCall(`/mantenimiento-equipo/${idDetalle}/cerrar-mantenimiento-equipo`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              fechaProximaMantenimiento: values.fechaProximaMantenimiento,
+              resultadoMantenimiento: values.resultadoMantenimiento
+            }),
+          });
+        }
+      }
+    },
+    []
+  );
+
   /** Opciones para selects */
   const tipoReservaOptions = useMemo(
     () => tiposReserva.map(t => ({ value: t.id, label: t.nombre })),
@@ -381,6 +585,11 @@ export function userReserva() {
     // acciones
     createReservaFlow,
     updateReservaCore,
+    updateDetalleReservaInstalacion,
+    updateDetalleReservaEquipo,
+    updateMantenimientoInstalacion,
+    updateMantenimientoEquipo,
+    cerrarReserva,
 
     // persona seleccionada
     selectedPersona, setSelectedPersona,

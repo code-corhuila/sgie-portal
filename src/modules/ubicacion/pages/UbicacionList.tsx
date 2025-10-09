@@ -29,6 +29,11 @@ type InstalacionFormValues = CampusFormValues & {
   categoriaInstalacionId?: number | string;
 };
 
+// type CategoriaInstalacionFormValues = {
+//   nombre?: string;
+//   descripcion?: string;
+// };
+
 const UbicacionList: React.FC = () => {
   const toast = useToast();
 
@@ -66,6 +71,8 @@ const UbicacionList: React.FC = () => {
     createInstalacion,
     updateInstalacion,
     cambiarEstadoInstalacion,
+    // crud categoría instalación
+    createCategoriaInstalacion,
 
     // limpieza y utilidades
 
@@ -78,6 +85,7 @@ const UbicacionList: React.FC = () => {
   const editarCampusModal = useDisclosure();
   const crearInstalacionModal = useDisclosure();
   const editarInstalacionModal = useDisclosure();
+  const crearCategoriaModal = useDisclosure();
 
   // Filtros de tabla
   const [filtroInstalacion, setFiltroInstalacion] = useState("");
@@ -111,7 +119,7 @@ const UbicacionList: React.FC = () => {
       name: "continenteId",
       label: "Continente",
       type: "select",
-      options: continentes.map(c => ({ value: c.id, label: c.nombre })),
+      options: continentes.filter(c => c.id > 0).map(c => ({ value: c.id, label: c.nombre })),
       required: true,
       placeholder: "Selecciona un continente",
     },
@@ -128,7 +136,7 @@ const UbicacionList: React.FC = () => {
       name: "continenteId",
       label: "Continente",
       type: "select",
-      options: continentes.map(c => ({ value: c.id, label: c.nombre })),
+      options: continentes.filter(c => c.id > 0).map(c => ({ value: c.id, label: c.nombre })),
       required: true,
       placeholder: "Selecciona un continente",
     },
@@ -147,6 +155,11 @@ const UbicacionList: React.FC = () => {
     { name: "nombre", label: "Nombre", type: "text", required: true },
     { name: "descripcion", label: "Descripción", type: "textarea", required: false },
   ], [continentes,categoriaInstalacion]);
+
+  const categoriaFields = useMemo<Field<any>[]>(() => [
+    { name: "nombre", label: "Nombre", type: "text", required: true },
+    { name: "descripcion", label: "Descripción", type: "textarea", required: false },
+  ], []);
 
   // ===== Tabla =====
   const columns: Column<InstalacionCampusRow>[] = useMemo(() => [
@@ -309,6 +322,16 @@ const UbicacionList: React.FC = () => {
     }
   };
 
+  const handleSaveCategoriaInstalacion = async (values: any) => {
+    try {
+      if (!values.nombre) throw new Error("El nombre es requerido");
+      await createCategoriaInstalacion({ nombre: values.nombre, descripcion: values.descripcion });
+      crearCategoriaModal.onClose();
+    } catch (err: any) {
+      toast({ title: "Error al crear categoría", description: err?.message ?? "Error", status: "error", duration: 4000 });
+    }
+  };
+
   // ===== Handlers Editar =====
   const handleEditCampus = async (values: any) => {
     try {
@@ -370,24 +393,30 @@ const UbicacionList: React.FC = () => {
   } : undefined;
 
   return (
-    <Box p={4} w="100%" maxW="100%">
+    <Box p={4} w="100%" maxW="100%" key="ubicacion-list-container">
       <Heading size="lg" mb={4}>Gestión de Ubicación</Heading>
 
       {/* Buscador */}
       <HStack mb={4} spacing={2}>
         <Input
+          key="filtro-instalacion"
           placeholder="Nombre instalación (opcional)"
           value={filtroInstalacion}
           onChange={(e) => setFiltroInstalacion(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && fetchInstalacionesCampus(filtroInstalacion, filtroCampus)}
         />
         <Input
+          key="filtro-campus"
           placeholder="Nombre campus (opcional)"
           value={filtroCampus}
           onChange={(e) => setFiltroCampus(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && fetchInstalacionesCampus(filtroInstalacion, filtroCampus)}
         />
-        <Button colorScheme="blue" onClick={() => fetchInstalacionesCampus(filtroInstalacion, filtroCampus)}>
+        <Button 
+          key="buscar-btn"
+          colorScheme="blue" 
+          onClick={() => fetchInstalacionesCampus(filtroInstalacion, filtroCampus)}
+        >
           Buscar
         </Button>
       </HStack>
@@ -396,6 +425,7 @@ const UbicacionList: React.FC = () => {
       <HStack mb={4} spacing={2} flexWrap="wrap">
         {/* CREAR CAMPUS */}
         <Button
+          key="crear-campus-btn"
           colorScheme="green"
           onClick={async () => {
             // Lazy-load de continentes y limpiar cascada
@@ -414,8 +444,20 @@ const UbicacionList: React.FC = () => {
           Crear Campus
         </Button>
 
+        {/* CREAR CATEGORÍA INSTALACIÓN */}
+        <Button
+          key="crear-categoria-btn"
+          colorScheme="orange"
+          onClick={() => {
+            crearCategoriaModal.onOpen();
+          }}
+        >
+          Crear Categoría Instalación
+        </Button>
+
         {/* CREAR INSTALACIÓN */}
         <Button
+          key="crear-instalacion-btn"
           colorScheme="purple"
           onClick={async () => {
             await getContinentes();
@@ -433,7 +475,12 @@ const UbicacionList: React.FC = () => {
           Crear Instalación
         </Button>
 
-        <Button variant="outline" onClick={() => fetchInstalacionesCampus("", "")} isLoading={loading}>
+        <Button 
+          key="actualizar-btn"
+          variant="outline" 
+          onClick={() => fetchInstalacionesCampus("", "")} 
+          isLoading={loading}
+        >
           Actualizar
         </Button>
       </HStack>
@@ -444,23 +491,12 @@ const UbicacionList: React.FC = () => {
         columns={columns}
         loading={loading}
         error={error}
-        //keyExtractor={(r) => r.idInstalacion}
-keyExtractor={(item) => {
-  let key;
-  if (item.idInstalacion) key = `inst-${item.idInstalacion}`;
-  else if (item.idCampus) key = `campus-${item.idCampus}`;
-  else key = [
-    item.nombreContinente,
-    item.nombrePais,
-    item.nombreDepartamento,
-    item.nombreMunicipio,
-    item.nombreCampus,
-    item.nombreInstalacion,
-  ].filter(Boolean).join('-') || Math.random().toString(36).substr(2, 9);
-
-  console.log('Key generated:', key);
-  return key;
-}}
+        keyExtractor={(item: InstalacionCampusRow) => {
+          // Usar un contador único para garantizar unicidad absoluta
+          const timestamp = Date.now();
+          const random = Math.random().toString(36).substr(2, 9);
+          return `ubicacion-row-${timestamp}-${random}`;
+        }}
 
         emptyMessage="No hay registros de instalaciones/campus"
       />
@@ -712,6 +748,16 @@ keyExtractor={(item) => {
           prevEditInst.current = next as InstalacionFormValues;
         }}
         onSave={handleEditInstalacion}
+      />
+
+      {/* Modal: Crear Categoría Instalación */}
+      <GenericModal
+        isOpen={crearCategoriaModal.isOpen}
+        onClose={crearCategoriaModal.onClose}
+        title="Crear Categoría de Instalación"
+        fields={categoriaFields}
+        initialValues={{ nombre: "", descripcion: "" }}
+        onSave={handleSaveCategoriaInstalacion}
       />
     </Box>
   );

@@ -9,8 +9,6 @@ import {
   useToast,
   Text,
   VStack,
-  Tooltip,
-  Badge,
   Stack,
   Radio,
   RadioGroup,
@@ -73,6 +71,11 @@ const ReservaList: React.FC = () => {
     // acciones
     createReservaFlow,
     updateReservaCore,
+    updateDetalleReservaInstalacion,
+    updateDetalleReservaEquipo,
+    updateMantenimientoInstalacion,
+    updateMantenimientoEquipo,
+    cerrarReserva,
   } = userReserva();
 
   /** Filtro por número de identificación */
@@ -83,25 +86,36 @@ const ReservaList: React.FC = () => {
 
   /** Crear / Editar */
   const crearModal = useDisclosure();
-  const editarModal = useDisclosure();
-  const editarAsociadoModal = useDisclosure();
+  const editarReservaModal = useDisclosure();
+  const cerrarReservaModal = useDisclosure();
 
   const [paso1, setPaso1] = useState<Paso1Values>({});
   const [paso2, setPaso2] = useState<Paso2Values>({});
-  const [editingCore, setEditingCore] = useState<{
+  
+  // Estados para edición de reserva
+  const [editingReservaPaso1, setEditingReservaPaso1] = useState<Paso1Values>({});
+  const [editingReservaPaso2, setEditingReservaPaso2] = useState<Paso2Values>({});
+  
+  const [closingReserva, setClosingReserva] = useState<{
     idReserva?: number;
-    values: Paso1Values;
+    tipoReserva?: string;
+    values: any;
   } | null>(null);
   const [selectedRow, setSelectedRow] = useState<ReservaGeneral | null>(null);
 
   // ---- Búsqueda de persona (paso 1) ----
   const [docQuery, setDocQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [persona, setPersona] = useState<Persona | null>(null);
   const [searchResults, setSearchResults] = useState<Persona[]>([]);
   const [selectedPersonaId, setSelectedPersonaId] = useState<number | null>(
     null
   );
+
+  // Estados para búsqueda de persona en modal de edición
+  const [editingDocQuery, setEditingDocQuery] = useState("");
+  const [editingIsSearching, setEditingIsSearching] = useState(false);
+  const [editingSearchResults, setEditingSearchResults] = useState<Persona[]>([]);
+  const [editingSelectedPersonaId, setEditingSelectedPersonaId] = useState<number | null>(null);
 
   //buscar persona (NO auto-seleccionar)
   const handleBuscarPersona = useCallback(async () => {
@@ -135,40 +149,154 @@ const ReservaList: React.FC = () => {
       setIsSearching(false);
     }
   }, [docQuery, toast]);
-  /*
-  const handleBuscarPersona = useCallback(async () => {
-    if (!docQuery.trim()) {
-      toast({ title: 'Ingresa un documento', status: 'warning' });
+
+  // Buscar persona para modales de edición
+  const handleBuscarPersonaEdicion = useCallback(async () => {
+    if (!editingDocQuery.trim()) {
+      toast({ title: "Ingresa un documento", status: "warning" });
       return;
     }
-    setIsSearching(true);
+    setEditingIsSearching(true);
     try {
-      const list = await apiCall<Persona[]>(
-        `/persona/persona-usuario?numeroIdentificacion=${encodeURIComponent(docQuery)}`,
-        { credentials: 'include' }
+      const response = await apiCall<ApiResponse<Persona[]>>(
+        `/persona/persona-usuario?numeroIdentificacion=${encodeURIComponent(editingDocQuery)}`,
+        { credentials: "include" }
       );
-      if (list && list.length > 0) {
-        setPersona(list[0]);
-        toast({ title: 'Persona encontrada', status: 'success' });
-      } else {
-        setPersona(null);
+      const list = (response as any).data ?? (response as any);
+      setEditingSearchResults(list ?? []);
+      setEditingSelectedPersonaId(null); // 👈 exigir selección explícita
+      if (!list || list.length === 0) {
         toast({
-          title: 'Sin resultados',
-          description: 'No se encontró ninguna persona con ese documento',
-          status: 'info',
+          title: "Sin resultados",
+          description: "No se encontró ninguna persona con ese documento",
+          status: "info",
         });
       }
     } catch (err: any) {
       toast({
-        title: 'Error en búsqueda',
-        description: err?.message || '',
-        status: 'error',
+        title: "Error en búsqueda",
+        description: err?.message || "",
+        status: "error",
       });
     } finally {
-      setIsSearching(false);
+      setEditingIsSearching(false);
     }
-  }, [docQuery, toast]);
-*/
+  }, [editingDocQuery, toast]);
+
+  /** Precargar datos para edición */
+  const precargarDatosEdicion = useCallback(async (reserva: ReservaGeneral) => {
+    // Preferir idTipoReserva provisto por backend; fallback por nombre
+    const tipoReservaId = reserva.idTipoReserva
+      ?? tipoReservaOptions.find(t => t.label === reserva.tipoReserva)?.value;
+    if (!tipoReservaId) {
+      toast({ title: "Error", description: "No se pudo encontrar el tipo de reserva", status: "error" });
+      return;
+    }
+
+    // Determinar el grupo usando el nombre del tipo
+    const grupo = resolveGrupo(reserva.tipoReserva);
+    
+    // Precargar datos del paso 1
+    const paso1Data: Paso1Values = {
+      tipoReservaId,
+      nombreReserva: reserva.nombreReserva,
+      descripcionReserva: reserva.descripcionReserva || "",
+      fechaReserva: reserva.fechaReserva,
+      horaInicio: reserva.horaInicioReserva,
+      horaFin: reserva.horaFinReserva,
+    };
+
+    // Precargar recurso según el tipo
+    if (grupo === 'RESERVA_EQUIPO' || grupo === 'MANTENIMIENTO_EQUIPO') {
+      // Buscar el equipo por nombre (más flexible)
+      const equipo = equipoOptions.find(e => 
+        e.label.toLowerCase().includes((reserva.nombreEquipo || '').toLowerCase()) ||
+        e.label.includes(reserva.nombreEquipo || '')
+      );
+      if (equipo) {
+        paso1Data.idEquipo = equipo.value;
+      } else {
+        console.warn('No se encontró equipo:', reserva.nombreEquipo, 'en opciones:', equipoOptions);
+      }
+    } else if (grupo === 'RESERVA_INSTALACION' || grupo === 'MANTENIMIENTO_INSTALACION') {
+      // Buscar la instalación por nombre (más flexible)
+      const instalacion = instalacionOptions.find(i => 
+        i.label.toLowerCase() === (reserva.nombreInstalacion || '').toLowerCase() ||
+        i.label.includes(reserva.nombreInstalacion || '')
+      );
+      if (instalacion) {
+        paso1Data.idInstalacion = instalacion.value;
+      } else {
+        console.warn('No se encontró instalación:', reserva.nombreInstalacion, 'en opciones:', instalacionOptions);
+      }
+    }
+
+    // Precargar datos del paso 2
+    const paso2Data: Paso2Values = {};
+
+    if (grupo === 'RESERVA_INSTALACION' || grupo === 'RESERVA_EQUIPO') {
+      paso2Data.programaAcademico = reserva.programaAcademico || "";
+      paso2Data.numeroEstudiantes = reserva.numeroEstudiantes || 0;
+      
+      if (grupo === 'RESERVA_EQUIPO' && reserva.idInstalacionDestino) {
+        paso2Data.idInstalacionDestino = reserva.idInstalacionDestino;
+      }
+    } else if (grupo === 'MANTENIMIENTO_INSTALACION' || grupo === 'MANTENIMIENTO_EQUIPO') {
+      paso2Data.descripcionMantenimiento = reserva.descripcionMantenimiento || "";
+      if (reserva.idCategoriaMantenimiento) {
+        if (grupo === 'MANTENIMIENTO_INSTALACION') {
+          paso2Data.categoriaMantenimientoInstalacionId = reserva.idCategoriaMantenimiento;
+        } else {
+          paso2Data.categoriaMantenimientoEquipoId = reserva.idCategoriaMantenimiento;
+        }
+      }
+    }
+
+    setEditingReservaPaso1(paso1Data);
+    setEditingReservaPaso2(paso2Data);
+
+    // Precargar persona y selección explícita
+    setEditingDocQuery(reserva.numeroIdentificacion);
+    setEditingSearchResults([{
+      idPersona: reserva.idPersona,
+      nombres: reserva.nombrePersona,
+      numeroIdentificacion: reserva.numeroIdentificacion,
+      apellidos: ""
+    }]);
+    setEditingSelectedPersonaId(reserva.idPersona);
+
+    // Consultar disponibilidad automáticamente para cargar las horas
+    try {
+      if (grupo === 'RESERVA_EQUIPO' || grupo === 'MANTENIMIENTO_EQUIPO') {
+        if (paso1Data.idEquipo && paso1Data.fechaReserva) {
+          const idDetalle = grupo === 'RESERVA_EQUIPO' ? reserva.idDetalleRerservaEquipo : reserva.idMantenimientoEquipo;
+          await getHorasDisponiblesEquipo(paso1Data.fechaReserva, paso1Data.idEquipo, idDetalle || undefined);
+        }
+      } else {
+        if (paso1Data.idInstalacion && paso1Data.fechaReserva) {
+          const idDetalle = grupo === 'RESERVA_INSTALACION' ? reserva.idDetalleRerservaInstalacion : reserva.idMantenimientoInstalacion;
+          await getHorasDisponiblesInstalacion(paso1Data.fechaReserva, paso1Data.idInstalacion, idDetalle || undefined);
+        }
+      }
+    } catch (error) {
+      console.warn('Error consultando disponibilidad:', error);
+    }
+  }, [tipoReservaOptions, equipoOptions, instalacionOptions, resolveGrupo, getHorasDisponiblesEquipo, getHorasDisponiblesInstalacion, toast]);
+
+  /** Limpiar datos al cambiar tipo de reserva */
+  const limpiarDatosAlCambiarTipo = useCallback(() => {
+    setEditingReservaPaso1(prev => ({
+      ...prev,
+      idEquipo: undefined,
+      idInstalacion: undefined,
+      horaInicio: undefined,
+      horaFin: undefined,
+    }));
+    setEditingReservaPaso2({});
+    // No podemos limpiar horasDisponibles aquí porque no tenemos acceso directo
+    // Se limpiará automáticamente cuando se consulte disponibilidad
+  }, []);
+
   /** Campos paso 1 (dinámicos según selección de tipo) */
   const step1Fields: Field<any>[] = useMemo<Field<any>[]>(() => {
     const tipoSel = tipoReservaOptions.find(
@@ -232,6 +360,71 @@ const ReservaList: React.FC = () => {
     equipoOptions,
     instalacionOptions,
     paso1.tipoReservaId,
+    resolveGrupo,
+    tipoReservaOptions,
+  ]);
+
+  /** Campos paso 1 para editar reserva (dinámicos según selección de tipo) */
+  const editReservaStep1Fields: Field<any>[] = useMemo<Field<any>[]>(() => {
+    const tipoSel = tipoReservaOptions.find(
+      (t) => t.value === editingReservaPaso1.tipoReservaId
+    );
+    const grupo = tipoSel ? resolveGrupo(tipoSel.label) : null;
+
+    const common: Field<any>[] = [
+      {
+        name: "tipoReservaId",
+        label: "Tipo de Reserva",
+        type: "select",
+        required: true,
+        options: tipoReservaOptions as FieldOption[],
+      },
+      {
+        name: "nombreReserva",
+        label: "Nombre de la reserva",
+        type: "text",
+        required: true,
+      },
+      {
+        name: "descripcionReserva",
+        label: "Descripción de la reserva",
+        type: "textarea",
+      },
+      {
+        name: "fechaReserva",
+        label: "Fecha de la reserva",
+        type: "date",
+        required: true,
+      },
+    ];
+
+    const recursoField: Field<any>[] = !grupo
+      ? []
+      : grupo === "RESERVA_EQUIPO" || grupo === "MANTENIMIENTO_EQUIPO"
+        ? [
+            {
+              name: "idEquipo",
+              label: "Equipo",
+              type: "select",
+              required: true,
+              options: equipoOptions as FieldOption[],
+            },
+          ]
+        : [
+            {
+              name: "idInstalacion",
+              label: "Instalación",
+              type: "select",
+              required: true,
+              options: instalacionOptions as FieldOption[],
+            },
+          ];
+
+    return [...common, ...recursoField];
+  }, [
+    equipoOptions,
+    instalacionOptions,
+    editingReservaPaso1.tipoReservaId,
     resolveGrupo,
     tipoReservaOptions,
   ]);
@@ -325,6 +518,95 @@ const ReservaList: React.FC = () => {
     tipoReservaOptions,
   ]);
 
+  /** Campos paso 2 para editar reserva (según grupo) */
+  const editReservaStep2Fields: Field<any>[] = useMemo<Field<any>[]>(() => {
+    const tipoSel = tipoReservaOptions.find(
+      (t) => t.value === editingReservaPaso1.tipoReservaId
+    );
+    const grupo = tipoSel ? resolveGrupo(tipoSel.label) : null;
+
+    if (!grupo) return [];
+
+    if (grupo === "RESERVA_INSTALACION") {
+      return [
+        {
+          name: "programaAcademico",
+          label: "Programa Académico",
+          type: "text",
+          required: true,
+        },
+        {
+          name: "numeroEstudiantes",
+          label: "Número de Estudiantes",
+          type: "number",
+          required: true,
+        },
+      ];
+    }
+    if (grupo === "RESERVA_EQUIPO") {
+      return [
+        {
+          name: "programaAcademico",
+          label: "Programa Académico",
+          type: "text",
+          required: true,
+        },
+        {
+          name: "numeroEstudiantes",
+          label: "Número de Estudiantes",
+          type: "number",
+          required: true,
+        },
+        {
+          name: "idInstalacionDestino",
+          label: "Instalación Destino",
+          type: "select",
+          options: instalacionOptions as FieldOption[],
+        },
+      ];
+    }
+    if (grupo === "MANTENIMIENTO_INSTALACION") {
+      return [
+        {
+          name: "descripcionMantenimiento",
+          label: "Descripción del mantenimiento",
+          type: "textarea",
+        },
+        {
+          name: "categoriaMantenimientoInstalacionId",
+          label: "Categoría mantenimiento",
+          type: "select",
+          required: true,
+          options: catMtoInstOptions as FieldOption[],
+        },
+      ];
+    }
+    if (grupo === "MANTENIMIENTO_EQUIPO") {
+      return [
+        {
+          name: "descripcionMantenimiento",
+          label: "Descripción del mantenimiento",
+          type: "textarea",
+        },
+        {
+          name: "categoriaMantenimientoEquipoId",
+          label: "Categoría mantenimiento",
+          type: "select",
+          required: true,
+          options: catMtoEquipoOptions as FieldOption[],
+        },
+      ];
+    }
+    return [];
+  }, [
+    catMtoEquipoOptions,
+    catMtoInstOptions,
+    instalacionOptions,
+    editingReservaPaso1.tipoReservaId,
+    resolveGrupo,
+    tipoReservaOptions,
+  ]);
+
   /** Acciones para Tabla */
   const columns: Column<ReservaGeneral>[] = useMemo(
     () => [
@@ -390,55 +672,36 @@ const ReservaList: React.FC = () => {
               size="sm"
               colorScheme="blue"
               variant="outline"
-              onClick={() => {
-                if (!r.idReserva) {
-                  toast({
-                    title: "No disponible",
-                    description:
-                      "Esta fila no contiene idReserva. Pide al backend incluirlo en IReservaGeneralDTO.",
-                    status: "warning",
-                  });
-                  return;
-                }
+              onClick={async () => {
                 setSelectedRow(r);
-                setEditingCore({
-                  idReserva: r.idReserva,
-                  values: {
-                    nombreReserva: r.nombreReserva,
-                    descripcionReserva: "",
-                    fechaReserva: r.fechaReserva,
-                    horaInicio: r.horaInicioReserva,
-                    horaFin: r.horaFinReserva,
-                    // tipoReservaId no se cambia aquí
-                  },
-                });
-                editarModal.onOpen();
+                await precargarDatosEdicion(r);
+                editarReservaModal.onOpen();
               }}
             >
               Editar reserva
             </Button>
 
-            <Tooltip
-              label="Requiere id del detalle/mantenimiento en el DTO"
-              hasArrow
-            >
               <Button
                 size="sm"
-                colorScheme="purple"
+              colorScheme="red"
                 variant="ghost"
                 onClick={() => {
                   setSelectedRow(r);
-                  editarAsociadoModal.onOpen();
-                }}
-              >
-                Editar asociado
+                setClosingReserva({
+                  idReserva: r.idReserva,
+                  tipoReserva: r.tipoReserva,
+                  values: {}
+                });
+                cerrarReservaModal.onOpen();
+              }}
+            >
+              Cerrar reserva
               </Button>
-            </Tooltip>
           </HStack>
         ),
       },
     ],
-    [editarModal, toast]
+    [toast]
   );
 
   /** Consultar disponibilidad (botón en paso 1) */
@@ -505,6 +768,71 @@ const ReservaList: React.FC = () => {
     toast,
   ]);
 
+  /** Consultar disponibilidad para editar reserva */
+  const handleConsultarDisponibilidadEdicion = useCallback(async (idDetalle?: number) => {
+    try {
+      const tipoSel = tipoReservaOptions.find(
+        (t) => t.value === editingReservaPaso1.tipoReservaId
+      );
+      if (!tipoSel) {
+        toast({ title: "Selecciona tipo de reserva", status: "warning" });
+        return;
+      }
+      if (!editingReservaPaso1.fechaReserva) {
+        toast({ title: "Selecciona fecha", status: "warning" });
+        return;
+      }
+
+      const grupo = resolveGrupo(tipoSel.label);
+      if (grupo === "RESERVA_EQUIPO" || grupo === "MANTENIMIENTO_EQUIPO") {
+        if (!editingReservaPaso1.idEquipo) {
+          toast({ title: "Selecciona equipo", status: "warning" });
+          return;
+        }
+        await getHorasDisponiblesEquipo(editingReservaPaso1.fechaReserva, editingReservaPaso1.idEquipo, idDetalle);
+      } else {
+        if (!editingReservaPaso1.idInstalacion) {
+          toast({ title: "Selecciona instalación", status: "warning" });
+          return;
+        }
+        await getHorasDisponiblesInstalacion(
+          editingReservaPaso1.fechaReserva,
+          editingReservaPaso1.idInstalacion,
+          idDetalle
+        );
+      }
+
+      // Limpia selección de horas al refrescar disponibilidad
+      setEditingReservaPaso1((prev) => ({
+        ...prev,
+        horaInicio: undefined,
+        horaFin: undefined,
+      }));
+
+      toast({
+        title: "Disponibilidad cargada",
+        status: "success",
+        duration: 1500,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Error consultando disponibilidad",
+        description: err.message,
+        status: "error",
+      });
+    }
+  }, [
+    getHorasDisponiblesEquipo,
+    getHorasDisponiblesInstalacion,
+    editingReservaPaso1.fechaReserva,
+    editingReservaPaso1.idEquipo,
+    editingReservaPaso1.idInstalacion,
+    editingReservaPaso1.tipoReservaId,
+    resolveGrupo,
+    tipoReservaOptions,
+    toast,
+  ]);
+
   // ---- Opciones de hora con regla de contigüidad ----
   const horaInicioOptions: FieldOption[] = useMemo(
     () =>
@@ -529,35 +857,202 @@ const ReservaList: React.FC = () => {
     return res;
   }, [horasDisponibles, paso1.horaInicio]);
 
-  /** Guardar edición core */
-  const handleEditarCore = useCallback(
-    async (values: any) => {
-      if (!editingCore?.idReserva) return;
-      await updateReservaCore(editingCore.idReserva, values);
-      toast({ title: "Reserva actualizada", status: "success" });
-      editarModal.onClose();
-      setEditingCore(null);
-      await fetchAll();
-    },
-    [editingCore, editarModal, fetchAll, toast, updateReservaCore]
+  // Opciones de hora para editar reserva
+  const editReservaHoraInicioOptions: FieldOption[] = useMemo(
+    () =>
+      (horasDisponibles ?? []).map((h) => {
+        const hhmmss = normalize(h);
+        return { value: hhmmss, label: hhmmss.slice(0, 5) };
+      }),
+    [horasDisponibles]
   );
 
-  /** Campos del modal de edición core */
-  const editCoreFields: Field<any>[] = useMemo(
-    () => [
-      { name: "nombreReserva", label: "Nombre", type: "text", required: true },
-      { name: "descripcionReserva", label: "Descripción", type: "textarea" },
-      { name: "fechaReserva", label: "Fecha", type: "date", required: true },
-      {
-        name: "horaInicio",
-        label: "Hora inicio",
-        type: "text",
-        required: true,
-      },
-      { name: "horaFin", label: "Hora fin", type: "text", required: true },
-    ],
-    []
+  const editReservaHoraFinOptions: FieldOption[] = useMemo(() => {
+    const start = editingReservaPaso1.horaInicio ? normalize(editingReservaPaso1.horaInicio) : null;
+    if (!start) return [];
+    const avail = new Set((horasDisponibles ?? []).map(normalize));
+    // Construye la cadena contigua: start+1, +2, ... mientras exista en disponibilidad
+    const res: FieldOption[] = [];
+    let cursor = add1h(start);
+    while (avail.has(cursor)) {
+      res.push({ value: cursor, label: cursor.slice(0, 5) });
+      cursor = add1h(cursor);
+    }
+    return res;
+  }, [horasDisponibles, editingReservaPaso1.horaInicio]);
+
+  /** Guardar edición de reserva multi-paso */
+  const handleEditarReserva = useCallback(
+    async (allValues: Record<number, Record<string, any>>) => {
+      if (!selectedRow?.idReserva) return;
+      
+      try {
+        const paso1Values = allValues[0] as Paso1Values;
+        const paso2Values = allValues[1] as Paso2Values;
+        
+        // Validar persona seleccionada
+        if (!editingSelectedPersonaId) {
+          toast({
+            title: 'Selecciona una persona',
+            description: 'Busca y selecciona una persona por documento',
+            status: 'warning',
+          });
+          throw new Error('Persona requerida');
+        }
+
+        // Actualizar reserva core
+        await updateReservaCore(selectedRow.idReserva, paso1Values);
+        
+        // Actualizar asociado según el tipo
+        const tipoReserva = selectedRow.tipoReserva.toLowerCase();
+        
+        // Determinar el ID del asociado según el tipo
+        let idAsociado: number | null = null;
+        if (tipoReserva.includes('instalacion') && !tipoReserva.includes('mantenimiento')) {
+          idAsociado = selectedRow.idDetalleRerservaInstalacion || null;
+        } else if (tipoReserva.includes('equipo') && !tipoReserva.includes('mantenimiento')) {
+          idAsociado = selectedRow.idDetalleRerservaEquipo || null;
+        } else if (tipoReserva.includes('mantenimiento')) {
+          if (tipoReserva.includes('instalacion')) {
+            idAsociado = selectedRow.idMantenimientoInstalacion || null;
+          } else {
+            idAsociado = selectedRow.idMantenimientoEquipo || null;
+          }
+        }
+        
+        if (idAsociado) {
+          if (tipoReserva.includes('instalacion') && !tipoReserva.includes('mantenimiento')) {
+            await updateDetalleReservaInstalacion(idAsociado, { ...paso1Values, ...paso2Values });
+          } else if (tipoReserva.includes('equipo') && !tipoReserva.includes('mantenimiento')) {
+            await updateDetalleReservaEquipo(idAsociado, { ...paso1Values, ...paso2Values });
+          } else if (tipoReserva.includes('mantenimiento')) {
+            if (tipoReserva.includes('instalacion')) {
+              await updateMantenimientoInstalacion(idAsociado, { ...paso1Values, ...paso2Values });
+            } else {
+              await updateMantenimientoEquipo(idAsociado, { ...paso1Values, ...paso2Values });
+            }
+          }
+        }
+
+        toast({ 
+          title: "Reserva actualizada", 
+          description: "La reserva se ha actualizado exitosamente",
+          status: "success" 
+        });
+        editarReservaModal.onClose();
+        await fetchAll();
+      } catch (error: any) {
+        toast({
+          title: "Error al actualizar reserva",
+          description: error?.message || "Ocurrió un error inesperado",
+          status: "error",
+        });
+      }
+    },
+    [selectedRow, editingSelectedPersonaId, updateReservaCore, updateDetalleReservaInstalacion, updateDetalleReservaEquipo, updateMantenimientoInstalacion, updateMantenimientoEquipo, editarReservaModal, fetchAll, toast]
   );
+
+  /** Cerrar reserva */
+  const handleCerrarReserva = useCallback(
+    async (values: any) => {
+      if (!closingReserva?.idReserva || !closingReserva?.tipoReserva || !selectedRow) return;
+      
+      try {
+        const tipoReserva = closingReserva.tipoReserva.toLowerCase();
+        
+        // Determinar el ID del asociado según el tipo
+        let idDetalle: number | null = null;
+        if (tipoReserva.includes('instalacion') && !tipoReserva.includes('mantenimiento')) {
+          idDetalle = selectedRow.idDetalleRerservaInstalacion || null;
+        } else if (tipoReserva.includes('equipo') && !tipoReserva.includes('mantenimiento')) {
+          idDetalle = selectedRow.idDetalleRerservaEquipo || null;
+        } else if (tipoReserva.includes('mantenimiento')) {
+          if (tipoReserva.includes('instalacion')) {
+            idDetalle = selectedRow.idMantenimientoInstalacion || null;
+          } else {
+            idDetalle = selectedRow.idMantenimientoEquipo || null;
+          }
+        }
+        
+        if (!idDetalle) {
+          toast({
+            title: "ID del asociado no disponible",
+            description: "No se pudo determinar el ID del detalle o mantenimiento",
+            status: "warning",
+          });
+          return;
+        }
+        
+        await cerrarReserva(idDetalle, closingReserva.tipoReserva, values);
+        toast({ 
+          title: "Reserva cerrada", 
+          description: "La reserva se ha cerrado exitosamente",
+          status: "success" 
+        });
+        cerrarReservaModal.onClose();
+        setClosingReserva(null);
+      await fetchAll();
+      } catch (error: any) {
+        toast({
+          title: "Error al cerrar reserva",
+          description: error?.message || "Ocurrió un error inesperado",
+          status: "error",
+        });
+      }
+    },
+    [closingReserva, selectedRow, cerrarReserva, cerrarReservaModal, fetchAll, toast]
+  );
+
+
+  /** Campos del modal de cerrar reserva (dinámicos según tipo) */
+  const cerrarReservaFields: Field<any>[] = useMemo(() => {
+    if (!closingReserva?.tipoReserva) return [];
+
+    const tipoReserva = closingReserva.tipoReserva.toLowerCase();
+    
+    if (tipoReserva.includes('instalacion') && !tipoReserva.includes('mantenimiento')) {
+      // Préstamo de instalación
+      return [
+        {
+          name: "entregaInstalacion",
+          label: "Entrega instalación",
+          type: "textarea",
+        required: true,
+          placeholder: "Comentario sobre la devolución de la instalación"
+        }
+      ];
+    } else if (tipoReserva.includes('equipo') && !tipoReserva.includes('mantenimiento')) {
+      // Préstamo de equipo
+      return [
+        {
+          name: "entregaEquipo",
+          label: "Entrega equipo",
+          type: "textarea",
+          required: true,
+          placeholder: "Comentario sobre la devolución del equipo"
+        }
+      ];
+    } else if (tipoReserva.includes('mantenimiento')) {
+      // Mantenimiento (instalación o equipo)
+      return [
+        {
+          name: "fechaProximaMantenimiento",
+          label: "Fecha próximo mantenimiento",
+          type: "date",
+          required: true
+        },
+        {
+          name: "resultadoMantenimiento",
+          label: "Resultado mantenimiento",
+          type: "textarea",
+          required: true,
+          placeholder: "Descripción del resultado del mantenimiento"
+        }
+      ];
+    }
+    
+    return [];
+  }, [closingReserva?.tipoReserva]);
 
   return (
     <Box p={4}>
@@ -597,7 +1092,6 @@ const ReservaList: React.FC = () => {
         isOpen={crearModal.isOpen}
         onClose={() => {
           crearModal.onClose();
-          setPersona(null);
           setDocQuery("");
           setPaso1({});
           setPaso2({});
@@ -815,42 +1309,244 @@ onSubmit={async () => {
 }}
       />
 
-      {/* Modal: Editar Reserva (core) */}
+
+      {/* Modal: Cerrar Reserva */}
       <GenericModal
-        isOpen={editarModal.isOpen}
+        isOpen={cerrarReservaModal.isOpen}
         onClose={() => {
-          editarModal.onClose();
-          setEditingCore(null);
+          cerrarReservaModal.onClose();
+          setClosingReserva(null);
         }}
-        title="Editar Reserva"
-        fields={editCoreFields}
-        initialValues={editingCore?.values ?? {}}
-        onSave={handleEditarCore}
+        title="Cerrar Reserva"
+        fields={cerrarReservaFields}
+        initialValues={closingReserva?.values ?? {}}
+        onSave={handleCerrarReserva}
+        saveButtonText="Cerrar Reserva"
+        cancelButtonText="Cancelar"
       />
 
-      {/* Modal: Editar Asociado (placeholder hasta tener idAsociado) */}
-      <GenericModal
-        isOpen={editarAsociadoModal.isOpen}
-        onClose={editarAsociadoModal.onClose}
-        title="Editar asociado"
-        fields={[
+      {/* Modal: Editar Reserva (Multi-step) */}
+      <GenericMultiStepModal
+        isOpen={editarReservaModal.isOpen}
+        onClose={() => {
+          editarReservaModal.onClose();
+          setEditingReservaPaso1({});
+          setEditingReservaPaso2({});
+          setEditingDocQuery("");
+          setEditingSearchResults([]);
+          setEditingSelectedPersonaId(null);
+        }}
+        modalTitle="Editar Reserva"
+        saveButtonText="Actualizar"
+        steps={[
           {
-            name: "info",
-            label: "Información",
-            type: "textarea",
-            value: JSON.stringify(selectedRow, null, 2),
-            disabled: true,
+            title: "Datos de la reserva",
+            fields: editReservaStep1Fields,
+            initialValues: editingReservaPaso1,
+            onSave: async (values) => {
+              setEditingReservaPaso1((prev) => ({ ...prev, ...(values as Paso1Values) }));
+            },
+          },
+          {
+            title: "Información asociada",
+            fields: editReservaStep2Fields,
+            initialValues: editingReservaPaso2,
+            onSave: async (values) => {
+              setEditingReservaPaso2((prev) => ({ ...prev, ...(values as Paso2Values) }));
+            },
           },
         ]}
-        onSave={async () => {
-          toast({
-            title: "Falta id del asociado",
-            description:
-              "Pide al backend exponer idAsociado y tipoAsociado en IReservaGeneralDTO para editar aquí.",
-            status: "info",
-          });
-        }}
-        saveButtonText="Entendido"
+        onStepValuesChange={useCallback((idx: number, values: Record<string, any>) => {
+          if (idx === 0) {
+            const newValues = values as Paso1Values;
+            const oldTipoReservaId = editingReservaPaso1.tipoReservaId;
+            
+            // Si cambió el tipo de reserva, limpiar todos los datos
+            if (oldTipoReservaId && newValues.tipoReservaId !== oldTipoReservaId) {
+              limpiarDatosAlCambiarTipo();
+              setEditingReservaPaso1(newValues);
+              return;
+            }
+            
+            setEditingReservaPaso1(newValues);
+            
+            // Si cambió fecha, equipo o instalación, consultar disponibilidad automáticamente
+            const changedDate = newValues.fechaReserva !== editingReservaPaso1.fechaReserva;
+            const changedEquipo = newValues.idEquipo !== editingReservaPaso1.idEquipo;
+            const changedInstalacion = newValues.idInstalacion !== editingReservaPaso1.idInstalacion;
+            
+            if (changedDate || changedEquipo || changedInstalacion) {
+              // Determinar el ID del detalle para excluir de la consulta
+              let idDetalle: number | undefined;
+              if (selectedRow) {
+                const tipoReserva = selectedRow.tipoReserva.toLowerCase();
+                if (tipoReserva.includes('instalacion') && !tipoReserva.includes('mantenimiento')) {
+                  idDetalle = selectedRow.idDetalleRerservaInstalacion || undefined;
+                } else if (tipoReserva.includes('equipo') && !tipoReserva.includes('mantenimiento')) {
+                  idDetalle = selectedRow.idDetalleRerservaEquipo || undefined;
+                } else if (tipoReserva.includes('mantenimiento')) {
+                  if (tipoReserva.includes('instalacion')) {
+                    idDetalle = selectedRow.idMantenimientoInstalacion || undefined;
+                  } else {
+                    idDetalle = selectedRow.idMantenimientoEquipo || undefined;
+                  }
+                }
+              }
+              
+              // Consultar disponibilidad automáticamente
+              setTimeout(() => {
+                handleConsultarDisponibilidadEdicion(idDetalle);
+              }, 100);
+            }
+          }
+          if (idx === 1) setEditingReservaPaso2(values as Paso2Values);
+        }, [editingReservaPaso1, limpiarDatosAlCambiarTipo, selectedRow, handleConsultarDisponibilidadEdicion])}
+        // 🔎 Header del paso 1: búsqueda por documento + persona seleccionada
+        renderStepHeader={(idx) =>
+          idx === 0 ? (
+            <VStack align="stretch" mb={3} spacing={3}>
+              <Text fontWeight="semibold">
+                Persona (buscar y seleccionar por documento)
+              </Text>
+              <HStack>
+                <Input
+                  placeholder="Número de documento"
+                  value={editingDocQuery}
+                  onChange={(e) => setEditingDocQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleBuscarPersonaEdicion()}
+                />
+                <Button
+                  onClick={handleBuscarPersonaEdicion}
+                  isLoading={editingIsSearching}
+                  colorScheme="blue"
+                >
+                  Buscar
+                </Button>
+              </HStack>
+
+              {/* Resultado: lista seleccionable */}
+              {editingSearchResults.length > 0 ? (
+                <Box borderWidth={1} borderRadius="md" p={3} bg="gray.50">
+                  <Text fontSize="sm" mb={2}>
+                    Resultados ({editingSearchResults.length}) — selecciona una
+                    persona:
+                  </Text>
+                  <RadioGroup
+                    value={editingSelectedPersonaId ? String(editingSelectedPersonaId) : ""}
+                    onChange={(val) => setEditingSelectedPersonaId(Number(val))}
+                  >
+                    <Stack spacing={2}>
+                      {editingSearchResults.map((p) => (
+                        <Radio key={p.idPersona} value={String(p.idPersona)}>
+                          <Text>
+                            <b>
+                              {p.nombres} {p.apellidos ?? ""}
+                            </b>{" "}
+                            — {p.numeroIdentificacion} (ID: {p.idPersona})
+                          </Text>
+                        </Radio>
+                      ))}
+                    </Stack>
+                  </RadioGroup>
+                </Box>
+              ) : (
+                <Text fontSize="sm" color="gray.500">
+                  Busca por documento y selecciona una persona.
+                </Text>
+              )}
+            </VStack>
+          ) : null
+        }
+        // ⚙️ Footer del paso 1: botón de disponibilidad + selects de horas (regla contigua)
+        renderStepFooter={(idx) =>
+          idx === 0 ? (
+            <VStack align="stretch" mt={2} spacing={3}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  // Determinar el ID del detalle para excluir de la consulta
+                  let idDetalle: number | undefined;
+                  if (selectedRow) {
+                    const tipoReserva = selectedRow.tipoReserva.toLowerCase();
+                    if (tipoReserva.includes('instalacion') && !tipoReserva.includes('mantenimiento')) {
+                      idDetalle = selectedRow.idDetalleRerservaInstalacion || undefined;
+                    } else if (tipoReserva.includes('equipo') && !tipoReserva.includes('mantenimiento')) {
+                      idDetalle = selectedRow.idDetalleRerservaEquipo || undefined;
+                    } else if (tipoReserva.includes('mantenimiento')) {
+                      if (tipoReserva.includes('instalacion')) {
+                        idDetalle = selectedRow.idMantenimientoInstalacion || undefined;
+                      } else {
+                        idDetalle = selectedRow.idMantenimientoEquipo || undefined;
+                      }
+                    }
+                  }
+                  handleConsultarDisponibilidadEdicion(idDetalle);
+                }}
+              >
+                Buscar disponibilidad
+              </Button>
+              <Text fontSize="sm" color="gray.500">
+                Selecciona tipo, fecha y (equipo o instalación), luego busca
+                disponibilidad para cargar horas.
+              </Text>
+
+              <HStack>
+                <FormControl isRequired>
+                  <FormLabel>Hora inicio</FormLabel>
+                  <Select
+                    placeholder={editReservaHoraInicioOptions.length ? "Seleccionar" : "—"}
+                    value={editingReservaPaso1.horaInicio ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value || undefined;
+                      setEditingReservaPaso1((prev) => ({
+                        ...prev,
+                        horaInicio: val,
+                        horaFin: undefined,
+                      }));
+                    }}
+                    isDisabled={editReservaHoraInicioOptions.length === 0}
+                  >
+                    {editReservaHoraInicioOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl isRequired>
+                  <FormLabel>Hora fin</FormLabel>
+                  <Select
+                    placeholder={editReservaHoraFinOptions.length ? "Seleccionar" : "—"}
+                    value={editingReservaPaso1.horaFin ?? ""}
+                    onChange={(e) =>
+                      setEditingReservaPaso1((prev) => ({
+                        ...prev,
+                        horaFin: e.target.value || undefined,
+                      }))
+                    }
+                    isDisabled={
+                      !editingReservaPaso1.horaInicio || editReservaHoraFinOptions.length === 0
+                    }
+                  >
+                    {editReservaHoraFinOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </Select>
+                </FormControl>
+              </HStack>
+
+              <Text fontSize="sm" color="gray.500">
+                La hora fin solo permite bloques contiguos a partir de la hora
+                inicio (12:00 → 13:00 → 14:00…).
+              </Text>
+            </VStack>
+          ) : null
+        }
+        onSubmit={handleEditarReserva}
       />
     </Box>
   );

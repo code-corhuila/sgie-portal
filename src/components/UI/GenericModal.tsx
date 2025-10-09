@@ -128,7 +128,7 @@ GenericModalProps<T>) => {
         <ModalHeader>{title}</ModalHeader>
         <ModalCloseButton isDisabled={isSaving} />
         <ModalBody>
-          {fields.map((field) => {
+          {fields.map((field, index) => {
             // 👇 RESOLVER opciones: función o array
             const resolvedOptions =
               typeof field.options === "function"
@@ -138,7 +138,7 @@ GenericModalProps<T>) => {
             return (
               <FormControl
                 mb={3}
-                key={String(field.name)}
+                key={`${String(field.name)}-${index}`}
                 isRequired={field.required}
                 isDisabled={field.disabled}
               >
@@ -155,8 +155,8 @@ GenericModalProps<T>) => {
                     placeholder={field.placeholder || "Seleccionar"}
                     isDisabled={field.disabled}
                   >
-                    {resolvedOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
+                    {resolvedOptions.map((opt, optIndex) => (
+                      <option key={`${field.name}-${opt.value}-${optIndex}`} value={opt.value}>
                         {opt.label}
                       </option>
                     ))}
