@@ -1,8 +1,24 @@
-import React, { memo } from 'react';
+import React, { memo } from "react";
 import {
-  Table, Thead, Tbody, Tr, Th, Td, TableContainer, Spinner,
-  Alert, AlertIcon, Box, Button, HStack, useBreakpointValue, Text,
-} from '@chakra-ui/react';
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  TableContainer,
+  Alert,
+  AlertIcon,
+  Box,
+  HStack,
+  useBreakpointValue,
+  Text,
+  Stack,
+  Skeleton,
+  IconButton,
+  Tooltip,
+} from "@chakra-ui/react";
+import { FiEdit2, FiEye, FiXCircle } from "react-icons/fi";
 
 export interface Column<T> {
   key: keyof T | string; // 🔥 Más flexible
@@ -13,7 +29,7 @@ export interface Column<T> {
 
 // Helper function para convertir key a string de manera segura
 const getColumnKey = <T,>(key: keyof T | string): string => {
-  return typeof key === 'string' ? key : String(key);
+  return typeof key === "string" ? key : String(key);
 };
 
 interface DataTableProps<T> {
@@ -23,6 +39,7 @@ interface DataTableProps<T> {
   error?: string | null;
   onEdit?: (item: T) => void;
   onDelete?: (item: T) => void;
+  onView?: (item: T) => void;
   keyExtractor: (item: T) => string | number;
   emptyMessage?: string; // 🔥 Mensaje personalizado
 }
@@ -35,17 +52,18 @@ export const DataTable = memo(<T extends Record<string, any>>({
   error,
   onEdit,
   onDelete,
+  onView,
   keyExtractor,
-  emptyMessage = 'No hay datos disponibles',
+  emptyMessage = "No hay datos disponibles",
 }: DataTableProps<T>) => {
-  const isMobile = useBreakpointValue({ base: true, md: false });
+  const isMobile = useBreakpointValue({ base: true, lg: false });
 
   if (loading) {
     return (
-      <Box textAlign="center" py={10}>
-        <Spinner size="xl" thickness="4px" color="blue.500" />
-        <Text mt={4}>Cargando...</Text>
-      </Box>
+      <Stack spacing={4}>
+        <Skeleton height="48px" borderRadius="xl" />
+        <Skeleton height="240px" borderRadius="xl" />
+      </Stack>
     );
   }
 
@@ -61,8 +79,18 @@ export const DataTable = memo(<T extends Record<string, any>>({
   // 🔥 MEJORA: Manejo de datos vacíos
   if (!data || data.length === 0) {
     return (
-      <Box textAlign="center" py={10}>
-        <Text fontSize="lg" color="gray.500">{emptyMessage}</Text>
+      <Box
+        textAlign="center"
+        py={12}
+        borderWidth={1}
+        borderStyle="dashed"
+        borderRadius="2xl"
+        borderColor="neutral.200"
+        bg="white"
+      >
+        <Text fontSize="md" color="neutral.500">
+          {emptyMessage}
+        </Text>
       </Box>
     );
   }
@@ -70,72 +98,123 @@ export const DataTable = memo(<T extends Record<string, any>>({
   // Vista móvil
   if (isMobile) {
     return (
-      <Box>
-        {data.map(item => (
-          <Box 
-            key={keyExtractor(item)} 
-            p={4} 
-            mb={3} 
-            borderWidth={1} 
-            borderRadius="lg"
+      <Stack spacing={4}>
+        {data.map((item) => (
+          <Box
+            key={keyExtractor(item)}
+            p={5}
+            borderRadius="2xl"
+            borderWidth="1px"
+            borderColor="neutral.100"
+            bg="white"
             boxShadow="sm"
-            _hover={{ boxShadow: 'md' }}
+            transition="all 0.2s ease"
+            _hover={{ boxShadow: "md", transform: "translateY(-2px)" }}
           >
             {columns
-              .filter(col => !col.hideOnMobile)
-              .map(col => {
+              .filter((col) => !col.hideOnMobile)
+              .map((col) => {
                 // 🔥 No mostrar columna de acciones en cards
-                if (col.key === 'actions') return null;
-                
+                if (col.key === "actions") return null;
+
                 return (
-                  <Box key={`${keyExtractor(item)}-${getColumnKey(col.key)}`} mb={2}>
-                    <strong>{col.label}:</strong>{' '}
-                    {col.render 
-                      ? col.render(item) 
-                      : String(item[col.key as keyof T] ?? '')}
-                  </Box>
+                  <Stack
+                    key={`${keyExtractor(item)}-${getColumnKey(col.key)}`}
+                    spacing={0}
+                    mb={3}
+                  >
+                    <Text
+                      fontSize="xs"
+                      textTransform="uppercase"
+                      color="neutral.500"
+                      fontWeight="semibold"
+                    >
+                      {col.label}
+                    </Text>
+                    <Text fontSize="sm" color="neutral.800">
+                      {col.render ? col.render(item) : String(item[col.key as keyof T] ?? "")}
+                    </Text>
+                  </Stack>
                 );
               })}
-            
-            {(onEdit || onDelete) && (
-              <HStack mt={3} spacing={2}>
-                {onEdit && (
-                  <Button size="sm" colorScheme="blue" onClick={() => onEdit(item)}>
-                    Editar
-                  </Button>
+
+            {(onEdit || onDelete || onView) && (
+              <HStack mt={1} spacing={2}>
+                {onView && (
+                  <Tooltip label="Ver detalle">
+                    <IconButton
+                      aria-label="Ver detalle"
+                      icon={<FiEye />}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onView(item)}
+                    />
+                  </Tooltip>
                 )}
                 {onDelete && (
-                  <Button size="sm" colorScheme="red" onClick={() => onDelete(item)}>
-                    Eliminar
-                  </Button>
+                  <Tooltip label="Cambiar estado">
+                    <IconButton
+                      aria-label="Cambiar estado"
+                      icon={<FiXCircle />}
+                      variant="ghost"
+                      colorScheme="red"
+                      size="sm"
+                      onClick={() => onDelete(item)}
+                    />
+                  </Tooltip>
+                )}
+                {onEdit && (
+                  <Tooltip label="Editar">
+                    <IconButton
+                      aria-label="Editar"
+                      icon={<FiEdit2 />}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEdit(item)}
+                    />
+                  </Tooltip>
                 )}
               </HStack>
             )}
           </Box>
         ))}
-      </Box>
+      </Stack>
     );
   }
 
   // Vista desktop
   return (
-    <TableContainer>
+    <TableContainer
+      borderRadius="2xl"
+      bg="white"
+      boxShadow="md"
+      borderWidth="1px"
+      borderColor="neutral.100"
+      overflow="hidden"
+      overflowX="auto"
+      w="full"
+    >
       <Table variant="simple" size="sm">
-        <Thead bg="gray.50">
+        <Thead position="sticky" top={0} zIndex={1} bg="white" boxShadow="sm">
           <Tr>
             {columns.map((col, index) => (
-              <Th key={`header-${getColumnKey(col.key)}-${index}`}>{col.label}</Th>
+              <Th key={`header-${getColumnKey(col.key)}-${index}`} px={4} py={3}>
+                {col.label}
+              </Th>
             ))}
           </Tr>
         </Thead>
         <Tbody>
-          {data.map(item => (
-            <Tr key={keyExtractor(item)} _hover={{ bg: 'gray.50' }}>
+          {data.map((item) => (
+            <Tr
+              key={keyExtractor(item)}
+              _odd={{ bg: "neutral.50" }}
+              _hover={{ bg: "brand.50" }}
+              transition="background-color 0.2s ease-in-out"
+            >
               {columns.map((col, index) => (
-                <Td key={`${keyExtractor(item)}-${getColumnKey(col.key)}-${index}`}>
-                  {col.render 
-                    ? col.render(item) 
-                    : String(item[col.key as keyof T] ?? '')}
+                <Td key={`${keyExtractor(item)}-${getColumnKey(col.key)}-${index}`} px={4} py={3}>
+                  {col.render ? col.render(item) : String(item[col.key as keyof T] ?? "")}
                 </Td>
               ))}
             </Tr>
@@ -147,4 +226,4 @@ export const DataTable = memo(<T extends Record<string, any>>({
 }) as <T extends Record<string, any>>(props: DataTableProps<T>) => JSX.Element;
 
 // 🔥 Nombre para debugging
-(DataTable as React.MemoExoticComponent<typeof DataTable>).displayName = 'DataTable';
+(DataTable as React.MemoExoticComponent<typeof DataTable>).displayName = "DataTable";

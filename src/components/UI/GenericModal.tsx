@@ -1,8 +1,27 @@
 // src/components/UI/GenericModal.tsx
 import { useState, useEffect, useMemo } from "react";
 import {
-  Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
-  Button, FormControl, FormLabel, Input, Select, Textarea, useToast, // 👈 Textarea se usa
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  Button,
+  FormControl,
+  FormLabel,
+  Input,
+  Select,
+  Textarea,
+  useToast,
+  SimpleGrid,
+  Stack,
+  FormHelperText,
+  Text,
+  Flex,
+  HStack,
+  Box,
 } from "@chakra-ui/react";
 
 export interface FieldOption {
@@ -14,7 +33,7 @@ export interface Field<T = any> {
   name: keyof T;
   label: string;
   // 👇 Agrega "textarea"
-  type: "text" | "select" | "number" | "email" | "password" | "date" | "textarea";
+  type: "text" | "select" | "multiselect" | "number" | "email" | "password" | "date" | "textarea";
   value?: T[keyof T];
   // 👇 CAMBIO CLAVE: aceptar función para opciones dinámicas (retrocompatible)
   options?: FieldOption[] | ((values: Partial<T>) => FieldOption[]);
@@ -57,15 +76,17 @@ GenericModalProps<T>) => {
   const defaultValues = useMemo(() => {
     const init: Partial<T> = {};
     fields.forEach((f) => {
-      init[f.name] = (initialValues?.[f.name] ?? f.value ?? "") as T[keyof T];
+      const fallback = f.type === "multiselect" ? [] : "";
+      init[f.name] = (initialValues?.[f.name] ?? f.value ?? fallback) as T[keyof T];
     });
     return init;
-  }, [initialValues]);
+  }, [fields, initialValues]);
 
   useEffect(() => {
-    if (isOpen) setValues(defaultValues);
-    
-  }, [isOpen]);
+    if (isOpen) {
+      setValues(defaultValues);
+    }
+  }, [isOpen, defaultValues]);
 /*
   const handleChange = (name: keyof T, value: any) =>
     setValues((prev) => ({ ...prev, [name]: value}
@@ -82,7 +103,17 @@ GenericModalProps<T>) => {
 
   const isFormValid = useMemo(
     () =>
-      fields.every((f) => !f.required || (values[f.name] ?? "") !== ""),
+      fields.every((f) => {
+        if (!f.required) return true;
+        const currentValue = values[f.name];
+        if (f.type === "multiselect") {
+          if (Array.isArray(currentValue)) {
+            return currentValue.length > 0;
+          }
+          return false;
+        }
+        return (currentValue ?? "") !== "";
+      }),
     [fields, values]
   );
 
@@ -128,67 +159,122 @@ GenericModalProps<T>) => {
         <ModalHeader>{title}</ModalHeader>
         <ModalCloseButton isDisabled={isSaving} />
         <ModalBody>
-          {fields.map((field, index) => {
-            // 👇 RESOLVER opciones: función o array
-            const resolvedOptions =
-              typeof field.options === "function"
-                ? field.options(values)
-                : field.options ?? [];
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+            {fields.map((field, index) => {
+              // 👇 RESOLVER opciones: función o array
+              const resolvedOptions =
+                typeof field.options === "function"
+                  ? field.options(values)
+                  : field.options ?? [];
 
-            return (
-              <FormControl
-                mb={3}
-                key={`${String(field.name)}-${index}`}
-                isRequired={field.required}
-                isDisabled={field.disabled}
-              >
-                <FormLabel>{field.label}</FormLabel>
+              const helperText = field.placeholder;
 
-                {field.type === "select" ? (
-                  <Select
-                    value={values[field.name] ?? ""}
-                    onChange={(e) => {
-                      const rawValue = e.target.value;
-                      const selected = resolvedOptions.find((opt) => String(opt.value) === rawValue);
-                      handleChange(field.name, selected ? selected.value : rawValue);
-                    }}
-                    placeholder={field.placeholder || "Seleccionar"}
-                    isDisabled={field.disabled}
-                  >
-                    {resolvedOptions.map((opt, optIndex) => (
-                      <option key={`${field.name}-${opt.value}-${optIndex}`} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </Select>
-                ) : field.type === "textarea" ? (
-                  <Textarea
-                    value={values[field.name] ?? ""}
-                    onChange={(e) => handleChange(field.name, e.target.value)}
-                    placeholder={field.placeholder}
-                    isDisabled={field.disabled}
-                  />
-                ) : (
-                  <Input
-                    type={field.type}
-                    value={values[field.name] ?? ""}
-                    onChange={(e) => handleChange(field.name, e.target.value)}
-                    placeholder={field.placeholder}
-                    isDisabled={field.disabled}
-                  />
-                )}
-              </FormControl>
-            );
-          })}
+              return (
+                <FormControl
+                  key={`${String(field.name)}-${index}`}
+                  isRequired={field.required}
+                  isDisabled={field.disabled}
+                >
+                  <Stack spacing={2}>
+                    <FormLabel mb={0}>{field.label}</FormLabel>
+
+                    {field.type === "select" ? (
+                      <Select
+                        value={values[field.name] ?? ""}
+                        onChange={(e) => {
+                          const rawValue = e.target.value;
+                          const selected = resolvedOptions.find((opt) => String(opt.value) === rawValue);
+                          handleChange(field.name, selected ? selected.value : rawValue);
+                        }}
+                        placeholder={field.placeholder || "Seleccionar"}
+                        isDisabled={field.disabled}
+                        size="md"
+                        variant="outline"
+                      >
+                        {resolvedOptions.map((opt, optIndex) => (
+                          <option key={`${String(field.name)}-${String(opt.value)}-${optIndex}`} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : field.type === "multiselect" ? (
+                      <Select
+                        multiple
+                        value={
+                          Array.isArray(values[field.name])
+                            ? (values[field.name] as Array<string | number>).map(String)
+                            : []
+                        }
+                        onChange={(e) => {
+                          const selectedValues = Array.from(e.target.selectedOptions).map((option) => {
+                            const selected = resolvedOptions.find((opt) => String(opt.value) === option.value);
+                            return selected ? selected.value : option.value;
+                          });
+                          handleChange(field.name, selectedValues);
+                        }}
+                        placeholder={field.placeholder || "Seleccionar"}
+                        isDisabled={field.disabled}
+                        size="md"
+                        variant="outline"
+                        height="auto"
+                      >
+                        {resolvedOptions.map((opt, optIndex) => (
+                          <option key={`${String(field.name)}-${String(opt.value)}-${optIndex}`} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : field.type === "textarea" ? (
+                      <Textarea
+                        value={values[field.name] ?? ""}
+                        onChange={(e) => handleChange(field.name, e.target.value)}
+                        placeholder={field.placeholder}
+                        isDisabled={field.disabled}
+                        size="md"
+                        variant="outline"
+                        rows={4}
+                      />
+                    ) : (
+                      <Input
+                        type={field.type}
+                        value={values[field.name] ?? ""}
+                        onChange={(e) => handleChange(field.name, e.target.value)}
+                        placeholder={field.placeholder}
+                        isDisabled={field.disabled}
+                        size="md"
+                        variant="outline"
+                      />
+                    )}
+                    {helperText && (
+                      <FormHelperText color="neutral.500" mt={0}>
+                        {helperText}
+                      </FormHelperText>
+                    )}
+                  </Stack>
+                </FormControl>
+              );
+            })}
+          </SimpleGrid>
         </ModalBody>
 
         <ModalFooter>
-          <Button colorScheme="blue" mr={3} onClick={handleSave} isLoading={isSaving} isDisabled={!isFormValid}>
-            {saveButtonText}
-          </Button>
-          <Button onClick={handleClose} isDisabled={isSaving}>
-            {cancelButtonText}
-          </Button>
+          <Flex w="100%" align="center" justify="space-between" gap={4}>
+            {isSaving ? (
+              <Text fontSize="sm" color="neutral.500">
+                Guardando cambios...
+              </Text>
+            ) : (
+              <Box />
+            )}
+            <HStack spacing={3}>
+              <Button variant="ghost" onClick={handleClose} isDisabled={isSaving}>
+                {cancelButtonText}
+              </Button>
+              <Button colorScheme="brand" onClick={handleSave} isLoading={isSaving} isDisabled={!isFormValid}>
+                {saveButtonText}
+              </Button>
+            </HStack>
+          </Flex>
         </ModalFooter>
       </ModalContent>
     </Modal>

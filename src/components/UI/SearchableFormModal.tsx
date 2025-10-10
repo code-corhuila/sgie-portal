@@ -13,17 +13,25 @@ import {
   FormLabel,
   Input,
   Select,
+  Textarea,
   useToast,
-  VStack,
   HStack,
+  InputGroup,
+  InputLeftElement,
   Box,
   Text,
-  Table,
-  Tbody,
-  Tr,
-  Td,
   Badge,
+  SimpleGrid,
+  Stack,
+  FormHelperText,
+  Divider,
+  Flex,
+  Skeleton,
+  Icon,
+  SlideFade,
+  Spinner,
 } from "@chakra-ui/react";
+import { FiInfo, FiSearch } from "react-icons/fi";
 
 export interface FieldOption {
   value: string | number;
@@ -33,9 +41,9 @@ export interface FieldOption {
 export interface Field<T = any> {
   name: keyof T;
   label: string;
-  type: "text" | "select" | "number" | "email" | "password" | "date";
+  type: "text" | "select" | "multiselect" | "number" | "email" | "password" | "date" | "textarea";
   value?: T[keyof T];
-  options?: FieldOption[];
+  options?: FieldOption[] | ((values: Partial<T>) => FieldOption[]);
   required?: boolean;
   disabled?: boolean;
   placeholder?: string;
@@ -233,128 +241,236 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
         <ModalCloseButton isDisabled={isSaving} />
         
         <ModalBody>
-          <VStack spacing={4} align="stretch">
+          <Stack spacing={6}>
             {/* Sección de Búsqueda */}
             {searchConfig && (
-              <Box>
-                <HStack mb={2}>
-                  <Input
-                    placeholder={searchConfig.searchPlaceholder || "Buscar..."}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                    flex={1}
-                  />
+              <Stack
+                spacing={4}
+                p={4}
+                borderWidth="1px"
+                borderColor="neutral.100"
+                borderRadius="2xl"
+                bg="white"
+                boxShadow="sm"
+              >
+                <Flex
+                  direction={{ base: "column", md: "row" }}
+                  align={{ base: "stretch", md: "center" }}
+                  gap={4}
+                >
+                  <InputGroup maxW="100%">
+                    <InputLeftElement pointerEvents="none" color="neutral.400">
+                      <FiSearch />
+                    </InputLeftElement>
+                    <Input
+                      placeholder={searchConfig.searchPlaceholder || "Buscar..."}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                      size="md"
+                      variant="outline"
+                    />
+                  </InputGroup>
                   <Button
-                    colorScheme="blue"
                     onClick={handleSearch}
                     isLoading={isSearching}
-                    minW="100px"
+                    minW={{ base: "100%", md: "140px" }}
+                    colorScheme="brand"
                   >
                     {searchConfig.searchButtonText || "Buscar"}
                   </Button>
-                </HStack>
+                </Flex>
 
-                {/* Resultado de Búsqueda - Mini Tabla */}
-                {searchResult && (
-                  <Box 
-                    borderWidth={1} 
-                    borderRadius="md" 
-                    p={3} 
-                    bg="gray.50"
-                    mt={2}
-                  >
-                    <HStack justify="space-between" mb={2}>
-                      <Text fontWeight="bold" fontSize="sm">Registro Encontrado</Text>
-                      <Badge colorScheme="green">ID: {capturedId}</Badge>
-                    </HStack>
-                    
-                    <Table size="sm" variant="simple">
-                      <Tbody>
-                        {searchConfig.resultFields.map((field) => (
-                          <Tr key={String(field.key)}>
-                            <Td fontWeight="medium" width="40%">{field.label}</Td>
-                            <Td>
-                              {field.render 
-                                ? field.render(searchResult[field.key], searchResult)
-                                : String(searchResult[field.key] || "")}
-                            </Td>
-                          </Tr>
-                        ))}
-                      </Tbody>
-                    </Table>
-                  </Box>
+                <Divider />
+
+                {isSearching && (
+                  <Stack spacing={3}>
+                    <Skeleton height="56px" borderRadius="xl" />
+                    <Skeleton height="56px" borderRadius="xl" />
+                  </Stack>
                 )}
 
-                {searchQuery && !searchResult && !isSearching && (
-                  <Text color="gray.500" fontSize="sm" mt={2}>
+                {!isSearching && searchResult && (
+                  <SlideFade in offsetY={12}>
+                    <Stack
+                      spacing={3}
+                      borderWidth="1px"
+                      borderColor="brand.100"
+                      borderRadius="xl"
+                      bg="brand.50"
+                      p={4}
+                    >
+                      <HStack justify="space-between" align="center">
+                        <HStack spacing={3}>
+                          <Icon as={FiInfo} color="brand.700" />
+                          <Text fontWeight="semibold" color="brand.700">
+                            Registro encontrado
+                          </Text>
+                        </HStack>
+                        <Badge variant="success">ID: {capturedId}</Badge>
+                      </HStack>
+                      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+                        {searchConfig.resultFields.map((field) => (
+                          <Stack
+                            key={String(field.key)}
+                            spacing={0}
+                            borderRadius="lg"
+                            bg="whiteAlpha.700"
+                            p={2}
+                          >
+                            <Text fontSize="xs" textTransform="uppercase" color="neutral.500" fontWeight="semibold">
+                              {field.label}
+                            </Text>
+                            <Text fontSize="sm" color="neutral.800">
+                              {field.render
+                                ? field.render(searchResult[field.key], searchResult)
+                                : String(searchResult[field.key] || "")}
+                            </Text>
+                          </Stack>
+                        ))}
+                      </SimpleGrid>
+                    </Stack>
+                  </SlideFade>
+                )}
+
+                {!isSearching && searchQuery && !searchResult && (
+                  <Text color="neutral.500" fontSize="sm">
                     {searchConfig.emptyMessage || "No se encontraron resultados"}
                   </Text>
                 )}
-              </Box>
+              </Stack>
             )}
 
             {/* Sección de Formulario */}
-            <Box pt={searchConfig ? 2 : 0}>
-              {formFields.map((field) => (
-                <FormControl
-                  mb={3}
-                  key={String(field.name)}
-                  isRequired={field.required}
-                  isDisabled={field.disabled}
-                >
-                  <FormLabel fontSize="sm">{field.label}</FormLabel>
+            <Stack spacing={4}>
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                {formFields.map((field) => (
+                  <FormControl
+                    key={String(field.name)}
+                    isRequired={field.required}
+                    isDisabled={field.disabled}
+                  >
+                    <Stack spacing={2}>
+                      <FormLabel fontSize="sm" mb={0}>
+                        {field.label}
+                      </FormLabel>
 
-                  {field.type === "select" ? (
-                    <Select
-                      value={formValues[field.name] ?? ""}
-                      onChange={(e) => {
-                        const rawValue = e.target.value;
-                        const selectedOption = field.options?.find(
-                          (opt) => String(opt.value) === rawValue
-                        );
-                        handleFormChange(
-                          field.name,
-                          selectedOption ? selectedOption.value : rawValue
-                        );
-                      }}
-                      placeholder={field.placeholder || "Seleccionar"}
-                      isDisabled={field.disabled}
-                    >
-                      {field.options?.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </Select>
-                  ) : (
-                    <Input
-                      type={field.type}
-                      value={formValues[field.name] ?? ""}
-                      onChange={(e) => handleFormChange(field.name, e.target.value)}
-                      placeholder={field.placeholder}
-                      isDisabled={field.disabled}
-                    />
-                  )}
-                </FormControl>
-              ))}
-            </Box>
-          </VStack>
+                      {field.type === "select" || field.type === "multiselect" ? (
+                        (() => {
+                          const optionList = typeof field.options === "function"
+                            ? field.options(formValues)
+                            : field.options ?? [];
+                          const isMulti = field.type === "multiselect";
+                          const currentValue = formValues[field.name];
+                          return (
+                        <Select
+                          multiple={isMulti}
+                          value={
+                            isMulti
+                              ? Array.isArray(currentValue)
+                                ? currentValue.map(String)
+                                : []
+                              : (currentValue as string | number | undefined) ?? ""
+                          }
+                          onChange={(e) => {
+                            if (isMulti) {
+                              const selectedValues = Array.from(e.target.selectedOptions).map((option) => {
+                                const matched = optionList.find((opt) => String(opt.value) === option.value);
+                                return matched ? matched.value : option.value;
+                              });
+                              handleFormChange(field.name, selectedValues);
+                              return;
+                            }
+                            const rawValue = e.target.value;
+                            const selectedOption = optionList?.find(
+                              (opt) => String(opt.value) === rawValue
+                            );
+                            handleFormChange(
+                              field.name,
+                              selectedOption ? selectedOption.value : rawValue
+                            );
+                          }}
+                          placeholder={field.placeholder || "Seleccionar"}
+                          isDisabled={field.disabled}
+                          size="md"
+                          variant="outline"
+                        >
+                          {optionList?.map((opt) => (
+                            <option key={`${String(opt.value)}`} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </Select>
+                          );
+                        })()
+                      ) : field.type === "textarea" ? (
+                        <Textarea
+                          value={formValues[field.name] ?? ""}
+                          onChange={(e) => handleFormChange(field.name, e.target.value)}
+                          placeholder={field.placeholder}
+                          isDisabled={field.disabled}
+                          size="md"
+                          variant="outline"
+                          rows={4}
+                        />
+                      ) : (
+                        <Input
+                          type={field.type}
+                          value={formValues[field.name] ?? ""}
+                          onChange={(e) => handleFormChange(field.name, e.target.value)}
+                          placeholder={field.placeholder}
+                          isDisabled={field.disabled}
+                          size="md"
+                          variant="outline"
+                        />
+                      )}
+
+                      {field.placeholder && (
+                        <FormHelperText color="neutral.500" mt={0}>
+                          {field.placeholder}
+                        </FormHelperText>
+                      )}
+                    </Stack>
+                  </FormControl>
+                ))}
+              </SimpleGrid>
+
+              {searchConfig && (
+                <HStack spacing={2} color="neutral.500" fontSize="sm">
+                  <Icon as={FiInfo} />
+                  <Text>
+                    Debes seleccionar un registro válido para habilitar el guardado.
+                  </Text>
+                </HStack>
+              )}
+            </Stack>
+          </Stack>
         </ModalBody>
 
         <ModalFooter>
-          <Button
-            colorScheme="blue"
-            mr={3}
-            onClick={handleSave}
-            isLoading={isSaving}
-            isDisabled={!isFormValid}
-          >
-            {saveButtonText}
-          </Button>
-          <Button onClick={handleClose} isDisabled={isSaving}>
-            {cancelButtonText}
-          </Button>
+          <Flex w="100%" align="center" justify="space-between" gap={4}>
+            {isSaving ? (
+              <HStack spacing={2} color="neutral.500">
+                <Spinner size="sm" />
+                <Text fontSize="sm">Guardando información...</Text>
+              </HStack>
+            ) : (
+              <Box />
+            )}
+            <HStack spacing={3}>
+              <Button variant="ghost" onClick={handleClose} isDisabled={isSaving}>
+                {cancelButtonText}
+              </Button>
+              <Button
+                colorScheme="brand"
+                onClick={handleSave}
+                isLoading={isSaving}
+                isDisabled={!isFormValid}
+              >
+                {saveButtonText}
+              </Button>
+            </HStack>
+          </Flex>
         </ModalFooter>
       </ModalContent>
     </Modal>

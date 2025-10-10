@@ -121,16 +121,14 @@ export function useUbicacion() {
     setInstalaciones(res?.data ?? []);
   }, []);
 
-  const fetchCategoriaInstalacion = async () => {
-  try {
-    //const res = await api.get("/categoria_instalacion"); // endpoint real aquí
-    const res = await apiCall<ApiResponse<{ id: number; nombre: string }[]>>("/categoria-instalacion", { credentials: "include" });
-setCategoriaInstalacion(res?.data ?? []);
-    setCategoriaInstalacion(res.data); // suponiendo que `res.data` es el array
-  } catch (err) {
-    console.error("Error cargando categoria de instalación", err);
-  }
-};
+  const fetchCategoriaInstalacion = useCallback(async () => {
+    try {
+      const res = await apiCall<ApiResponse<{ id: number; nombre: string }[]>>("/categoria-instalacion", { credentials: "include" });
+      setCategoriaInstalacion(res?.data ?? []);
+    } catch (err) {
+      console.error("Error cargando categoria de instalación", err);
+    }
+  }, []);
 
   const refreshCatalogs = useCallback(async () => {
     await Promise.all([getContinentes(), getPaises(), getDepartamentos(), getMunicipios(), getCampus(), getInstalaciones()]);

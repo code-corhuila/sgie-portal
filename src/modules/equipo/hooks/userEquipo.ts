@@ -10,6 +10,8 @@ export interface Equipo {
   estadoInstalacion: boolean;
   nombreCampus: string;
   estadoCampus: boolean;
+  nombreCategoriaEquipo?: string;
+  idEquipo?: number;
 }
 
 export function useEquipos() {

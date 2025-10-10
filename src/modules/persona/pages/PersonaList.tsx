@@ -1,13 +1,29 @@
 // PersonasList.tsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
-  Box,
+  Badge,
   Button,
-  HStack,
+  ButtonGroup,
+  Flex,
   Heading,
+  HStack,
+  Icon,
+  IconButton,
   Input,
+  InputGroup,
+  InputLeftElement,
+  Select,
+  Stack,
+  Tag,
+  TagCloseButton,
+  TagLabel,
+  Text,
+  Tooltip,
+  Spacer,
   useDisclosure,
   useToast,
+  Wrap,
+  WrapItem,
 } from "@chakra-ui/react";
 import { DataTable, type Column } from "../../../components/UI/DataTable";
 import GenericModal, { type Field } from "../../../components/UI/GenericModal";
@@ -17,6 +33,18 @@ import SearchableFormModal, {
 } from "../../../components/UI/SearchableFormModal";
 import { usePersonas } from "../hooks/usePersona";
 import { apiCall } from "../../../api/base";
+import {
+  FiEdit2,
+  FiLock,
+  FiRefreshCw,
+  FiSearch,
+  FiToggleLeft,
+  FiUserPlus,
+  FiChevronsLeft,
+  FiChevronLeft,
+  FiChevronRight,
+  FiChevronsRight,
+} from "react-icons/fi";
 
 interface Rol {
   id: number;
@@ -48,8 +76,11 @@ const PersonasList: React.FC = () => {
   const [roles, setRoles] = useState<Rol[]>([]);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [numeroDoc, setNumeroDoc] = useState("");
+  const [estadoFilter, setEstadoFilter] = useState<string>("Todos");
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
 
-  const fetchRoles = async () => {
+  const fetchRoles = useCallback(async () => {
     try {
       const res = await apiCall<{ data: Rol[] }>("/rol", {
         credentials: "include",
@@ -58,7 +89,7 @@ const PersonasList: React.FC = () => {
     } catch (err) {
       console.error("Error cargando roles", err);
     }
-  };
+  }, []);
 
   const columns: Column<any>[] = useMemo(
     () => [
@@ -68,23 +99,22 @@ const PersonasList: React.FC = () => {
       { key: "tipoDocumento", label: "Tipo Doc" },
       { key: "numeroIdentificacion", label: "Documento" },
       { key: "email", label: "Correo", render: (p) => p.email ?? "—" },
-      { key: "rol", label: "Rol", render: (p) => typeof p.rol === "string" ? p.rol : p.rol?.nombre ?? "—" },
+      {
+        key: "rol",
+        label: "Rol",
+        render: (p) => (
+          <Badge variant="info" borderRadius="full">
+            {typeof p.rol === "string" ? p.rol : p.rol?.nombre ?? "—"}
+          </Badge>
+        ),
+      },
       {
         key: "estado",
         label: "Estado",
         render: (p) => (
-          <Box
-            as="span"
-            px={2}
-            py={1}
-            borderRadius="md"
-            bg={p.estado ? "green.100" : "red.100"}
-            color={p.estado ? "green.800" : "red.800"}
-            fontSize="sm"
-            fontWeight="medium"
-          >
+          <Badge variant={p.estado ? "success" : "neutral"}>
             {p.estado ? "Activo" : "Inactivo"}
-          </Box>
+          </Badge>
         ),
       },
       {
@@ -92,10 +122,13 @@ const PersonasList: React.FC = () => {
         label: "Acciones",
         render: (item) => (
           <HStack spacing={2}>
-            <Button
-              size="sm"
-              colorScheme={item.estado ? "red" : "green"}
-              variant="outline"
+            <Tooltip label={item.estado ? "Inhabilitar persona" : "Habilitar persona"}>
+              <IconButton
+                aria-label="Cambiar estado"
+                size="sm"
+                variant="ghost"
+                colorScheme={item.estado ? "red" : "green"}
+                icon={<FiToggleLeft />}
               onClick={async () => {
                 try {
                   await cambiarEstado(item.idPersona); // 👈 Llama al hook
@@ -115,37 +148,40 @@ const PersonasList: React.FC = () => {
                   });
                 }
               }}
-            >
-              {item.estado ? "Inhabilitar" : "Habilitar"}
-            </Button>
-            <Button
-              size="sm"
-              colorScheme="blue"
+            />
+            </Tooltip>
+            <Tooltip label="Editar persona">
+              <IconButton
+                aria-label="Editar persona"
+                size="sm"
+                variant="ghost"
+                icon={<FiEdit2 />}
               onClick={async () => {
                 await fetchRoles();
                 setSelectedItem(item);
                 editPersonaModal.onOpen();
               }}
-            >
-              Editar Persona
-            </Button>
+            />
+            </Tooltip>
             {item.idUsuario && (
-              <Button
-                size="sm"
-                colorScheme="purple"
+              <Tooltip label="Editar usuario">
+                <IconButton
+                  aria-label="Editar usuario"
+                  size="sm"
+                  variant="ghost"
+                  icon={<FiLock />}
                 onClick={() => {
                   setSelectedItem(item);
                   editUsuarioModal.onOpen();
                 }}
-              >
-                Editar Usuario
-              </Button>
+                />
+              </Tooltip>
             )}
           </HStack>
         ),
       },
     ],
-    [cambiarEstado, editPersonaModal, editUsuarioModal, fetchRoles]
+    [cambiarEstado, editPersonaModal, editUsuarioModal, fetchAll, fetchRoles, toast]
   );
 
   // Campos para crear persona (sin valores iniciales)
@@ -439,56 +475,260 @@ const PersonasList: React.FC = () => {
     setSelectedItem(null);
   };
 
+  const filteredData = useMemo(() => {
+    if (!data) return [];
+    if (estadoFilter === "Todos") return data;
+    const shouldBeActive = estadoFilter === "Activos";
+    return data.filter((item) => Boolean(item.estado) === shouldBeActive);
+  }, [data, estadoFilter]);
+
+  const totalElements = filteredData.length;
+  const totalPages = totalElements === 0 ? 1 : Math.ceil(totalElements / size);
+
+  useEffect(() => {
+    setPage(0);
+  }, [estadoFilter, size, data?.length]);
+
+  useEffect(() => {
+    if (page >= totalPages) {
+      setPage(Math.max(totalPages - 1, 0));
+    }
+  }, [page, totalPages]);
+
+  const paginatedData = useMemo(() => {
+    if (totalElements === 0) return [];
+    const start = page * size;
+    return filteredData.slice(start, start + size);
+  }, [filteredData, page, size, totalElements]);
+
+  const goto = useCallback((target: number) => {
+    if (totalElements === 0) {
+      setPage(0);
+      return;
+    }
+    const next = Math.min(Math.max(target, 0), totalPages - 1);
+    setPage(next);
+  }, [totalElements, totalPages]);
+
   return (
-    <Box p={4} w="100%" maxW="100%">
-      <Heading size="lg" mb={4}>
-        Gestión de Personas
-      </Heading>
+    <Stack spacing={8}>
+      <Flex
+        direction={{ base: "column", md: "row" }}
+        align={{ base: "flex-start", md: "center" }}
+        justify="space-between"
+        gap={4}
+      >
+        <Stack spacing={1}>
+          <Heading size="lg" color="neutral.900">
+            Gestión de personas y usuarios
+          </Heading>
+          <Text fontSize="sm" color="neutral.500">
+            Crea personas, asigna usuarios y controla sus permisos desde un único panel.
+          </Text>
+        </Stack>
+        <ButtonGroup size="sm" flexWrap="wrap" gap={2}>
+          <Button
+            leftIcon={<Icon as={FiRefreshCw} />}
+            variant="outline"
+            onClick={() => {
+              setPage(0);
+              fetchAll();
+            }}
+            isLoading={loading}
+          >
+            Actualizar
+          </Button>
+          <Button
+            leftIcon={<Icon as={FiUserPlus} />}
+            colorScheme="brand"
+            onClick={async () => {
+              await fetchRoles();
+              setSelectedItem(null);
+              personaModal.onOpen();
+            }}
+          >
+            Crear persona
+          </Button>
+          <Button
+            leftIcon={<Icon as={FiLock} />}
+            variant="outline"
+            onClick={usuarioModal.onOpen}
+          >
+            Crear usuario
+          </Button>
+        </ButtonGroup>
+      </Flex>
 
-      <HStack mb={4} spacing={2}>
-        <Input
-          placeholder="Número de documento"
-          value={numeroDoc}
-          onChange={(e) => setNumeroDoc(e.target.value)}
-          onKeyPress={(e) =>
-            e.key === "Enter" && fetchPersonaByDocumento(numeroDoc)
-          }
-        />
-        <Button
-          colorScheme="blue"
-          onClick={() => fetchPersonaByDocumento(numeroDoc)}
+      <Stack
+        spacing={4}
+        borderWidth="1px"
+        borderRadius="2xl"
+        borderColor="neutral.100"
+        bg="white"
+        boxShadow="md"
+        p={6}
+      >
+        <Stack
+          direction={{ base: "column", md: "row" }}
+          spacing={4}
+          align={{ base: "stretch", md: "flex-end" }}
         >
-          Buscar
-        </Button>
-      </HStack>
+          <InputGroup maxW={{ base: "100%", md: "320px" }}>
+            <InputLeftElement pointerEvents="none">
+              <Icon as={FiSearch} color="neutral.400" />
+            </InputLeftElement>
+            <Input
+              placeholder="Número de documento"
+              value={numeroDoc}
+              onChange={(e) => setNumeroDoc(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && (setPage(0), fetchPersonaByDocumento(numeroDoc))}
+            />
+          </InputGroup>
+          <ButtonGroup size="sm">
+            <Button
+              colorScheme="brand"
+              onClick={() => {
+                setPage(0);
+                fetchPersonaByDocumento(numeroDoc);
+              }}
+              leftIcon={<Icon as={FiSearch} />}
+              isLoading={loading}
+            >
+              Buscar
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setNumeroDoc("");
+                setPage(0);
+                void fetchAll();
+              }}
+            >
+              Limpiar
+            </Button>
+          </ButtonGroup>
+        </Stack>
 
-      <HStack mb={4} spacing={2} flexWrap="wrap">
-        <Button
-          colorScheme="green"
-          onClick={async () => {
-            await fetchRoles();
-            setSelectedItem(null);
-            personaModal.onOpen();
-          }}
-        >
-          Crear Persona
-        </Button>
-        <Button colorScheme="purple" onClick={usuarioModal.onOpen}>
-          Crear Usuario
-        </Button>
-        <Button variant="outline" onClick={fetchAll} isLoading={loading}>
-          Actualizar
-        </Button>
-      </HStack>
+        <Stack spacing={2} maxW={{ base: "100%", md: "240px" }}>
+          <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
+            Estado
+          </Text>
+          <Select value={estadoFilter} onChange={(e) => setEstadoFilter(e.target.value)}>
+            <option value="Todos">Todos</option>
+            <option value="Activos">Activos</option>
+            <option value="Inactivos">Inactivos</option>
+          </Select>
+        </Stack>
+
+        <Wrap spacing={3}>
+          {numeroDoc && (
+            <WrapItem>
+              <Tag borderRadius="full" variant="solid" colorScheme="brand">
+                <TagLabel>Documento: {numeroDoc}</TagLabel>
+                <TagCloseButton onClick={() => setNumeroDoc("")} />
+              </Tag>
+            </WrapItem>
+          )}
+          <WrapItem>
+            <Badge variant="neutral">
+              Mostrando {paginatedData.length} de {filteredData.length} coincidencias
+            </Badge>
+          </WrapItem>
+          {estadoFilter !== "Todos" && (
+            <WrapItem>
+              <Tag borderRadius="full" variant="solid" colorScheme={estadoFilter === "Activos" ? "brand" : "teal"}>
+                <TagLabel>Estado: {estadoFilter}</TagLabel>
+                <TagCloseButton onClick={() => setEstadoFilter("Todos")} />
+              </Tag>
+            </WrapItem>
+          )}
+        </Wrap>
+      </Stack>
 
       <DataTable
-        data={data ?? []}
+        data={paginatedData}
         columns={columns}
         loading={loading}
         error={error}
-        keyExtractor={(p) => p?.idPersona?.toString() ?? `item-${Math.random()}`}
+        keyExtractor={(p) => p?.idPersona?.toString() ?? `persona-${Math.random().toString(36).slice(2)}`}
         emptyMessage="No hay personas registradas"
       />
+
+      <Flex
+        mt={4}
+        align="center"
+        justify="space-between"
+        gap={4}
+        display={filteredData.length === 0 ? "none" : "flex"}
+      >
+        <HStack spacing={2}>
+          <Text fontSize="sm" color="gray.600">
+            Filas por página
+          </Text>
+          <Select
+            size="sm"
+            w="80px"
+            value={size}
+            onChange={(e) => {
+              const nextSize = Number(e.target.value);
+              setSize(nextSize);
+              setPage(0);
+            }}
+            isDisabled={loading}
+          >
+            {[10, 20, 50, 100].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </Select>
+        </HStack>
+
+        <Spacer />
+
+        <HStack spacing={2}>
+          <Text fontSize="sm" color="gray.600">
+            {filteredData.length === 0
+              ? "0–0"
+              : `${page * size + 1}–${Math.min((page + 1) * size, filteredData.length)}`} de {filteredData.length}
+          </Text>
+          <IconButton
+            aria-label="Primera página"
+            size="sm"
+            variant="ghost"
+            onClick={() => goto(0)}
+            isDisabled={page === 0 || loading || filteredData.length === 0}
+            icon={<FiChevronsLeft />}
+          />
+          <IconButton
+            aria-label="Anterior"
+            size="sm"
+            variant="ghost"
+            onClick={() => goto(page - 1)}
+            isDisabled={page === 0 || loading || filteredData.length === 0}
+            icon={<FiChevronLeft />}
+          />
+          <Button size="sm" variant="outline" isDisabled>
+            {filteredData.length === 0 ? 0 : page + 1} / {filteredData.length === 0 ? 0 : totalPages}
+          </Button>
+          <IconButton
+            aria-label="Siguiente"
+            size="sm"
+            variant="ghost"
+            onClick={() => goto(page + 1)}
+            isDisabled={page >= totalPages - 1 || loading || filteredData.length === 0}
+            icon={<FiChevronRight />}
+          />
+          <IconButton
+            aria-label="Última página"
+            size="sm"
+            variant="ghost"
+            onClick={() => goto(totalPages - 1)}
+            isDisabled={page >= totalPages - 1 || loading || filteredData.length === 0}
+            icon={<FiChevronsRight />}
+          />
+        </HStack>
+      </Flex>
 
       {/* Modal Crear Persona */}
       <GenericModal
@@ -551,7 +791,7 @@ const PersonasList: React.FC = () => {
         searchConfig={searchConfig}
         onSave={handleSaveUsuario}
       />
-    </Box>
+    </Stack>
   );
 };
 

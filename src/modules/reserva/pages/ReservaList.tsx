@@ -1,10 +1,16 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  ButtonGroup,
+  Flex,
   HStack,
   Heading,
+  Icon,
+  IconButton,
   Input,
+  InputGroup,
+  InputLeftElement,
   useDisclosure,
   useToast,
   Text,
@@ -15,6 +21,9 @@ import {
   FormControl,
   FormLabel,
   Select,
+  Badge,
+  Tooltip,
+  Spacer,
 } from "@chakra-ui/react";
 import { DataTable, type Column } from "../../../components/UI/DataTable";
 import GenericModal from "../../../components/UI/GenericModal";
@@ -30,6 +39,17 @@ import {
   type Paso1Values,
   type Paso2Values,
 } from "../hooks/UserReserva";
+import {
+  FiCheckCircle,
+  FiEdit2,
+  FiPlusCircle,
+  FiRefreshCw,
+  FiSearch,
+  FiChevronsLeft,
+  FiChevronLeft,
+  FiChevronRight,
+  FiChevronsRight,
+} from "react-icons/fi";
 
 // ---- Helpers de tiempo ----
 const normalize = (t: string) => (t?.length === 5 ? `${t}:00` : t); // "HH:mm" -> "HH:mm:ss"
@@ -81,6 +101,7 @@ const ReservaList: React.FC = () => {
   /** Filtro por número de identificación */
   const [filtroNI, setFiltroNI] = useState("");
   const onBuscar = useCallback(() => {
+    setPage(0);
     void fetchAll(filtroNI.trim() || undefined);
   }, [fetchAll, filtroNI]);
 
@@ -110,6 +131,8 @@ const ReservaList: React.FC = () => {
   const [selectedPersonaId, setSelectedPersonaId] = useState<number | null>(
     null
   );
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
 
   // Estados para búsqueda de persona en modal de edición
   const [editingDocQuery, setEditingDocQuery] = useState("");
@@ -610,81 +633,53 @@ const ReservaList: React.FC = () => {
   /** Acciones para Tabla */
   const columns: Column<ReservaGeneral>[] = useMemo(
     () => [
-      { key: "tipoReserva", label: "Tipo" },
-      { key: "nombreReserva", label: "Reserva" },
-      { key: "nombrePersona", label: "Persona" },
-      { key: "numeroIdentificacion", label: "N° ID" },
-      { key: "nombreInstalacion", label: "Instalación", hideOnMobile: true },
-      { key: "fechaReserva", label: "Fecha" },
-      { key: "horaInicioReserva", label: "Inicio", hideOnMobile: true },
-      { key: "horaFinReserva", label: "Fin", hideOnMobile: true },
-      { key: "nombreEquipo", label: "Equipo/Tipo", hideOnMobile: true },
-      { key: "tipoMantenimiento", label: "Tipo Mto.", hideOnMobile: true },
+      { key: "idReserva", label: "ID" },
       {
-        key: "estadoReserva",
-        label: "Estado Reserva",
-        render: (r) => {
-          const v = r.estadoReserva;
-          const isTrue = String(v) === "true";
-          return (
-            <Box
-              as="span"
-              px={2}
-              py={1}
-              borderRadius="md"
-              bg={isTrue ? "green.100" : "red.100"}
-              color={isTrue ? "green.800" : "red.800"}
-              fontSize="sm"
-            >
-              {isTrue ? "Activa" : "Cerrada"}
-            </Box>
-          );
-        },
+        key: "tipoReserva",
+        label: "Tipo",
+        render: (r) => (
+          <Badge variant="info" borderRadius="full">
+            {r.tipoReserva}
+          </Badge>
+        ),
       },
+      { key: "numeroIdentificacion", label: "Documento" },
+      { key: "nombrePersona", label: "Persona" },
+      { key: "fechaReserva", label: "Fecha" },
+      { key: "horaInicioReserva", label: "Hora inicio" },
+      { key: "horaFinReserva", label: "Hora fin" },
+      { key: "nombreReserva", label: "Nombre de la reserva" },
       {
-        key: "estadoDetalle",
-        label: "Estado Detalle/Mto",
-        render: (r) => {
-          const v = r.estadoDetalle ?? r.estadoMantenimiento;
-          if (v == null) return "—";
-          const isTrue = String(v) === "true";
-          return (
-            <Box
-              as="span"
-              px={2}
-              py={1}
-              borderRadius="md"
-              bg={isTrue ? "green.100" : "red.100"}
-              color={isTrue ? "green.800" : "red.800"}
-              fontSize="sm"
-            >
-              {isTrue ? "Abierto" : "Cerrado"}
-            </Box>
-          );
-        },
+        key: "recurso",
+        label: "Instalación / Equipo",
+        render: (r) => r.nombreInstalacion ?? r.nombreEquipo ?? "—",
       },
       {
         key: "actions",
         label: "Acciones",
         render: (r) => (
-          <HStack>
-            <Button
-              size="sm"
-              colorScheme="blue"
-              variant="outline"
+          <HStack spacing={2}>
+            <Tooltip label="Editar reserva">
+              <IconButton
+                aria-label="Editar reserva"
+                size="sm"
+                variant="ghost"
+                icon={<FiEdit2 />}
               onClick={async () => {
                 setSelectedRow(r);
                 await precargarDatosEdicion(r);
                 editarReservaModal.onOpen();
               }}
-            >
-              Editar reserva
-            </Button>
+              />
+            </Tooltip>
 
-              <Button
+            <Tooltip label="Cerrar reserva">
+              <IconButton
+                aria-label="Cerrar reserva"
                 size="sm"
-              colorScheme="red"
                 variant="ghost"
+                colorScheme="red"
+                icon={<FiCheckCircle />}
                 onClick={() => {
                   setSelectedRow(r);
                 setClosingReserva({
@@ -694,15 +689,42 @@ const ReservaList: React.FC = () => {
                 });
                 cerrarReservaModal.onOpen();
               }}
-            >
-              Cerrar reserva
-              </Button>
+              />
+            </Tooltip>
           </HStack>
         ),
       },
     ],
-    [toast]
+    [cerrarReservaModal, editarReservaModal, precargarDatosEdicion]
   );
+
+  const totalElements = data?.length ?? 0;
+  const totalPages = totalElements === 0 ? 1 : Math.ceil(totalElements / size);
+
+  useEffect(() => {
+    setPage(0);
+  }, [size, totalElements]);
+
+  useEffect(() => {
+    if (page >= totalPages) {
+      setPage(Math.max(totalPages - 1, 0));
+    }
+  }, [page, totalPages]);
+
+  const paginatedData = useMemo(() => {
+    if (totalElements === 0) return [];
+    const start = page * size;
+    return (data ?? []).slice(start, start + size);
+  }, [data, page, size, totalElements]);
+
+  const goto = useCallback((target: number) => {
+    if (totalElements === 0) {
+      setPage(0);
+      return;
+    }
+    const next = Math.min(Math.max(target, 0), totalPages - 1);
+    setPage(next);
+  }, [totalElements, totalPages]);
 
   /** Consultar disponibilidad (botón en paso 1) */
   const handleConsultarDisponibilidad = useCallback(async () => {
@@ -1055,37 +1077,178 @@ const ReservaList: React.FC = () => {
   }, [closingReserva?.tipoReserva]);
 
   return (
-    <Box p={4}>
-      <Heading size="lg" mb={4}>
-        Reservas
-      </Heading>
+    <Stack spacing={8}>
+      <Flex
+        direction={{ base: "column", md: "row" }}
+        align={{ base: "flex-start", md: "center" }}
+        justify="space-between"
+        gap={4}
+      >
+        <Stack spacing={1}>
+          <Heading size="lg" color="neutral.900">
+            Reservas y mantenimientos
+          </Heading>
+          <Text fontSize="sm" color="neutral.500">
+            Gestiona agendas, evita solapes y mantén el histórico de reservas actualizado.
+          </Text>
+        </Stack>
+        <ButtonGroup size="sm" flexWrap="wrap" gap={2}>
+          <Button
+            leftIcon={<Icon as={FiRefreshCw} />}
+            variant="outline"
+            onClick={() => {
+              setPage(0);
+              fetchAll();
+            }}
+            isLoading={loading}
+          >
+            Actualizar
+          </Button>
+          <Button
+            colorScheme="brand"
+            leftIcon={<Icon as={FiPlusCircle} />}
+            onClick={crearModal.onOpen}
+          >
+            Nueva reserva
+          </Button>
+        </ButtonGroup>
+      </Flex>
 
-      <HStack mb={4} spacing={3} flexWrap="wrap">
-        <Input
-          placeholder="Filtrar por número de identificación"
-          value={filtroNI}
-          onChange={(e) => setFiltroNI(e.target.value)}
-          maxW="320px"
-        />
-        <Button onClick={onBuscar} isLoading={loading} variant="outline">
-          Buscar
-        </Button>
-        <Button colorScheme="blue" onClick={crearModal.onOpen}>
-          Crear Reserva
-        </Button>
-        <Button variant="ghost" onClick={() => fetchAll()} isLoading={loading}>
-          Actualizar
-        </Button>
-      </HStack>
+      <Stack
+        spacing={4}
+        borderWidth="1px"
+        borderRadius="2xl"
+        borderColor="neutral.100"
+        bg="white"
+        boxShadow="md"
+        p={6}
+      >
+        <Flex
+          direction={{ base: "column", md: "row" }}
+          gap={4}
+          align={{ base: "stretch", md: "flex-end" }}
+        >
+          <InputGroup maxW={{ base: "100%", md: "320px" }}>
+            <InputLeftElement pointerEvents="none">
+              <Icon as={FiSearch} color="neutral.400" />
+            </InputLeftElement>
+            <Input
+              placeholder="Filtrar por número de identificación"
+              value={filtroNI}
+              onChange={(e) => setFiltroNI(e.target.value)}
+              maxW="320px"
+              onKeyDown={(e) => e.key === "Enter" && onBuscar()}
+            />
+          </InputGroup>
+          <ButtonGroup size="sm">
+            <Button
+              onClick={onBuscar}
+              isLoading={loading}
+              leftIcon={<Icon as={FiSearch} />}
+            >
+              Buscar
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setFiltroNI("");
+                setPage(0);
+                void fetchAll();
+              }}
+            >
+              Limpiar
+            </Button>
+          </ButtonGroup>
+        </Flex>
+        <Badge variant="neutral" w="fit-content">
+          Mostrando {paginatedData.length} de {totalElements}
+        </Badge>
+      </Stack>
 
       <DataTable<ReservaGeneral>
-        data={data}
+        data={paginatedData}
         columns={columns}
         loading={loading}
         error={error}
         keyExtractor={(r) => (r as any)._key ?? r.idReserva ?? r.nombreReserva}
         emptyMessage="No hay reservas"
       />
+
+      <Flex
+        mt={4}
+        align="center"
+        justify="space-between"
+        gap={4}
+        display={totalElements === 0 ? 'none' : 'flex'}
+      >
+        <HStack spacing={2}>
+          <Text fontSize="sm" color="gray.600">
+            Filas por página
+          </Text>
+          <Select
+            size="sm"
+            w="90px"
+            value={size}
+            onChange={(e) => {
+              const nextSize = Number(e.target.value);
+              setSize(nextSize);
+              setPage(0);
+            }}
+            isDisabled={loading}
+          >
+            {[10, 20, 50, 100].map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </Select>
+        </HStack>
+
+        <Spacer />
+
+        <HStack spacing={2}>
+          <Text fontSize="sm" color="gray.600">
+            {totalElements === 0
+              ? '0–0'
+              : `${page * size + 1}–${Math.min((page + 1) * size, totalElements)}`} de {totalElements}
+          </Text>
+          <IconButton
+            aria-label="Primera página"
+            size="sm"
+            variant="ghost"
+            onClick={() => goto(0)}
+            isDisabled={page === 0 || loading || totalElements === 0}
+            icon={<FiChevronsLeft />}
+          />
+          <IconButton
+            aria-label="Anterior"
+            size="sm"
+            variant="ghost"
+            onClick={() => goto(page - 1)}
+            isDisabled={page === 0 || loading || totalElements === 0}
+            icon={<FiChevronLeft />}
+          />
+          <Button size="sm" variant="outline" isDisabled>
+            {totalElements === 0 ? 0 : page + 1} / {totalElements === 0 ? 0 : totalPages}
+          </Button>
+          <IconButton
+            aria-label="Siguiente"
+            size="sm"
+            variant="ghost"
+            onClick={() => goto(page + 1)}
+            isDisabled={page >= totalPages - 1 || loading || totalElements === 0}
+            icon={<FiChevronRight />}
+          />
+          <IconButton
+            aria-label="Última página"
+            size="sm"
+            variant="ghost"
+            onClick={() => goto(totalPages - 1)}
+            isDisabled={page >= totalPages - 1 || loading || totalElements === 0}
+            icon={<FiChevronsRight />}
+          />
+        </HStack>
+      </Flex>
 
       {/* Modal: Crear Reserva (Multi-step) */}
       <GenericMultiStepModal
@@ -1120,6 +1283,29 @@ const ReservaList: React.FC = () => {
           if (idx === 0) setPaso1(values as Paso1Values);
           if (idx === 1) setPaso2(values as Paso2Values);
         }, [])}
+        renderStepSummary={() => (
+          <HStack spacing={2}>
+            {paso1.tipoReservaId && (
+              <Badge variant="info">
+                {
+                  tipoReservaOptions.find((t) => t.value === paso1.tipoReservaId)?.label ??
+                  "Tipo pendiente"
+                }
+              </Badge>
+            )}
+            {paso1.fechaReserva && (
+              <Badge variant="neutral">{paso1.fechaReserva}</Badge>
+            )}
+            {paso1.horaInicio && paso1.horaFin && (
+              <Badge variant="neutral">
+                {paso1.horaInicio} - {paso1.horaFin}
+              </Badge>
+            )}
+            {selectedPersonaId && (
+              <Badge variant="success">Persona seleccionada #{selectedPersonaId}</Badge>
+            )}
+          </HStack>
+        )}
         // 🔎 Header del paso 1: búsqueda por documento + persona seleccionada
         renderStepHeader={(idx) =>
           idx === 0 ? (
@@ -1401,6 +1587,31 @@ onSubmit={async () => {
           }
           if (idx === 1) setEditingReservaPaso2(values as Paso2Values);
         }, [editingReservaPaso1, limpiarDatosAlCambiarTipo, selectedRow, handleConsultarDisponibilidadEdicion])}
+        renderStepSummary={() => (
+          <HStack spacing={2}>
+            {editingReservaPaso1.tipoReservaId && (
+              <Badge variant="info">
+                {
+                  tipoReservaOptions.find((t) => t.value === editingReservaPaso1.tipoReservaId)?.label ??
+                  "Tipo pendiente"
+                }
+              </Badge>
+            )}
+            {editingReservaPaso1.fechaReserva && (
+              <Badge variant="neutral">{editingReservaPaso1.fechaReserva}</Badge>
+            )}
+            {editingReservaPaso1.horaInicio && editingReservaPaso1.horaFin && (
+              <Badge variant="neutral">
+                {editingReservaPaso1.horaInicio} - {editingReservaPaso1.horaFin}
+              </Badge>
+            )}
+            {(editingSelectedPersonaId ?? selectedRow?.idPersona) && (
+              <Badge variant="success">
+                Persona #{editingSelectedPersonaId ?? selectedRow?.idPersona}
+              </Badge>
+            )}
+          </HStack>
+        )}
         // 🔎 Header del paso 1: búsqueda por documento + persona seleccionada
         renderStepHeader={(idx) =>
           idx === 0 ? (
@@ -1548,7 +1759,7 @@ onSubmit={async () => {
         }
         onSubmit={handleEditarReserva}
       />
-    </Box>
+    </Stack>
   );
 };
 

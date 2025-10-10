@@ -5,10 +5,11 @@ import './index.css'
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './modules/auth/context/AuthContext.tsx';
 import AppRouter from './router/AppRouter.tsx';
+import theme from './theme';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ChakraProvider>
+    <ChakraProvider theme={theme}>
       <AuthProvider>
         <BrowserRouter>
           <AppRouter />
