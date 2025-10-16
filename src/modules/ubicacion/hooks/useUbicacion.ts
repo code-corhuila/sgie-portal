@@ -46,7 +46,7 @@ export interface Instalacion {
 }
 
 export interface InstalacionCampusRow {
-  unique: string | number;
+  unique?: string | number;
   idCategoriaInstalacion: string | number | undefined;
   nombreCategoriaInstalacion: string;
   idContinente: number;
@@ -132,7 +132,22 @@ export function useUbicacion() {
           `/instalacion/instalacion-campus?nombreInstalacion=${encodeURIComponent(nombreInstalacion)}&nombreCampus=${encodeURIComponent(nombreCampus)}`,
           { signal: abortRef.current.signal, credentials: "include" },
         );
-        setRows(res ?? []);
+        const normalized = (res ?? []).map((item, index) => {
+          const parts = [
+            item.idInstalacion != null ? `inst-${item.idInstalacion}` : null,
+            item.idCampus != null ? `campus-${item.idCampus}` : null,
+            item.idMunicipio != null ? `mun-${item.idMunicipio}` : null,
+            item.idDepartamento != null ? `dept-${item.idDepartamento}` : null,
+          ].filter(Boolean);
+          const fallbackId =
+            parts.join("-") ||
+            `row-${item.nombreInstalacion ?? item.nombreCampus ?? index}`;
+          return {
+            ...item,
+            unique: `${item.unique ?? fallbackId}-idx-${index}`,
+          };
+        });
+        setRows(normalized);
       } catch (err: any) {
         if (err.name !== "AbortError") {
           const msg = err?.message ?? "Error cargando instalaciones";

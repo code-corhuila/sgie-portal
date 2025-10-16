@@ -36,5 +36,4 @@ export interface CreatePermisoRolEntidadPayload {
   entidad: { id: number };
 }
 
-export interface UpdatePermisoRolEntidadPayload
-  extends CreatePermisoRolEntidadPayload {}
+export type UpdatePermisoRolEntidadPayload = CreatePermisoRolEntidadPayload;

@@ -10,6 +10,6 @@ export interface LoginPayload {
   password: string;
 }
 
-export interface LoginResponse extends AuthUser {}
+export type LoginResponse = AuthUser;
 
-export interface SessionResponse extends AuthUser {}
+export type SessionResponse = AuthUser;

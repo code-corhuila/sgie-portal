@@ -7,7 +7,7 @@ import UbicacionList from "../modules/ubicacion/pages/UbicacionList";
 import EquipoList from "../modules/equipo/pages/EquipoList";
 import ReservaList from "../modules/reserva/pages/ReservaList";
 import ReportesList from "../modules/reportes/pages/ReportesList";
-import { useAuth } from "../modules/auth/context/AuthContext";
+import { useAuth } from "../modules/auth/context/useAuth";
 import { Spinner, Center } from "@chakra-ui/react";
 
 function AppRouter() {

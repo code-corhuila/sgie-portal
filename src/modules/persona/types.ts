@@ -32,7 +32,7 @@ export interface CreatePersonaPayload {
   rol: { id: number };
 }
 
-export interface UpdatePersonaPayload extends CreatePersonaPayload {}
+export type UpdatePersonaPayload = CreatePersonaPayload;
 
 export interface CreateUsuarioPayload {
   email: string;

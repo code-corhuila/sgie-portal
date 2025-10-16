@@ -1,27 +1,9 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-} from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
 import { AuthApi } from "../../../api/auth";
 import { setupInterceptor } from "../../../utils/interceptor";
 import type { ApiError } from "../../../api/base";
-
-type AuthContextType = {
-  role: string | null;
-  permissions: string[];
-  email: string | null;
-  userId: number | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => Promise<void>;
-  checkingAuth: boolean;
-  isAuthenticated: boolean;
-};
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext } from "./context";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<string | null>(null);
@@ -104,12 +86,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth debe usarse dentro de AuthProvider");
-  }
-  return context;
 }

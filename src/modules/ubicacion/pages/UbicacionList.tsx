@@ -1,11 +1,5 @@
 // src/modules/site/pages/UbicacionList.tsx
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Flex,
   Button,
@@ -394,7 +388,6 @@ const UbicacionList: React.FC = () => {
       setPage(Math.max(totalPages - 1, 0));
     }
   }, [page, totalPages]);
-
   const paginatedRows = useMemo(() => {
     if (totalRows === 0) return [];
     const start = page * size;
@@ -1006,7 +999,7 @@ const UbicacionList: React.FC = () => {
 
         <Wrap spacing={3}>
           {filtroInstalacion && (
-            <WrapItem>
+            <WrapItem key="badge-inst">
               <Tag borderRadius="full" variant="solid" colorScheme="brand">
                 <TagLabel>Instalación: {filtroInstalacion}</TagLabel>
                 <TagCloseButton onClick={() => setFiltroInstalacion("")} />
@@ -1014,7 +1007,7 @@ const UbicacionList: React.FC = () => {
             </WrapItem>
           )}
           {filtroCampus && (
-            <WrapItem>
+            <WrapItem key="badge-campus-text">
               <Tag borderRadius="full" variant="solid" colorScheme="teal">
                 <TagLabel>Campus: {filtroCampus}</TagLabel>
                 <TagCloseButton onClick={() => setFiltroCampus("")} />
@@ -1022,7 +1015,7 @@ const UbicacionList: React.FC = () => {
             </WrapItem>
           )}
           {filtroContinente !== "Todos" && (
-            <WrapItem>
+            <WrapItem key="badge-continente">
               <Tag borderRadius="full" variant="solid" colorScheme="teal">
                 <TagLabel>
                   Continente:{" "}
@@ -1035,7 +1028,7 @@ const UbicacionList: React.FC = () => {
             </WrapItem>
           )}
           {filtroPais !== "Todos" && (
-            <WrapItem>
+            <WrapItem key="badge-pais">
               <Tag borderRadius="full" variant="solid" colorScheme="teal">
                 <TagLabel>
                   País:{" "}
@@ -1047,7 +1040,7 @@ const UbicacionList: React.FC = () => {
             </WrapItem>
           )}
           {filtroDepartamento !== "Todos" && (
-            <WrapItem>
+            <WrapItem key="badge-departamento">
               <Tag borderRadius="full" variant="solid" colorScheme="teal">
                 <TagLabel>
                   Departamento:{" "}
@@ -1062,7 +1055,7 @@ const UbicacionList: React.FC = () => {
             </WrapItem>
           )}
           {filtroMunicipio !== "Todos" && (
-            <WrapItem>
+            <WrapItem key="badge-municipio">
               <Tag borderRadius="full" variant="solid" colorScheme="teal">
                 <TagLabel>
                   Municipio:{" "}
@@ -1074,7 +1067,7 @@ const UbicacionList: React.FC = () => {
             </WrapItem>
           )}
           {filtroCampusSelect !== "Todos" && (
-            <WrapItem>
+            <WrapItem key="badge-campus-select">
               <Tag borderRadius="full" variant="solid" colorScheme="teal">
                 <TagLabel>
                   Campus:{" "}
@@ -1088,7 +1081,7 @@ const UbicacionList: React.FC = () => {
             </WrapItem>
           )}
           {filtroCategoria !== "Todos" && (
-            <WrapItem>
+            <WrapItem key="badge-categoria">
               <Tag borderRadius="full" variant="solid" colorScheme="teal">
                 <TagLabel>
                   Categoría:{" "}
@@ -1099,7 +1092,7 @@ const UbicacionList: React.FC = () => {
               </Tag>
             </WrapItem>
           )}
-          <WrapItem>
+          <WrapItem key="badge-resumen">
             <Badge variant="neutral">
               Mostrando {paginatedRows.length} de {filteredRows.length}{" "}
               coincidencias — Total: {rows.length}
@@ -1113,9 +1106,17 @@ const UbicacionList: React.FC = () => {
         columns={columns}
         loading={loading}
         error={error}
-        keyExtractor={(item: InstalacionCampusRow) =>
-          `ubicacion-${item.idInstalacion ?? item.idCampus ?? item.nombreInstalacion}`
-        }
+        keyExtractor={(item: InstalacionCampusRow) => {
+          const fallback = [
+            item.idInstalacion != null ? `inst-${item.idInstalacion}` : null,
+            item.idCampus != null ? `campus-${item.idCampus}` : null,
+            item.idMunicipio != null ? `mun-${item.idMunicipio}` : null,
+            item.nombreInstalacion ? `nombre-${item.nombreInstalacion}` : null,
+          ]
+            .filter(Boolean)
+            .join("-");
+          return `ubicacion-${item.unique ?? fallback}`;
+        }}
         emptyMessage="No hay registros de instalaciones/campus"
       />
 
@@ -1203,7 +1204,7 @@ const UbicacionList: React.FC = () => {
 
       {/* Modal: Crear Campus */}
       <GenericModal
-        key={createCampusKey}
+        key={`create-campus-${createCampusKey}`}
         isOpen={crearCampusModal.isOpen}
         onClose={crearCampusModal.onClose}
         title="Crear Campus"
@@ -1281,7 +1282,7 @@ const UbicacionList: React.FC = () => {
 
       {/* Modal: Editar Campus */}
       <GenericModal
-        key={editCampusKey}
+        key={`edit-campus-${editCampusKey}`}
         isOpen={editarCampusModal.isOpen}
         onClose={() => {
           editarCampusModal.onClose();
@@ -1358,7 +1359,7 @@ const UbicacionList: React.FC = () => {
 
       {/* Modal: Crear Instalación */}
       <GenericModal
-        key={createInstKey}
+        key={`create-instalacion-${createInstKey}`}
         isOpen={crearInstalacionModal.isOpen}
         onClose={crearInstalacionModal.onClose}
         title="Crear Instalación"
@@ -1467,7 +1468,7 @@ const UbicacionList: React.FC = () => {
 
       {/* Modal: Editar Instalación */}
       <GenericModal
-        key={editInstalacionKey}
+        key={`edit-instalacion-${editInstalacionKey}`}
         isOpen={editarInstalacionModal.isOpen}
         onClose={() => {
           editarInstalacionModal.onClose();

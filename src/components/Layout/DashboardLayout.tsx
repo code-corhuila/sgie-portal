@@ -34,7 +34,7 @@ import {
 } from "react-icons/fi";
 import { ChevronLeftIcon, ChevronRightIcon } from "@chakra-ui/icons";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { useAuth } from "../../modules/auth/context/AuthContext";
+import { useAuth } from "../../modules/auth/context/useAuth";
 
 type NavItem = {
   path: string;

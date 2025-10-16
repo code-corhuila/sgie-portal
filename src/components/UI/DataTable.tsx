@@ -100,87 +100,88 @@ export const DataTable = memo(
     if (isMobile) {
       return (
         <Stack spacing={4}>
-          {data.map((item) => (
-            <Box
-              key={keyExtractor(item)}
-              p={5}
-              borderRadius="2xl"
-              borderWidth="1px"
-              borderColor="neutral.100"
-              bg="white"
-              boxShadow="sm"
-              transition="all 0.2s ease"
-              _hover={{ boxShadow: "md", transform: "translateY(-2px)" }}
-            >
-              {columns
-                .filter((col) => !col.hideOnMobile)
-                .map((col) => {
-                  // 🔥 No mostrar columna de acciones en cards
-                  if (col.key === "actions") return null;
+          {data.map((item, itemIndex) => {
+            const baseKey = keyExtractor(item);
+            const safeKey = `${String(baseKey)}-${itemIndex}`;
 
-                  return (
-                    <Stack
-                      key={`${keyExtractor(item)}-${getColumnKey(col.key)}`}
-                      spacing={0}
-                      mb={3}
-                    >
-                      <Text
-                        fontSize="xs"
-                        textTransform="uppercase"
-                        color="neutral.500"
-                        fontWeight="semibold"
-                      >
-                        {col.label}
-                      </Text>
-                      <Text fontSize="sm" color="neutral.800">
-                        {col.render
-                          ? col.render(item)
-                          : String(item[col.key as keyof T] ?? "")}
-                      </Text>
-                    </Stack>
-                  );
-                })}
+            return (
+              <Box
+                key={safeKey}
+                p={5}
+                borderRadius="2xl"
+                borderWidth="1px"
+                borderColor="neutral.100"
+                bg="white"
+                boxShadow="sm"
+                transition="all 0.2s ease"
+                _hover={{ boxShadow: "md", transform: "translateY(-2px)" }}
+              >
+                {columns
+                  .filter((col) => !col.hideOnMobile)
+                  .map((col) => {
+                    const columnKey = `${safeKey}-${getColumnKey(col.key)}`;
+                    if (col.key === "actions") return null;
 
-              {(onEdit || onDelete || onView) && (
-                <HStack mt={1} spacing={2}>
-                  {onView && (
-                    <Tooltip label="Ver detalle">
-                      <IconButton
-                        aria-label="Ver detalle"
-                        icon={<FiEye />}
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onView(item)}
-                      />
-                    </Tooltip>
-                  )}
-                  {onDelete && (
-                    <Tooltip label="Cambiar estado">
-                      <IconButton
-                        aria-label="Cambiar estado"
-                        icon={<FiXCircle />}
-                        variant="ghost"
-                        colorScheme="red"
-                        size="sm"
-                        onClick={() => onDelete(item)}
-                      />
-                    </Tooltip>
-                  )}
-                  {onEdit && (
-                    <Tooltip label="Editar">
-                      <IconButton
-                        aria-label="Editar"
-                        icon={<FiEdit2 />}
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEdit(item)}
-                      />
-                    </Tooltip>
-                  )}
-                </HStack>
-              )}
-            </Box>
-          ))}
+                    return (
+                      <Stack key={columnKey} spacing={0} mb={3}>
+                        <Text
+                          fontSize="xs"
+                          textTransform="uppercase"
+                          color="neutral.500"
+                          fontWeight="semibold"
+                        >
+                          {col.label}
+                        </Text>
+                        <Text fontSize="sm" color="neutral.800">
+                          {col.render
+                            ? col.render(item)
+                            : String(item[col.key as keyof T] ?? "")}
+                        </Text>
+                      </Stack>
+                    );
+                  })}
+
+                {(onEdit || onDelete || onView) && (
+                  <HStack mt={1} spacing={2}>
+                    {onView && (
+                      <Tooltip label="Ver detalle">
+                        <IconButton
+                          aria-label="Ver detalle"
+                          icon={<FiEye />}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onView(item)}
+                        />
+                      </Tooltip>
+                    )}
+                    {onDelete && (
+                      <Tooltip label="Cambiar estado">
+                        <IconButton
+                          aria-label="Cambiar estado"
+                          icon={<FiXCircle />}
+                          variant="ghost"
+                          colorScheme="red"
+                          size="sm"
+                          onClick={() => onDelete(item)}
+                        />
+                      </Tooltip>
+                    )}
+                    {onEdit && (
+                      <Tooltip label="Editar">
+                        <IconButton
+                          aria-label="Editar"
+                          icon={<FiEdit2 />}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEdit(item)}
+                        />
+                      </Tooltip>
+                    )}
+                  </HStack>
+                )}
+              </Box>
+            );
+          })}
         </Stack>
       );
     }
@@ -212,26 +213,30 @@ export const DataTable = memo(
             </Tr>
           </Thead>
           <Tbody>
-            {data.map((item) => (
-              <Tr
-                key={keyExtractor(item)}
-                _odd={{ bg: "neutral.50" }}
-                _hover={{ bg: "brand.50" }}
-                transition="background-color 0.2s ease-in-out"
-              >
-                {columns.map((col, index) => (
-                  <Td
-                    key={`${keyExtractor(item)}-${getColumnKey(col.key)}-${index}`}
-                    px={4}
-                    py={3}
-                  >
-                    {col.render
-                      ? col.render(item)
-                      : String(item[col.key as keyof T] ?? "")}
-                  </Td>
-                ))}
-              </Tr>
-            ))}
+            {data.map((item, itemIndex) => {
+              const baseKey = keyExtractor(item);
+              const safeKey = `${String(baseKey)}-${itemIndex}`;
+              return (
+                <Tr
+                  key={safeKey}
+                  _odd={{ bg: "neutral.50" }}
+                  _hover={{ bg: "brand.50" }}
+                  transition="background-color 0.2s ease-in-out"
+                >
+                  {columns.map((col, index) => (
+                    <Td
+                      key={`${safeKey}-${getColumnKey(col.key)}-${index}`}
+                      px={4}
+                      py={3}
+                    >
+                      {col.render
+                        ? col.render(item)
+                        : String(item[col.key as keyof T] ?? "")}
+                    </Td>
+                  ))}
+                </Tr>
+              );
+            })}
           </Tbody>
         </Table>
       </TableContainer>

@@ -98,8 +98,14 @@ const EquipoList: React.FC = () => {
     staleTime: 300_000,
   });
 
-  const equiposBase = equiposQuery.data ?? [];
-  const equiposBusqueda = searchQuery.data ?? [];
+  const equiposBase = useMemo(
+    () => equiposQuery.data ?? [],
+    [equiposQuery.data],
+  );
+  const equiposBusqueda = useMemo(
+    () => searchQuery.data ?? [],
+    [searchQuery.data],
+  );
   const equipos = codigoBusqueda ? equiposBusqueda : equiposBase;
 
   const tiposDisponibles = useMemo(

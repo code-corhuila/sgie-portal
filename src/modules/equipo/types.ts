@@ -34,7 +34,7 @@ export interface CreateEquipoPayload {
   instalacion: { id: number };
 }
 
-export interface UpdateEquipoPayload extends CreateEquipoPayload {}
+export type UpdateEquipoPayload = CreateEquipoPayload;
 
 export interface CreateCategoriaEquipoPayload {
   nombre: string;

@@ -140,6 +140,43 @@ const getIdFromValue = (
   return null;
 };
 
+const getEntityIdentifier = (
+  value: Rol | Permiso | Entidad | string | undefined,
+  fallback?: string,
+): string | undefined => {
+  if (!value) return fallback;
+  if (typeof value === "string") {
+    return value;
+  }
+  if ("id" in value && value.id != null) {
+    return String(value.id);
+  }
+  return fallback;
+};
+
+const buildPermisoRowKey = (item: PermisoRolEntidad): string => {
+  const rolKey =
+    getEntityIdentifier(item.rol as Rol | string | undefined, item.idRol) ??
+    item.nombres ??
+    "rol";
+  const permisoKey = getEntityIdentifier(
+    item.permiso as Permiso | string | undefined,
+    item.idPermiso,
+  );
+  const entidadKey = getEntityIdentifier(
+    item.entidad as Entidad | string | undefined,
+    item.idEntidad,
+  );
+  const baseKey =
+    item.unique ??
+    (item.id != null ? String(item.id) : undefined) ??
+    `${rolKey}-${permisoKey ?? "permiso"}-${entidadKey ?? "entidad"}`;
+
+  return `permiso-${baseKey}-${rolKey}-${permisoKey ?? "permiso"}-${
+    entidadKey ?? "entidad"
+  }`;
+};
+
 const PermisosList: React.FC = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -190,7 +227,10 @@ const PermisosList: React.FC = () => {
     staleTime: 300_000,
   });
 
-  const data = permisosQuery.data ?? [];
+  const data = useMemo(
+    () => permisosQuery.data ?? [],
+    [permisosQuery.data],
+  );
 
   useEffect(() => {
     if (
@@ -742,7 +782,7 @@ const PermisosList: React.FC = () => {
           error={
             permisosQuery.error ? (permisosQuery.error as Error).message : null
           }
-          keyExtractor={(item) => item.id}
+          keyExtractor={buildPermisoRowKey}
           emptyMessage="No hay asignaciones registradas"
         />
 
