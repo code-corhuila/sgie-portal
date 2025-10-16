@@ -6,6 +6,7 @@ import PersonaList from "../modules/persona/pages/PersonaList";
 import UbicacionList from "../modules/ubicacion/pages/UbicacionList";
 import EquipoList from "../modules/equipo/pages/EquipoList";
 import ReservaList from "../modules/reserva/pages/ReservaList";
+import ReportesList from "../modules/reportes/pages/ReportesList";
 import { useAuth } from "../modules/auth/context/AuthContext";
 import { Spinner, Center } from "@chakra-ui/react";
 
@@ -37,6 +38,7 @@ function AppRouter() {
           <Route path="ubicacion" element={<UbicacionList />} />
           <Route path="equipo" element={<EquipoList />} />
           <Route path="reserva" element={<ReservaList />} />
+          <Route path="reportes" element={<ReportesList />} />
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Route>
       ) : (

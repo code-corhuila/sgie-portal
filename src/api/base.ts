@@ -1,6 +1,12 @@
-const BASE_URL = (
+export const API_BASE_URL = (
   import.meta.env.VITE_API_URL ?? "http://localhost:8080/v1/api"
 ).replace(/\/$/, "");
+
+const withLeadingSlash = (endpoint: string): string =>
+  endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+
+export const buildApiUrl = (endpoint: string): string =>
+  `${API_BASE_URL}${withLeadingSlash(endpoint)}`;
 
 export interface ApiEnvelope<T> {
   status: boolean;
@@ -91,7 +97,7 @@ export async function apiCall<T = unknown>(
     headers,
   };
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, config);
+  const response = await fetch(buildApiUrl(endpoint), config);
 
   if (!response.ok) {
     let errorData: unknown = null;

@@ -24,6 +24,7 @@ import {
 import {
   FiCalendar,
   FiCpu,
+  FiFileText,
   FiHelpCircle,
   FiLogOut,
   FiMapPin,
@@ -74,6 +75,12 @@ const navItems: NavItem[] = [
     roles: ["ADMINISTRADOR", "ADMINISTRATIVO"],
     icon: FiCalendar,
   },
+  {
+    path: "/reportes",
+    label: "Reportes",
+    roles: ["ADMINISTRADOR", "ADMINISTRATIVO"],
+    icon: FiFileText,
+  },
 ];
 
 const DashboardLayout = () => {
@@ -93,12 +100,20 @@ const DashboardLayout = () => {
       icon: FiLogOut,
       onClick: logout,
     };
-    const insertIndex = Math.max(
-      base.findIndex((item) => item.path === "/reserva") + 1,
-      0,
-    );
+    const reportesIndex = base.findIndex((item) => item.path === "/reportes");
+    const reservaIndex = base.findIndex((item) => item.path === "/reserva");
+    const insertIndex =
+      reportesIndex !== -1
+        ? reportesIndex + 1
+        : reservaIndex !== -1
+          ? reservaIndex + 1
+          : base.length;
     const menuWithLogout = [...base];
-    menuWithLogout.splice(insertIndex, 0, logoutItem);
+    menuWithLogout.splice(
+      insertIndex >= 0 ? insertIndex : menuWithLogout.length,
+      0,
+      logoutItem,
+    );
     return menuWithLogout;
   }, [logout, role]);
 
