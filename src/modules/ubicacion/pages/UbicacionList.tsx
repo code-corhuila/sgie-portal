@@ -1,5 +1,11 @@
 // src/modules/site/pages/UbicacionList.tsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Flex,
   Button,
@@ -130,18 +136,27 @@ const UbicacionList: React.FC = () => {
   const [size, setSize] = useState(10);
 
   // Fila seleccionada para edición
-  const [selectedRow, setSelectedRow] = useState<InstalacionCampusRow | null>(null);
+  const [selectedRow, setSelectedRow] = useState<InstalacionCampusRow | null>(
+    null,
+  );
 
   // ----- Crear: initialValues y key para remount controlado -----
-  const [createCampusInitial, setCreateCampusInitial] = useState<CampusFormValues | undefined>(undefined);
+  const [createCampusInitial, setCreateCampusInitial] = useState<
+    CampusFormValues | undefined
+  >(undefined);
   const [createCampusKey, setCreateCampusKey] = useState(0);
 
-  const [createInstInitial, setCreateInstInitial] = useState<InstalacionFormValues | undefined>(undefined);
+  const [createInstInitial, setCreateInstInitial] = useState<
+    InstalacionFormValues | undefined
+  >(undefined);
   const [createInstKey, setCreateInstKey] = useState(0);
 
   // ----- Editar: initialValues y key para remount controlado -----
-  const [editCampusInitialValues, setEditCampusInitialValues] = useState<CampusFormValues | undefined>(undefined);
-  const [editInstalacionInitialValues, setEditInstalacionInitialValues] = useState<InstalacionFormValues | undefined>(undefined);
+  const [editCampusInitialValues, setEditCampusInitialValues] = useState<
+    CampusFormValues | undefined
+  >(undefined);
+  const [editInstalacionInitialValues, setEditInstalacionInitialValues] =
+    useState<InstalacionFormValues | undefined>(undefined);
   const [editCampusKey, setEditCampusKey] = useState(0);
   const [editInstalacionKey, setEditInstalacionKey] = useState(0);
 
@@ -152,86 +167,164 @@ const UbicacionList: React.FC = () => {
   const prevEditInst = useRef<InstalacionFormValues>({});
 
   // ===== Campos base (1er nivel: continentes) =====
-  const campusFields = useMemo<Field<any>[]>(() => [
-    {
-      name: "continenteId",
-      label: "Continente",
-      type: "select",
-      options: continentes.filter(c => c.id > 0).map(c => ({ value: c.id, label: c.nombre })),
-      required: true,
-      placeholder: "Selecciona un continente",
-    },
-    { name: "paisId", label: "País", type: "select", options: [], required: true },
-    { name: "departamentoId", label: "Departamento", type: "select", options: [], required: true },
-    { name: "municipioId", label: "Municipio", type: "select", options: [], required: true },
-    //{ name: "categoriaInstalacionId", label: "Categoria Instalacion", type: "select", options: [], required: true },
-    { name: "nombre", label: "Nombre", type: "text", required: true },
-    { name: "descripcion", label: "Descripción", type: "textarea", required: false },
-  ], [continentes]);
-
-  const instalacionFields = useMemo<Field<any>[]>(() => [
-    {
-      name: "continenteId",
-      label: "Continente",
-      type: "select",
-      options: continentes.filter(c => c.id > 0).map(c => ({ value: c.id, label: c.nombre })),
-      required: true,
-      placeholder: "Selecciona un continente",
-    },
-    { name: "paisId", label: "País", type: "select", options: [], required: true },
-    { name: "departamentoId", label: "Departamento", type: "select", options: [], required: true },
-    { name: "municipioId", label: "Municipio", type: "select", options: [], required: true },
-    { name: "campusId", label: "Campus", type: "select", options: [], required: true },
+  const campusFields = useMemo<Field<any>[]>(
+    () => [
       {
-    name: "categoriaInstalacionId",
-    label: "Categoría de Instalación",
-    type: "select",
-    options: categoriaInstalacion.map(ci => ({ value: ci.id, label: ci.nombre })),
-    required: true,
-    placeholder: "Selecciona una categoría"
+        name: "continenteId",
+        label: "Continente",
+        type: "select",
+        options: continentes
+          .filter((c) => c.id > 0)
+          .map((c) => ({ value: c.id, label: c.nombre })),
+        required: true,
+        placeholder: "Selecciona un continente",
       },
-    { name: "nombre", label: "Nombre", type: "text", required: true },
-    { name: "descripcion", label: "Descripción", type: "textarea", required: false },
-  ], [continentes,categoriaInstalacion]);
+      {
+        name: "paisId",
+        label: "País",
+        type: "select",
+        options: [],
+        required: true,
+      },
+      {
+        name: "departamentoId",
+        label: "Departamento",
+        type: "select",
+        options: [],
+        required: true,
+      },
+      {
+        name: "municipioId",
+        label: "Municipio",
+        type: "select",
+        options: [],
+        required: true,
+      },
+      //{ name: "categoriaInstalacionId", label: "Categoria Instalacion", type: "select", options: [], required: true },
+      { name: "nombre", label: "Nombre", type: "text", required: true },
+      {
+        name: "descripcion",
+        label: "Descripción",
+        type: "textarea",
+        required: false,
+      },
+    ],
+    [continentes],
+  );
+
+  const instalacionFields = useMemo<Field<any>[]>(
+    () => [
+      {
+        name: "continenteId",
+        label: "Continente",
+        type: "select",
+        options: continentes
+          .filter((c) => c.id > 0)
+          .map((c) => ({ value: c.id, label: c.nombre })),
+        required: true,
+        placeholder: "Selecciona un continente",
+      },
+      {
+        name: "paisId",
+        label: "País",
+        type: "select",
+        options: [],
+        required: true,
+      },
+      {
+        name: "departamentoId",
+        label: "Departamento",
+        type: "select",
+        options: [],
+        required: true,
+      },
+      {
+        name: "municipioId",
+        label: "Municipio",
+        type: "select",
+        options: [],
+        required: true,
+      },
+      {
+        name: "campusId",
+        label: "Campus",
+        type: "select",
+        options: [],
+        required: true,
+      },
+      {
+        name: "categoriaInstalacionId",
+        label: "Categoría de Instalación",
+        type: "select",
+        options: categoriaInstalacion.map((ci) => ({
+          value: ci.id,
+          label: ci.nombre,
+        })),
+        required: true,
+        placeholder: "Selecciona una categoría",
+      },
+      { name: "nombre", label: "Nombre", type: "text", required: true },
+      {
+        name: "descripcion",
+        label: "Descripción",
+        type: "textarea",
+        required: false,
+      },
+    ],
+    [continentes, categoriaInstalacion],
+  );
 
   useEffect(() => {
     refreshCatalogs().catch(() => undefined);
     fetchCategoriaInstalacion().catch(() => undefined);
   }, [fetchCategoriaInstalacion, refreshCatalogs]);
 
-  const matchesFilter = (filterValue: string, target: string | number | undefined) => {
+  const matchesFilter = (
+    filterValue: string,
+    target: string | number | undefined,
+  ) => {
     if (filterValue === "Todos") return true;
     if (target === undefined || target === null) return false;
     return String(target) === filterValue;
   };
 
   const continenteOptions = useMemo(() => {
-    return Array.from(new Map(rows.map((row) => [row.idContinente, row.nombreContinente])).entries()).map(
-      ([value, label]) => ({ value: String(value), label })
-    );
+    return Array.from(
+      new Map(
+        rows.map((row) => [row.idContinente, row.nombreContinente]),
+      ).entries(),
+    ).map(([value, label]) => ({ value: String(value), label }));
   }, [rows]);
 
   const paisOptions = useMemo(() => {
-    return Array.from(new Map(rows.map((row) => [row.idPais, row.nombrePais])).entries()).map(([value, label]) => ({
+    return Array.from(
+      new Map(rows.map((row) => [row.idPais, row.nombrePais])).entries(),
+    ).map(([value, label]) => ({
       value: String(value),
       label,
     }));
   }, [rows]);
 
   const departamentoOptions = useMemo(() => {
-    return Array.from(new Map(rows.map((row) => [row.idDepartamento, row.nombreDepartamento])).entries()).map(
-      ([value, label]) => ({ value: String(value), label })
-    );
+    return Array.from(
+      new Map(
+        rows.map((row) => [row.idDepartamento, row.nombreDepartamento]),
+      ).entries(),
+    ).map(([value, label]) => ({ value: String(value), label }));
   }, [rows]);
 
   const municipioOptions = useMemo(() => {
-    return Array.from(new Map(rows.map((row) => [row.idMunicipio, row.nombreMunicipio])).entries()).map(
-      ([value, label]) => ({ value: String(value), label })
-    );
+    return Array.from(
+      new Map(
+        rows.map((row) => [row.idMunicipio, row.nombreMunicipio]),
+      ).entries(),
+    ).map(([value, label]) => ({ value: String(value), label }));
   }, [rows]);
 
   const campusOptions = useMemo(() => {
-    return Array.from(new Map(rows.map((row) => [row.idCampus, row.nombreCampus])).entries()).map(([value, label]) => ({
+    return Array.from(
+      new Map(rows.map((row) => [row.idCampus, row.nombreCampus])).entries(),
+    ).map(([value, label]) => ({
       value: String(value),
       label,
     }));
@@ -239,11 +332,21 @@ const UbicacionList: React.FC = () => {
 
   const categoriaOptions = useMemo(() => {
     const map = new Map<string, string>();
-    categoriaInstalacion.forEach((item) => map.set(String(item.id), item.nombre));
+    categoriaInstalacion.forEach((item) =>
+      map.set(String(item.id), item.nombre),
+    );
     rows
       .filter((row) => row.idCategoriaInstalacion != null)
-      .forEach((row) => map.set(String(row.idCategoriaInstalacion), row.nombreCategoriaInstalacion));
-    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+      .forEach((row) =>
+        map.set(
+          String(row.idCategoriaInstalacion),
+          row.nombreCategoriaInstalacion,
+        ),
+      );
+    return Array.from(map.entries()).map(([value, label]) => ({
+      value,
+      label,
+    }));
   }, [categoriaInstalacion, rows]);
 
   const filteredRows = useMemo(
@@ -256,9 +359,18 @@ const UbicacionList: React.FC = () => {
           matchesFilter(filtroMunicipio, row.idMunicipio) &&
           matchesFilter(filtroCampusSelect, row.idCampus) &&
           (filtroCategoria === "Todos" ||
-            (row.idCategoriaInstalacion != null && String(row.idCategoriaInstalacion) === filtroCategoria))
+            (row.idCategoriaInstalacion != null &&
+              String(row.idCategoriaInstalacion) === filtroCategoria)),
       ),
-    [filtroCampusSelect, filtroCategoria, filtroContinente, filtroDepartamento, filtroMunicipio, filtroPais, rows]
+    [
+      filtroCampusSelect,
+      filtroCategoria,
+      filtroContinente,
+      filtroDepartamento,
+      filtroMunicipio,
+      filtroPais,
+      rows,
+    ],
   );
 
   const totalRows = filteredRows.length;
@@ -266,7 +378,16 @@ const UbicacionList: React.FC = () => {
 
   useEffect(() => {
     setPage(0);
-  }, [filtroCampusSelect, filtroCategoria, filtroContinente, filtroDepartamento, filtroMunicipio, filtroPais, size, rows.length]);
+  }, [
+    filtroCampusSelect,
+    filtroCategoria,
+    filtroContinente,
+    filtroDepartamento,
+    filtroMunicipio,
+    filtroPais,
+    size,
+    rows.length,
+  ]);
 
   useEffect(() => {
     if (page >= totalPages) {
@@ -280,162 +401,210 @@ const UbicacionList: React.FC = () => {
     return filteredRows.slice(start, start + size);
   }, [filteredRows, page, size, totalRows]);
 
-  const goto = useCallback((target: number) => {
-    if (totalRows === 0) {
-      setPage(0);
-      return;
-    }
-    const next = Math.min(Math.max(target, 0), totalPages - 1);
-    setPage(next);
-  }, [totalPages, totalRows]);
+  const goto = useCallback(
+    (target: number) => {
+      if (totalRows === 0) {
+        setPage(0);
+        return;
+      }
+      const next = Math.min(Math.max(target, 0), totalPages - 1);
+      setPage(next);
+    },
+    [totalPages, totalRows],
+  );
 
-  const categoriaFields = useMemo<Field<any>[]>(() => [
-    { name: "nombre", label: "Nombre", type: "text", required: true },
-    { name: "descripcion", label: "Descripción", type: "textarea", required: false },
-  ], []);
+  const categoriaFields = useMemo<Field<any>[]>(
+    () => [
+      { name: "nombre", label: "Nombre", type: "text", required: true },
+      {
+        name: "descripcion",
+        label: "Descripción",
+        type: "textarea",
+        required: false,
+      },
+    ],
+    [],
+  );
 
   // ===== Tabla =====
-  const columns: Column<InstalacionCampusRow>[] = useMemo(() => [
-    { key: "nombreContinente", label: "Continente" },
-    { key: "nombrePais", label: "País" },
-    { key: "nombreDepartamento", label: "Departamento" },
-    { key: "nombreMunicipio", label: "Municipio" },
-    { key: "nombreCampus", label: "Campus" },
-    { key: "nombreInstalacion", label: "Instalación" },
-    { key: "descripcionInstalacion", label: "descripcion" },
-    {
-      key: "estadoInstalacion",
-      label: "Estado",
-      render: (r) => (
-        <Badge variant={r.estadoInstalacion ? "success" : "neutral"}>
-          {r.estadoInstalacion ? "Activa" : "Inactiva"}
-        </Badge>
-      )
-    },
-    {
-      key: "actions",
-      label: "Acciones",
-      render: (r) => (
-        <HStack spacing={2} justify="flex-start">
-          <Tooltip label="Editar campus">
-            <IconButton
-              aria-label="Editar campus"
-              size="sm"
-              variant="ghost"
-              icon={<FiEdit2 />}
-            onClick={async () => {
-              try {
-                setSelectedRow(r);
-                // Cargar continentes (lazy) + precargar cascada
-                await getContinentes();
-                await preloadCascadeForCampus(r);
+  const columns: Column<InstalacionCampusRow>[] = useMemo(
+    () => [
+      { key: "nombreContinente", label: "Continente" },
+      { key: "nombrePais", label: "País" },
+      { key: "nombreDepartamento", label: "Departamento" },
+      { key: "nombreMunicipio", label: "Municipio" },
+      { key: "nombreCampus", label: "Campus" },
+      { key: "nombreInstalacion", label: "Instalación" },
+      { key: "descripcionInstalacion", label: "descripcion" },
+      {
+        key: "estadoInstalacion",
+        label: "Estado",
+        render: (r) => (
+          <Badge variant={r.estadoInstalacion ? "success" : "neutral"}>
+            {r.estadoInstalacion ? "Activa" : "Inactiva"}
+          </Badge>
+        ),
+      },
+      {
+        key: "actions",
+        label: "Acciones",
+        render: (r) => (
+          <HStack spacing={2} justify="flex-start">
+            <Tooltip label="Editar campus">
+              <IconButton
+                aria-label="Editar campus"
+                size="sm"
+                variant="ghost"
+                icon={<FiEdit2 />}
+                onClick={async () => {
+                  try {
+                    setSelectedRow(r);
+                    // Cargar continentes (lazy) + precargar cascada
+                    await getContinentes();
+                    await preloadCascadeForCampus(r);
 
-                // Initial values de edición
-                const init: CampusFormValues = {
-                  continenteId: r.idContinente,
-                  paisId: r.idPais,
-                  departamentoId: r.idDepartamento,
-                  municipioId: r.idMunicipio,
-                  nombre: r.nombreCampus,
-                  descripcion: r.descripcionCampus,
-                };
-                setEditCampusInitialValues(init);
-                prevEditCampus.current = init;
-                setEditCampusKey(k => k + 1);
+                    // Initial values de edición
+                    const init: CampusFormValues = {
+                      continenteId: r.idContinente,
+                      paisId: r.idPais,
+                      departamentoId: r.idDepartamento,
+                      municipioId: r.idMunicipio,
+                      nombre: r.nombreCampus,
+                      descripcion: r.descripcionCampus,
+                    };
+                    setEditCampusInitialValues(init);
+                    prevEditCampus.current = init;
+                    setEditCampusKey((k) => k + 1);
 
-                editarCampusModal.onOpen();
-              } catch (err: any) {
-                toast({ title: "Error preparando edición", description: err?.message ?? "Error", status: "error" });
+                    editarCampusModal.onOpen();
+                  } catch (err: any) {
+                    toast({
+                      title: "Error preparando edición",
+                      description: err?.message ?? "Error",
+                      status: "error",
+                    });
+                  }
+                }}
+              />
+            </Tooltip>
+
+            <Tooltip label="Editar instalación">
+              <IconButton
+                aria-label="Editar instalación"
+                size="sm"
+                variant="ghost"
+                icon={<FiLayers />}
+                onClick={async () => {
+                  try {
+                    setSelectedRow(r);
+                    await getContinentes();
+                    await fetchCategoriaInstalacion();
+                    await preloadCascadeForInstalacion(r);
+
+                    const init: InstalacionFormValues = {
+                      continenteId: r.idContinente,
+                      paisId: r.idPais,
+                      departamentoId: r.idDepartamento,
+                      municipioId: r.idMunicipio,
+                      campusId: r.idCampus,
+                      categoriaInstalacionId: r.idCategoriaInstalacion,
+                      nombre: r.nombreInstalacion,
+                      descripcion: r.descripcionInstalacion,
+                    };
+                    setEditInstalacionInitialValues(init);
+                    prevEditInst.current = init;
+                    setEditInstalacionKey((k) => k + 1);
+
+                    editarInstalacionModal.onOpen();
+                  } catch (err: any) {
+                    toast({
+                      title: "Error preparando edición",
+                      description: err?.message ?? "Error",
+                      status: "error",
+                    });
+                  }
+                }}
+              />
+            </Tooltip>
+
+            <Tooltip
+              label={
+                r.estadoInstalacion
+                  ? "Inhabilitar instalación"
+                  : "Habilitar instalación"
               }
-            }}
-          />
-          </Tooltip>
-
-          <Tooltip label="Editar instalación">
-            <IconButton
-              aria-label="Editar instalación"
-              size="sm"
-              variant="ghost"
-              icon={<FiLayers />}
-            onClick={async () => {
-              try {
-                setSelectedRow(r);
-                await getContinentes();
-                await fetchCategoriaInstalacion();
-                await preloadCascadeForInstalacion(r);
-
-                const init: InstalacionFormValues = {
-                  continenteId: r.idContinente,
-                  paisId: r.idPais,
-                  departamentoId: r.idDepartamento,
-                  municipioId: r.idMunicipio,
-                  campusId: r.idCampus,
-                  categoriaInstalacionId: r.idCategoriaInstalacion,
-                  nombre: r.nombreInstalacion,
-                  descripcion: r.descripcionInstalacion,
-                };
-                setEditInstalacionInitialValues(init);
-                prevEditInst.current = init;
-                setEditInstalacionKey(k => k + 1);
-
-                editarInstalacionModal.onOpen();
-              } catch (err: any) {
-                toast({ title: "Error preparando edición", description: err?.message ?? "Error", status: "error" });
-              }
-            }}
-          />
-          </Tooltip>
-
-          <Tooltip label={r.estadoInstalacion ? "Inhabilitar instalación" : "Habilitar instalación"}>
-            <IconButton
-              aria-label="Cambiar estado"
-              size="sm"
-              variant="ghost"
-              colorScheme={r.estadoInstalacion ? "red" : "green"}
-              icon={<FiToggleRight />}
-            onClick={async () => {
-              try {
-                await cambiarEstadoInstalacion(r.idInstalacion, !r.estadoInstalacion);
-                await fetchInstalacionesCampus(filtroInstalacion, filtroCampus);
-                toast({ title: "Estado actualizado", status: "success", duration: 1800 });
-              } catch (err: any) {
-                toast({
-                  title: "Error",
-                  description: err?.message ?? "No se pudo actualizar el estado",
-                  status: "error",
-                  duration: 4000,
-                });
-              }
-            }}
-          />
-          </Tooltip>
-        </HStack>
-      )
-    }
-  ], [
-    toast,
-    getContinentes,
-    preloadCascadeForCampus,
-    preloadCascadeForInstalacion,
-    cambiarEstadoInstalacion,
-    fetchInstalacionesCampus,
-    filtroInstalacion,
-    filtroCampus,
-    editarCampusModal,
-    editarInstalacionModal,
-    fetchCategoriaInstalacion
-  ]);
+            >
+              <IconButton
+                aria-label="Cambiar estado"
+                size="sm"
+                variant="ghost"
+                colorScheme={r.estadoInstalacion ? "red" : "green"}
+                icon={<FiToggleRight />}
+                onClick={async () => {
+                  try {
+                    await cambiarEstadoInstalacion(
+                      r.idInstalacion,
+                      !r.estadoInstalacion,
+                    );
+                    await fetchInstalacionesCampus(
+                      filtroInstalacion,
+                      filtroCampus,
+                    );
+                    toast({
+                      title: "Estado actualizado",
+                      status: "success",
+                      duration: 1800,
+                    });
+                  } catch (err: any) {
+                    toast({
+                      title: "Error",
+                      description:
+                        err?.message ?? "No se pudo actualizar el estado",
+                      status: "error",
+                      duration: 4000,
+                    });
+                  }
+                }}
+              />
+            </Tooltip>
+          </HStack>
+        ),
+      },
+    ],
+    [
+      toast,
+      getContinentes,
+      preloadCascadeForCampus,
+      preloadCascadeForInstalacion,
+      cambiarEstadoInstalacion,
+      fetchInstalacionesCampus,
+      filtroInstalacion,
+      filtroCampus,
+      editarCampusModal,
+      editarInstalacionModal,
+      fetchCategoriaInstalacion,
+    ],
+  );
 
   // ===== Handlers Crear =====
   const handleSaveCampus = async (values: any) => {
     try {
       const municipioId = String(values.municipioId);
       if (!municipioId) throw new Error("Debes seleccionar un municipio");
-      await createCampus({ nombre: values.nombre, descripcion: values.descripcion, municipioId });
+      await createCampus({
+        nombre: values.nombre,
+        descripcion: values.descripcion,
+        municipioId,
+      });
       crearCampusModal.onClose();
       await fetchInstalacionesCampus(filtroInstalacion, filtroCampus);
     } catch (err: any) {
-      toast({ title: "Error al crear campus", description: err?.message ?? "Error", status: "error", duration: 4000 });
+      toast({
+        title: "Error al crear campus",
+        description: err?.message ?? "Error",
+        status: "error",
+        duration: 4000,
+      });
     }
   };
 
@@ -444,23 +613,42 @@ const UbicacionList: React.FC = () => {
       const campusId = String(values.campusId);
       const categoriaInstalacionId = String(values.categoriaInstalacionId);
       if (!campusId) throw new Error("Debes seleccionar un campus");
-      if (!categoriaInstalacionId) throw new Error("Debes seleccionar una categoria de instalación");
+      if (!categoriaInstalacionId)
+        throw new Error("Debes seleccionar una categoria de instalación");
 
-      await createInstalacion({ nombre: values.nombre, descripcion: values.descripcion, campusId, categoriaInstalacionId, });
+      await createInstalacion({
+        nombre: values.nombre,
+        descripcion: values.descripcion,
+        campusId,
+        categoriaInstalacionId,
+      });
       crearInstalacionModal.onClose();
       await fetchInstalacionesCampus(filtroInstalacion, filtroCampus);
     } catch (err: any) {
-      toast({ title: "Error al crear instalación", description: err?.message ?? "Error", status: "error", duration: 4000 });
+      toast({
+        title: "Error al crear instalación",
+        description: err?.message ?? "Error",
+        status: "error",
+        duration: 4000,
+      });
     }
   };
 
   const handleSaveCategoriaInstalacion = async (values: any) => {
     try {
       if (!values.nombre) throw new Error("El nombre es requerido");
-      await createCategoriaInstalacion({ nombre: values.nombre, descripcion: values.descripcion });
+      await createCategoriaInstalacion({
+        nombre: values.nombre,
+        descripcion: values.descripcion,
+      });
       crearCategoriaModal.onClose();
     } catch (err: any) {
-      toast({ title: "Error al crear categoría", description: err?.message ?? "Error", status: "error", duration: 4000 });
+      toast({
+        title: "Error al crear categoría",
+        description: err?.message ?? "Error",
+        status: "error",
+        duration: 4000,
+      });
     }
   };
 
@@ -468,61 +656,96 @@ const UbicacionList: React.FC = () => {
   const handleEditCampus = async (values: any) => {
     try {
       if (!selectedRow?.idCampus) {
-        toast({ title: "Falta idCampus", description: "No se encontró el id de campus a actualizar", status: "warning", duration: 3000 });
+        toast({
+          title: "Falta idCampus",
+          description: "No se encontró el id de campus a actualizar",
+          status: "warning",
+          duration: 3000,
+        });
         return;
       }
       const municipioId = Number(values.municipioId);
       if (!municipioId) throw new Error("Debes seleccionar un municipio");
-      await updateCampus(selectedRow.idCampus, { nombre: values.nombre, descripcion: values.descripcion, municipioId });
+      await updateCampus(selectedRow.idCampus, {
+        nombre: values.nombre,
+        descripcion: values.descripcion,
+        municipioId,
+      });
       editarCampusModal.onClose();
       await fetchInstalacionesCampus(filtroInstalacion, filtroCampus);
       setSelectedRow(null);
       setEditCampusInitialValues(undefined);
     } catch (err: any) {
-      toast({ title: "Error al actualizar campus", description: err?.message ?? "Error", status: "error", duration: 4000 });
+      toast({
+        title: "Error al actualizar campus",
+        description: err?.message ?? "Error",
+        status: "error",
+        duration: 4000,
+      });
     }
   };
 
   const handleEditInstalacion = async (values: any) => {
     try {
       if (!selectedRow?.idInstalacion) {
-        toast({ title: "Falta idInstalacion", description: "No se encontró el id de instalación a actualizar", status: "warning", duration: 3000 });
+        toast({
+          title: "Falta idInstalacion",
+          description: "No se encontró el id de instalación a actualizar",
+          status: "warning",
+          duration: 3000,
+        });
         return;
       }
       const campusId = String(values.campusId);
       const categoriaInstalacionId = String(values.categoriaInstalacionId);
       if (!campusId) throw new Error("Debes seleccionar un campus");
-      if (!categoriaInstalacionId) throw new Error("Debes seleccionar una categoria de instalación");
-      await updateInstalacion(selectedRow.idInstalacion, { nombre: values.nombre, descripcion: values.descripcion, campusId, categoriaInstalacionId, });
+      if (!categoriaInstalacionId)
+        throw new Error("Debes seleccionar una categoria de instalación");
+      await updateInstalacion(selectedRow.idInstalacion, {
+        nombre: values.nombre,
+        descripcion: values.descripcion,
+        campusId,
+        categoriaInstalacionId,
+      });
       editarInstalacionModal.onClose();
       await fetchInstalacionesCampus(filtroInstalacion, filtroCampus);
       setSelectedRow(null);
       setEditInstalacionInitialValues(undefined);
     } catch (err: any) {
-      toast({ title: "Error al actualizar instalación", description: err?.message ?? "Error", status: "error", duration: 4000 });
+      toast({
+        title: "Error al actualizar instalación",
+        description: err?.message ?? "Error",
+        status: "error",
+        duration: 4000,
+      });
     }
   };
 
   // ===== initialValues base derivados de selectedRow (por si se usan cuando no hay overrides) =====
-  const initialCampusValues: CampusFormValues | undefined = selectedRow ? {
-    continenteId: selectedRow.idContinente,
-    paisId: selectedRow.idPais,
-    departamentoId: selectedRow.idDepartamento,
-    municipioId: selectedRow.idMunicipio,
-    nombre: selectedRow.nombreCampus,
-    descripcion:selectedRow.descripcionCampus,
-  } : undefined;
+  const initialCampusValues: CampusFormValues | undefined = selectedRow
+    ? {
+        continenteId: selectedRow.idContinente,
+        paisId: selectedRow.idPais,
+        departamentoId: selectedRow.idDepartamento,
+        municipioId: selectedRow.idMunicipio,
+        nombre: selectedRow.nombreCampus,
+        descripcion: selectedRow.descripcionCampus,
+      }
+    : undefined;
 
-  const initialInstalacionValues: InstalacionFormValues | undefined = selectedRow ? {
-    continenteId: selectedRow.idContinente,
-    paisId: selectedRow.idPais,
-    departamentoId: selectedRow.idDepartamento,
-    municipioId: selectedRow.idMunicipio,
-    campusId: selectedRow.idCampus,
-    categoriaInstalacionId: selectedRow.idCategoriaInstalacion,
-    nombre: selectedRow.nombreInstalacion,
-    descripcion: selectedRow.descripcionInstalacion,
-  } : undefined;
+  const initialInstalacionValues: InstalacionFormValues | undefined =
+    selectedRow
+      ? {
+          continenteId: selectedRow.idContinente,
+          paisId: selectedRow.idPais,
+          departamentoId: selectedRow.idDepartamento,
+          municipioId: selectedRow.idMunicipio,
+          campusId: selectedRow.idCampus,
+          categoriaInstalacionId: selectedRow.idCategoriaInstalacion,
+          nombre: selectedRow.nombreInstalacion,
+          descripcion: selectedRow.descripcionInstalacion,
+        }
+      : undefined;
 
   return (
     <Stack spacing={8} key="ubicacion-list-container">
@@ -537,7 +760,8 @@ const UbicacionList: React.FC = () => {
             Gestión de ubicaciones
           </Heading>
           <Text fontSize="sm" color="neutral.500">
-            Administra campus, instalaciones y categorías con filtros rápidos y acciones contextualizadas.
+            Administra campus, instalaciones y categorías con filtros rápidos y
+            acciones contextualizadas.
           </Text>
         </Stack>
         <ButtonGroup size="sm" variant="solid" flexWrap="wrap" gap={2}>
@@ -549,7 +773,7 @@ const UbicacionList: React.FC = () => {
           >
             Actualizar
           </Button>
-                    <Button
+          <Button
             leftIcon={<Icon as={FiMapPin} />}
             onClick={async () => {
               await getContinentes();
@@ -656,29 +880,29 @@ const UbicacionList: React.FC = () => {
             />
           </InputGroup>
 
-        <ButtonGroup size="sm">
-          <Button
-            colorScheme="brand"
-            leftIcon={<Icon as={FiSearch} />}
-            onClick={() => {
-              setPage(0);
-              fetchInstalacionesCampus(filtroInstalacion, filtroCampus);
-            }}
-          >
-            Buscar
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setFiltroInstalacion("");
-              setFiltroCampus("");
-              setPage(0);
-              void fetchInstalacionesCampus("", "");
-            }}
-          >
-            Limpiar
-          </Button>
-        </ButtonGroup>
+          <ButtonGroup size="sm">
+            <Button
+              colorScheme="brand"
+              leftIcon={<Icon as={FiSearch} />}
+              onClick={() => {
+                setPage(0);
+                fetchInstalacionesCampus(filtroInstalacion, filtroCampus);
+              }}
+            >
+              Buscar
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setFiltroInstalacion("");
+                setFiltroCampus("");
+                setPage(0);
+                void fetchInstalacionesCampus("", "");
+              }}
+            >
+              Limpiar
+            </Button>
+          </ButtonGroup>
         </Stack>
 
         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} w="full">
@@ -686,7 +910,10 @@ const UbicacionList: React.FC = () => {
             <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
               Continente
             </Text>
-            <Select value={filtroContinente} onChange={(e) => setFiltroContinente(e.target.value)}>
+            <Select
+              value={filtroContinente}
+              onChange={(e) => setFiltroContinente(e.target.value)}
+            >
               <option value="Todos">Todos</option>
               {continenteOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -699,7 +926,10 @@ const UbicacionList: React.FC = () => {
             <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
               País
             </Text>
-            <Select value={filtroPais} onChange={(e) => setFiltroPais(e.target.value)}>
+            <Select
+              value={filtroPais}
+              onChange={(e) => setFiltroPais(e.target.value)}
+            >
               <option value="Todos">Todos</option>
               {paisOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -712,7 +942,10 @@ const UbicacionList: React.FC = () => {
             <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
               Departamento
             </Text>
-            <Select value={filtroDepartamento} onChange={(e) => setFiltroDepartamento(e.target.value)}>
+            <Select
+              value={filtroDepartamento}
+              onChange={(e) => setFiltroDepartamento(e.target.value)}
+            >
               <option value="Todos">Todos</option>
               {departamentoOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -725,7 +958,10 @@ const UbicacionList: React.FC = () => {
             <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
               Municipio
             </Text>
-            <Select value={filtroMunicipio} onChange={(e) => setFiltroMunicipio(e.target.value)}>
+            <Select
+              value={filtroMunicipio}
+              onChange={(e) => setFiltroMunicipio(e.target.value)}
+            >
               <option value="Todos">Todos</option>
               {municipioOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -738,7 +974,10 @@ const UbicacionList: React.FC = () => {
             <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
               Campus
             </Text>
-            <Select value={filtroCampusSelect} onChange={(e) => setFiltroCampusSelect(e.target.value)}>
+            <Select
+              value={filtroCampusSelect}
+              onChange={(e) => setFiltroCampusSelect(e.target.value)}
+            >
               <option value="Todos">Todos</option>
               {campusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -751,7 +990,10 @@ const UbicacionList: React.FC = () => {
             <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
               Categoría de instalación
             </Text>
-            <Select value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)}>
+            <Select
+              value={filtroCategoria}
+              onChange={(e) => setFiltroCategoria(e.target.value)}
+            >
               <option value="Todos">Todos</option>
               {categoriaOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -783,7 +1025,10 @@ const UbicacionList: React.FC = () => {
             <WrapItem>
               <Tag borderRadius="full" variant="solid" colorScheme="teal">
                 <TagLabel>
-                  Continente: {continenteOptions.find((opt) => opt.value === filtroContinente)?.label ?? filtroContinente}
+                  Continente:{" "}
+                  {continenteOptions.find(
+                    (opt) => opt.value === filtroContinente,
+                  )?.label ?? filtroContinente}
                 </TagLabel>
                 <TagCloseButton onClick={() => setFiltroContinente("Todos")} />
               </Tag>
@@ -792,7 +1037,11 @@ const UbicacionList: React.FC = () => {
           {filtroPais !== "Todos" && (
             <WrapItem>
               <Tag borderRadius="full" variant="solid" colorScheme="teal">
-                <TagLabel>País: {paisOptions.find((opt) => opt.value === filtroPais)?.label ?? filtroPais}</TagLabel>
+                <TagLabel>
+                  País:{" "}
+                  {paisOptions.find((opt) => opt.value === filtroPais)?.label ??
+                    filtroPais}
+                </TagLabel>
                 <TagCloseButton onClick={() => setFiltroPais("Todos")} />
               </Tag>
             </WrapItem>
@@ -801,9 +1050,14 @@ const UbicacionList: React.FC = () => {
             <WrapItem>
               <Tag borderRadius="full" variant="solid" colorScheme="teal">
                 <TagLabel>
-                  Departamento: {departamentoOptions.find((opt) => opt.value === filtroDepartamento)?.label ?? filtroDepartamento}
+                  Departamento:{" "}
+                  {departamentoOptions.find(
+                    (opt) => opt.value === filtroDepartamento,
+                  )?.label ?? filtroDepartamento}
                 </TagLabel>
-                <TagCloseButton onClick={() => setFiltroDepartamento("Todos")} />
+                <TagCloseButton
+                  onClick={() => setFiltroDepartamento("Todos")}
+                />
               </Tag>
             </WrapItem>
           )}
@@ -811,7 +1065,9 @@ const UbicacionList: React.FC = () => {
             <WrapItem>
               <Tag borderRadius="full" variant="solid" colorScheme="teal">
                 <TagLabel>
-                  Municipio: {municipioOptions.find((opt) => opt.value === filtroMunicipio)?.label ?? filtroMunicipio}
+                  Municipio:{" "}
+                  {municipioOptions.find((opt) => opt.value === filtroMunicipio)
+                    ?.label ?? filtroMunicipio}
                 </TagLabel>
                 <TagCloseButton onClick={() => setFiltroMunicipio("Todos")} />
               </Tag>
@@ -821,9 +1077,13 @@ const UbicacionList: React.FC = () => {
             <WrapItem>
               <Tag borderRadius="full" variant="solid" colorScheme="teal">
                 <TagLabel>
-                  Campus: {campusOptions.find((opt) => opt.value === filtroCampusSelect)?.label ?? filtroCampusSelect}
+                  Campus:{" "}
+                  {campusOptions.find((opt) => opt.value === filtroCampusSelect)
+                    ?.label ?? filtroCampusSelect}
                 </TagLabel>
-                <TagCloseButton onClick={() => setFiltroCampusSelect("Todos")} />
+                <TagCloseButton
+                  onClick={() => setFiltroCampusSelect("Todos")}
+                />
               </Tag>
             </WrapItem>
           )}
@@ -831,7 +1091,9 @@ const UbicacionList: React.FC = () => {
             <WrapItem>
               <Tag borderRadius="full" variant="solid" colorScheme="teal">
                 <TagLabel>
-                  Categoría: {categoriaOptions.find((opt) => opt.value === filtroCategoria)?.label ?? filtroCategoria}
+                  Categoría:{" "}
+                  {categoriaOptions.find((opt) => opt.value === filtroCategoria)
+                    ?.label ?? filtroCategoria}
                 </TagLabel>
                 <TagCloseButton onClick={() => setFiltroCategoria("Todos")} />
               </Tag>
@@ -839,7 +1101,8 @@ const UbicacionList: React.FC = () => {
           )}
           <WrapItem>
             <Badge variant="neutral">
-              Mostrando {paginatedRows.length} de {filteredRows.length} coincidencias — Total: {rows.length}
+              Mostrando {paginatedRows.length} de {filteredRows.length}{" "}
+              coincidencias — Total: {rows.length}
             </Badge>
           </WrapItem>
         </Wrap>
@@ -853,7 +1116,6 @@ const UbicacionList: React.FC = () => {
         keyExtractor={(item: InstalacionCampusRow) =>
           `ubicacion-${item.idInstalacion ?? item.idCampus ?? item.nombreInstalacion}`
         }
-
         emptyMessage="No hay registros de instalaciones/campus"
       />
 
@@ -862,7 +1124,7 @@ const UbicacionList: React.FC = () => {
         align="center"
         justify="space-between"
         gap={4}
-        display={filteredRows.length === 0 ? 'none' : 'flex'}
+        display={filteredRows.length === 0 ? "none" : "flex"}
       >
         <HStack spacing={2}>
           <Text fontSize="sm" color="gray.600">
@@ -892,8 +1154,9 @@ const UbicacionList: React.FC = () => {
         <HStack spacing={2}>
           <Text fontSize="sm" color="gray.600">
             {filteredRows.length === 0
-              ? '0–0'
-              : `${page * size + 1}–${Math.min((page + 1) * size, filteredRows.length)}`} de {filteredRows.length}
+              ? "0–0"
+              : `${page * size + 1}–${Math.min((page + 1) * size, filteredRows.length)}`}{" "}
+            de {filteredRows.length}
           </Text>
           <IconButton
             aria-label="Primera página"
@@ -912,14 +1175,17 @@ const UbicacionList: React.FC = () => {
             icon={<FiChevronLeft />}
           />
           <Button size="sm" variant="outline" isDisabled>
-            {filteredRows.length === 0 ? 0 : page + 1} / {filteredRows.length === 0 ? 0 : totalPages}
+            {filteredRows.length === 0 ? 0 : page + 1} /{" "}
+            {filteredRows.length === 0 ? 0 : totalPages}
           </Button>
           <IconButton
             aria-label="Siguiente"
             size="sm"
             variant="ghost"
             onClick={() => goto(page + 1)}
-            isDisabled={page >= totalPages - 1 || loading || filteredRows.length === 0}
+            isDisabled={
+              page >= totalPages - 1 || loading || filteredRows.length === 0
+            }
             icon={<FiChevronRight />}
           />
           <IconButton
@@ -927,7 +1193,9 @@ const UbicacionList: React.FC = () => {
             size="sm"
             variant="ghost"
             onClick={() => goto(totalPages - 1)}
-            isDisabled={page >= totalPages - 1 || loading || filteredRows.length === 0}
+            isDisabled={
+              page >= totalPages - 1 || loading || filteredRows.length === 0
+            }
             icon={<FiChevronsRight />}
           />
         </HStack>
@@ -941,9 +1209,24 @@ const UbicacionList: React.FC = () => {
         title="Crear Campus"
         fields={[
           { ...campusFields[0] }, // Continente
-          { ...campusFields[1], options: () => paisesCascada.map(p => ({ value: p.id, label: p.nombre })) },
-          { ...campusFields[2], options: () => departamentosCascada.map(d => ({ value: d.id, label: d.nombre })) },
-          { ...campusFields[3], options: () => municipiosCascada.map(m => ({ value: m.id, label: m.nombre })) },
+          {
+            ...campusFields[1],
+            options: () =>
+              paisesCascada.map((p) => ({ value: p.id, label: p.nombre })),
+          },
+          {
+            ...campusFields[2],
+            options: () =>
+              departamentosCascada.map((d) => ({
+                value: d.id,
+                label: d.nombre,
+              })),
+          },
+          {
+            ...campusFields[3],
+            options: () =>
+              municipiosCascada.map((m) => ({ value: m.id, label: m.nombre })),
+          },
           campusFields[4],
           campusFields[5],
         ]}
@@ -955,10 +1238,15 @@ const UbicacionList: React.FC = () => {
           if (next.continenteId !== prev.continenteId) {
             const cont = Number(next.continenteId);
             clearFrom("continente");
-            const init = { ...next, paisId: "", departamentoId: "", municipioId: "" };
+            const init = {
+              ...next,
+              paisId: "",
+              departamentoId: "",
+              municipioId: "",
+            };
             setCreateCampusInitial(init);
             prevCreateCampus.current = init as CampusFormValues;
-            setCreateCampusKey(k => k + 1);
+            setCreateCampusKey((k) => k + 1);
             if (cont) void fetchPaisesByContinente(cont);
             return;
           }
@@ -969,7 +1257,7 @@ const UbicacionList: React.FC = () => {
             const init = { ...next, departamentoId: "", municipioId: "" };
             setCreateCampusInitial(init);
             prevCreateCampus.current = init as CampusFormValues;
-            setCreateCampusKey(k => k + 1);
+            setCreateCampusKey((k) => k + 1);
             if (pais) void fetchDepartamentosByPais(pais);
             return;
           }
@@ -980,7 +1268,7 @@ const UbicacionList: React.FC = () => {
             const init = { ...next, municipioId: "" };
             setCreateCampusInitial(init);
             prevCreateCampus.current = init as CampusFormValues;
-            setCreateCampusKey(k => k + 1);
+            setCreateCampusKey((k) => k + 1);
             if (dep) void fetchMunicipiosByDepartamento(dep);
             return;
           }
@@ -1003,10 +1291,25 @@ const UbicacionList: React.FC = () => {
         title="Editar Campus"
         fields={[
           { ...campusFields[0] },
-          { ...campusFields[1], options: () => paisesCascada.map(p => ({ value: p.id, label: p.nombre })) },
-          { ...campusFields[2], options: () => departamentosCascada.map(d => ({ value: d.id, label: d.nombre })) },
-          { ...campusFields[3], options: () => municipiosCascada.map(m => ({ value: m.id, label: m.nombre })) },
-          campusFields[4], 
+          {
+            ...campusFields[1],
+            options: () =>
+              paisesCascada.map((p) => ({ value: p.id, label: p.nombre })),
+          },
+          {
+            ...campusFields[2],
+            options: () =>
+              departamentosCascada.map((d) => ({
+                value: d.id,
+                label: d.nombre,
+              })),
+          },
+          {
+            ...campusFields[3],
+            options: () =>
+              municipiosCascada.map((m) => ({ value: m.id, label: m.nombre })),
+          },
+          campusFields[4],
           campusFields[5],
         ]}
         initialValues={editCampusInitialValues ?? initialCampusValues}
@@ -1018,27 +1321,33 @@ const UbicacionList: React.FC = () => {
             clearFrom("continente");
             setEditCampusInitialValues((p) => ({
               ...(p ?? initialCampusValues),
-              continenteId: newCont, paisId: "", departamentoId: "", municipioId: ""
+              continenteId: newCont,
+              paisId: "",
+              departamentoId: "",
+              municipioId: "",
             }));
-            setEditCampusKey(k => k + 1);
+            setEditCampusKey((k) => k + 1);
             if (newCont) void fetchPaisesByContinente(newCont);
           } else if (next.paisId !== prev?.paisId) {
             const newPais = Number(next.paisId);
             clearFrom("pais");
             setEditCampusInitialValues((p) => ({
               ...(p ?? initialCampusValues),
-              paisId: newPais, departamentoId: "", municipioId: ""
+              paisId: newPais,
+              departamentoId: "",
+              municipioId: "",
             }));
-            setEditCampusKey(k => k + 1);
+            setEditCampusKey((k) => k + 1);
             if (newPais) void fetchDepartamentosByPais(newPais);
           } else if (next.departamentoId !== prev?.departamentoId) {
             const newDep = Number(next.departamentoId);
             clearFrom("departamento");
             setEditCampusInitialValues((p) => ({
               ...(p ?? initialCampusValues),
-              departamentoId: newDep, municipioId: ""
+              departamentoId: newDep,
+              municipioId: "",
             }));
-            setEditCampusKey(k => k + 1);
+            setEditCampusKey((k) => k + 1);
             if (newDep) void fetchMunicipiosByDepartamento(newDep);
           }
 
@@ -1050,20 +1359,43 @@ const UbicacionList: React.FC = () => {
       {/* Modal: Crear Instalación */}
       <GenericModal
         key={createInstKey}
-        isOpen={
-          crearInstalacionModal.isOpen
-          
-        }
+        isOpen={crearInstalacionModal.isOpen}
         onClose={crearInstalacionModal.onClose}
         title="Crear Instalación"
         fields={[
           { ...instalacionFields[0] },
-          { ...instalacionFields[1], options: () => paisesCascada.map(p => ({ value: p.id, label: p.nombre })) },
-          { ...instalacionFields[2], options: () => departamentosCascada.map(d => ({ value: d.id, label: d.nombre })) },
-          { ...instalacionFields[3], options: () => municipiosCascada.map(m => ({ value: m.id, label: m.nombre })) },
-          { ...instalacionFields[4], options: () => campusCascada.map(c => ({ value: c.id, label: c.nombre })) },
-          { ...instalacionFields[5],options: () => categoriaInstalacion.map(ci => ({ value: ci.id, label: ci.nombre })) },
-           instalacionFields[6],
+          {
+            ...instalacionFields[1],
+            options: () =>
+              paisesCascada.map((p) => ({ value: p.id, label: p.nombre })),
+          },
+          {
+            ...instalacionFields[2],
+            options: () =>
+              departamentosCascada.map((d) => ({
+                value: d.id,
+                label: d.nombre,
+              })),
+          },
+          {
+            ...instalacionFields[3],
+            options: () =>
+              municipiosCascada.map((m) => ({ value: m.id, label: m.nombre })),
+          },
+          {
+            ...instalacionFields[4],
+            options: () =>
+              campusCascada.map((c) => ({ value: c.id, label: c.nombre })),
+          },
+          {
+            ...instalacionFields[5],
+            options: () =>
+              categoriaInstalacion.map((ci) => ({
+                value: ci.id,
+                label: ci.nombre,
+              })),
+          },
+          instalacionFields[6],
         ]}
         initialValues={createInstInitial}
         onValuesChange={(next) => {
@@ -1072,40 +1404,58 @@ const UbicacionList: React.FC = () => {
           if (next.continenteId !== prev.continenteId) {
             const cont = Number(next.continenteId);
             clearFrom("continente");
-            const init = { ...next, paisId: "", departamentoId: "", municipioId: "", campusId: "", categoriaInstalacionId: "" };
+            const init = {
+              ...next,
+              paisId: "",
+              departamentoId: "",
+              municipioId: "",
+              campusId: "",
+              categoriaInstalacionId: "",
+            };
             setCreateInstInitial(init as InstalacionFormValues);
             prevCreateInst.current = init as InstalacionFormValues;
-            setCreateInstKey(k => k + 1);
+            setCreateInstKey((k) => k + 1);
             if (cont) void fetchPaisesByContinente(cont);
             return;
           }
           if (next.paisId !== prev.paisId) {
             const pais = Number(next.paisId);
             clearFrom("pais");
-            const init = { ...next, departamentoId: "", municipioId: "", campusId: "", categoriaInstalacionId: ""  };
+            const init = {
+              ...next,
+              departamentoId: "",
+              municipioId: "",
+              campusId: "",
+              categoriaInstalacionId: "",
+            };
             setCreateInstInitial(init as InstalacionFormValues);
             prevCreateInst.current = init as InstalacionFormValues;
-            setCreateInstKey(k => k + 1);
+            setCreateInstKey((k) => k + 1);
             if (pais) void fetchDepartamentosByPais(pais);
             return;
           }
           if (next.departamentoId !== prev.departamentoId) {
             const dep = Number(next.departamentoId);
             clearFrom("departamento");
-            const init = { ...next, municipioId: "", campusId: "", categoriaInstalacionId: ""  };
+            const init = {
+              ...next,
+              municipioId: "",
+              campusId: "",
+              categoriaInstalacionId: "",
+            };
             setCreateInstInitial(init as InstalacionFormValues);
             prevCreateInst.current = init as InstalacionFormValues;
-            setCreateInstKey(k => k + 1);
+            setCreateInstKey((k) => k + 1);
             if (dep) void fetchMunicipiosByDepartamento(dep);
             return;
           }
           if (next.municipioId !== prev.municipioId) {
             const mun = Number(next.municipioId);
             clearFrom("municipio");
-            const init = { ...next, campusId: "", categoriaInstalacionId: ""  };
+            const init = { ...next, campusId: "", categoriaInstalacionId: "" };
             setCreateInstInitial(init as InstalacionFormValues);
             prevCreateInst.current = init as InstalacionFormValues;
-            setCreateInstKey(k => k + 1);
+            setCreateInstKey((k) => k + 1);
             if (mun) void fetchCampusByMunicipio(mun);
             return;
           }
@@ -1127,12 +1477,38 @@ const UbicacionList: React.FC = () => {
         title="Editar Instalación"
         fields={[
           { ...instalacionFields[0] },
-          { ...instalacionFields[1], options: () => paisesCascada.map(p => ({ value: p.id, label: p.nombre })) },
-          { ...instalacionFields[2], options: () => departamentosCascada.map(d => ({ value: d.id, label: d.nombre })) },
-          { ...instalacionFields[3], options: () => municipiosCascada.map(m => ({ value: m.id, label: m.nombre })) },
-          { ...instalacionFields[4], options: () => campusCascada.map(c => ({ value: c.id, label: c.nombre })) },
-          { ...instalacionFields[5],options: () => categoriaInstalacion.map(ci => ({ value: ci.id, label: ci.nombre })) },
-          instalacionFields[6],    
+          {
+            ...instalacionFields[1],
+            options: () =>
+              paisesCascada.map((p) => ({ value: p.id, label: p.nombre })),
+          },
+          {
+            ...instalacionFields[2],
+            options: () =>
+              departamentosCascada.map((d) => ({
+                value: d.id,
+                label: d.nombre,
+              })),
+          },
+          {
+            ...instalacionFields[3],
+            options: () =>
+              municipiosCascada.map((m) => ({ value: m.id, label: m.nombre })),
+          },
+          {
+            ...instalacionFields[4],
+            options: () =>
+              campusCascada.map((c) => ({ value: c.id, label: c.nombre })),
+          },
+          {
+            ...instalacionFields[5],
+            options: () =>
+              categoriaInstalacion.map((ci) => ({
+                value: ci.id,
+                label: ci.nombre,
+              })),
+          },
+          instalacionFields[6],
           instalacionFields[7],
         ]}
         initialValues={editInstalacionInitialValues ?? initialInstalacionValues}
@@ -1144,36 +1520,50 @@ const UbicacionList: React.FC = () => {
             clearFrom("continente");
             setEditInstalacionInitialValues((p) => ({
               ...(p ?? initialInstalacionValues),
-              continenteId: newCont, paisId: "", departamentoId: "", municipioId: "", campusId: "", categoriaInstalacionId: ""
+              continenteId: newCont,
+              paisId: "",
+              departamentoId: "",
+              municipioId: "",
+              campusId: "",
+              categoriaInstalacionId: "",
             }));
-            setEditInstalacionKey(k => k + 1);
+            setEditInstalacionKey((k) => k + 1);
             if (newCont) void fetchPaisesByContinente(newCont);
           } else if (next.paisId !== prev?.paisId) {
             const newPais = Number(next.paisId);
             clearFrom("pais");
             setEditInstalacionInitialValues((p) => ({
               ...(p ?? initialInstalacionValues),
-              paisId: newPais, departamentoId: "", municipioId: "", campusId: "", categoriaInstalacionId: ""
+              paisId: newPais,
+              departamentoId: "",
+              municipioId: "",
+              campusId: "",
+              categoriaInstalacionId: "",
             }));
-            setEditInstalacionKey(k => k + 1);
+            setEditInstalacionKey((k) => k + 1);
             if (newPais) void fetchDepartamentosByPais(newPais);
           } else if (next.departamentoId !== prev?.departamentoId) {
             const newDep = Number(next.departamentoId);
             clearFrom("departamento");
             setEditInstalacionInitialValues((p) => ({
               ...(p ?? initialInstalacionValues),
-              departamentoId: newDep, municipioId: "", campusId: "", categoriaInstalacionId: ""
+              departamentoId: newDep,
+              municipioId: "",
+              campusId: "",
+              categoriaInstalacionId: "",
             }));
-            setEditInstalacionKey(k => k + 1);
+            setEditInstalacionKey((k) => k + 1);
             if (newDep) void fetchMunicipiosByDepartamento(newDep);
           } else if (next.municipioId !== prev?.municipioId) {
             const newMun = Number(next.municipioId);
             clearFrom("municipio");
             setEditInstalacionInitialValues((p) => ({
               ...(p ?? initialInstalacionValues),
-              municipioId: newMun, campusId: "", categoriaInstalacionId: ""
+              municipioId: newMun,
+              campusId: "",
+              categoriaInstalacionId: "",
             }));
-            setEditInstalacionKey(k => k + 1);
+            setEditInstalacionKey((k) => k + 1);
             if (newMun) void fetchCampusByMunicipio(newMun);
           }
 

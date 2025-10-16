@@ -1,19 +1,19 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Box, Stack, useDisclosure, useToast } from '@chakra-ui/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import GenericModal, { type Field } from '../../../components/UI/GenericModal';
+import React, { useEffect, useMemo, useState } from "react";
+import { Box, Stack, useDisclosure, useToast } from "@chakra-ui/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import GenericModal, { type Field } from "../../../components/UI/GenericModal";
 import SearchableFormModal, {
   type SearchConfig,
   type SearchResultField,
-} from '../../../components/UI/SearchableFormModal';
-import { useFilterState } from '../../../hooks/useFilterState';
-import { useTableManager } from '../../../hooks/useTableManager';
-import { PersonasApi } from '../../../api/persona';
-import { personaKeys } from '../queryKeys';
-import { PersonaHeader } from '../components/PersonaHeader';
-import { PersonaFilters } from '../components/PersonaFilters';
-import { PersonaTable } from '../components/PersonaTable';
-import { PersonaPagination } from '../components/PersonaPagination';
+} from "../../../components/UI/SearchableFormModal";
+import { useFilterState } from "../../../hooks/useFilterState";
+import { useTableManager } from "../../../hooks/useTableManager";
+import { PersonasApi } from "../../../api/persona";
+import { personaKeys } from "../queryKeys";
+import { PersonaHeader } from "../components/PersonaHeader";
+import { PersonaFilters } from "../components/PersonaFilters";
+import { PersonaTable } from "../components/PersonaTable";
+import { PersonaPagination } from "../components/PersonaPagination";
 import type {
   CreatePersonaPayload,
   CreateUsuarioPayload,
@@ -21,7 +21,7 @@ import type {
   Rol,
   UpdatePersonaPayload,
   UpdateUsuarioPayload,
-} from '../types';
+} from "../types";
 
 interface PersonaFormValues {
   nombres: string;
@@ -37,11 +37,11 @@ interface UsuarioFormValues {
   password: string;
 }
 
-type EstadoFilter = 'Todos' | 'Activos' | 'Inactivos';
+type EstadoFilter = "Todos" | "Activos" | "Inactivos";
 
 const initialFilters = {
-  documento: '',
-  estado: 'Todos' as EstadoFilter,
+  documento: "",
+  estado: "Todos" as EstadoFilter,
 };
 
 const toOption = (rol: Rol) => ({ value: rol.id, label: rol.nombre });
@@ -85,17 +85,19 @@ const PersonaList: React.FC = () => {
 
   const filteredPersonas = useMemo(() => {
     return personas.filter((persona) => {
-      if (filters.estado === 'Activos') {
+      if (filters.estado === "Activos") {
         return persona.estado;
       }
-      if (filters.estado === 'Inactivos') {
+      if (filters.estado === "Inactivos") {
         return !persona.estado;
       }
       return true;
     });
   }, [filters.estado, personas]);
 
-  const tableManager = useTableManager(filteredPersonas, { totalItems: filteredPersonas.length });
+  const tableManager = useTableManager(filteredPersonas, {
+    totalItems: filteredPersonas.length,
+  });
   const {
     page,
     pageSize,
@@ -111,7 +113,10 @@ const PersonaList: React.FC = () => {
     goto(0);
   }, [filters.estado, filters.documento, goto]);
 
-  const rolesOptions = useMemo(() => (rolesQuery.data ?? []).map(toOption), [rolesQuery.data]);
+  const rolesOptions = useMemo(
+    () => (rolesQuery.data ?? []).map(toOption),
+    [rolesQuery.data],
+  );
 
   const toggleEstadoMutation = useMutation<
     void,
@@ -119,15 +124,16 @@ const PersonaList: React.FC = () => {
     { idPersona: number; estado: boolean },
     { previous?: Persona[] }
   >({
-    mutationFn: ({ idPersona, estado }) => PersonasApi.toggleEstadoUsuario(idPersona, estado),
+    mutationFn: ({ idPersona, estado }) =>
+      PersonasApi.toggleEstadoUsuario(idPersona, estado),
     onMutate: async ({ idPersona, estado }) => {
       await queryClient.cancelQueries({ queryKey: personaKeys.all });
       const previous = queryClient.getQueryData<Persona[]>(personaKeys.all);
       if (previous) {
         queryClient.setQueryData<Persona[]>(personaKeys.all, (prev = []) =>
           prev.map((persona) =>
-            persona.idPersona === idPersona ? { ...persona, estado } : persona
-          )
+            persona.idPersona === idPersona ? { ...persona, estado } : persona,
+          ),
         );
       }
       return { previous };
@@ -137,23 +143,25 @@ const PersonaList: React.FC = () => {
         queryClient.setQueryData(personaKeys.all, context.previous);
       }
       toast({
-        title: 'Error al cambiar estado',
+        title: "Error al cambiar estado",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
     onSuccess: (_data, { estado }) => {
       toast({
-        title: `Persona ${estado ? 'habilitada' : 'inhabilitada'} correctamente`,
-        status: 'success',
+        title: `Persona ${estado ? "habilitada" : "inhabilitada"} correctamente`,
+        status: "success",
         duration: 2000,
       });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: personaKeys.all });
       if (documentoBusqueda) {
-        queryClient.invalidateQueries({ queryKey: personaKeys.search(documentoBusqueda) });
+        queryClient.invalidateQueries({
+          queryKey: personaKeys.search(documentoBusqueda),
+        });
       }
     },
   });
@@ -161,14 +169,14 @@ const PersonaList: React.FC = () => {
   const createPersonaMutation = useMutation<void, Error, CreatePersonaPayload>({
     mutationFn: PersonasApi.createPersona,
     onSuccess: () => {
-      toast({ title: 'Persona creada', status: 'success', duration: 2000 });
+      toast({ title: "Persona creada", status: "success", duration: 2000 });
       queryClient.invalidateQueries({ queryKey: personaKeys.all });
     },
     onError: (error) => {
       toast({
-        title: 'Error al crear persona',
+        title: "Error al crear persona",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
@@ -179,16 +187,21 @@ const PersonaList: React.FC = () => {
     Error,
     { idPersona: number; payload: UpdatePersonaPayload }
   >({
-    mutationFn: ({ idPersona, payload }) => PersonasApi.updatePersona(idPersona, payload),
+    mutationFn: ({ idPersona, payload }) =>
+      PersonasApi.updatePersona(idPersona, payload),
     onSuccess: () => {
-      toast({ title: 'Persona actualizada', status: 'success', duration: 2000 });
+      toast({
+        title: "Persona actualizada",
+        status: "success",
+        duration: 2000,
+      });
       queryClient.invalidateQueries({ queryKey: personaKeys.all });
     },
     onError: (error) => {
       toast({
-        title: 'Error al actualizar persona',
+        title: "Error al actualizar persona",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
@@ -197,14 +210,14 @@ const PersonaList: React.FC = () => {
   const createUsuarioMutation = useMutation<void, Error, CreateUsuarioPayload>({
     mutationFn: PersonasApi.createUsuario,
     onSuccess: () => {
-      toast({ title: 'Usuario creado', status: 'success', duration: 2000 });
+      toast({ title: "Usuario creado", status: "success", duration: 2000 });
       queryClient.invalidateQueries({ queryKey: personaKeys.all });
     },
     onError: (error) => {
       toast({
-        title: 'Error al crear usuario',
+        title: "Error al crear usuario",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
@@ -215,31 +228,39 @@ const PersonaList: React.FC = () => {
     Error,
     { idUsuario: number; payload: UpdateUsuarioPayload }
   >({
-    mutationFn: ({ idUsuario, payload }) => PersonasApi.updateUsuario(idUsuario, payload),
+    mutationFn: ({ idUsuario, payload }) =>
+      PersonasApi.updateUsuario(idUsuario, payload),
     onSuccess: () => {
-      toast({ title: 'Usuario actualizado', status: 'success', duration: 2000 });
+      toast({
+        title: "Usuario actualizado",
+        status: "success",
+        duration: 2000,
+      });
       queryClient.invalidateQueries({ queryKey: personaKeys.all });
     },
     onError: (error) => {
       toast({
-        title: 'Error al actualizar usuario',
+        title: "Error al actualizar usuario",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
   });
 
-  const personasDataLoading = personasQuery.isLoading || personasQuery.isFetching;
+  const personasDataLoading =
+    personasQuery.isLoading || personasQuery.isFetching;
   const personasSearchLoading = personasBusquedaQuery.isFetching;
-  const isLoading = documentoBusqueda ? personasSearchLoading : personasDataLoading;
+  const isLoading = documentoBusqueda
+    ? personasSearchLoading
+    : personasDataLoading;
 
   useEffect(() => {
     if (personasBusquedaQuery.error && documentoBusqueda) {
       toast({
-        title: 'Error al buscar persona',
+        title: "Error al buscar persona",
         description: (personasBusquedaQuery.error as Error).message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     }
@@ -247,95 +268,107 @@ const PersonaList: React.FC = () => {
 
   const personaFields: Field<PersonaFormValues>[] = useMemo(
     () => [
-      { name: 'nombres', label: 'Nombres', type: 'text', required: true },
-      { name: 'apellidos', label: 'Apellidos', type: 'text', required: true },
-      { name: 'tipoDocumento', label: 'Tipo Documento', type: 'text', required: true },
+      { name: "nombres", label: "Nombres", type: "text", required: true },
+      { name: "apellidos", label: "Apellidos", type: "text", required: true },
       {
-        name: 'numeroIdentificacion',
-        label: 'Número Documento',
-        type: 'text',
+        name: "tipoDocumento",
+        label: "Tipo Documento",
+        type: "text",
         required: true,
       },
-      { name: 'telefonoMovil', label: 'Teléfono', type: 'text', required: true },
       {
-        name: 'rol',
-        label: 'Rol',
-        type: 'select',
+        name: "numeroIdentificacion",
+        label: "Número Documento",
+        type: "text",
+        required: true,
+      },
+      {
+        name: "telefonoMovil",
+        label: "Teléfono",
+        type: "text",
+        required: true,
+      },
+      {
+        name: "rol",
+        label: "Rol",
+        type: "select",
         options: rolesOptions,
         required: true,
       },
     ],
-    [rolesOptions]
+    [rolesOptions],
   );
 
   const personaEditFields = personaFields;
 
   const usuarioCreateFields: Field<UsuarioFormValues>[] = [
     {
-      name: 'email',
-      label: 'Email',
-      type: 'email',
+      name: "email",
+      label: "Email",
+      type: "email",
       required: true,
-      placeholder: 'usuario@ejemplo.com',
+      placeholder: "usuario@ejemplo.com",
     },
     {
-      name: 'password',
-      label: 'Contraseña',
-      type: 'password',
+      name: "password",
+      label: "Contraseña",
+      type: "password",
       required: true,
-      placeholder: 'Mínimo 8 caracteres',
+      placeholder: "Mínimo 8 caracteres",
     },
   ];
 
   const usuarioEditFields: Field<UsuarioFormValues>[] = [
     {
-      name: 'email',
-      label: 'Email',
-      type: 'email',
+      name: "email",
+      label: "Email",
+      type: "email",
       required: true,
-      placeholder: 'usuario@ejemplo.com',
+      placeholder: "usuario@ejemplo.com",
     },
     {
-      name: 'password',
-      label: 'Contraseña',
-      type: 'password',
+      name: "password",
+      label: "Contraseña",
+      type: "password",
       required: false,
-      placeholder: 'Dejar vacío para mantener actual',
+      placeholder: "Dejar vacío para mantener actual",
     },
   ];
 
   const searchResultFields: SearchResultField<Persona>[] = [
-    { key: 'numeroIdentificacion', label: 'Cédula' },
-    { key: 'nombres', label: 'Nombres' },
-    { key: 'apellidos', label: 'Apellidos' },
-    { key: 'email', label: 'Email' },
+    { key: "numeroIdentificacion", label: "Cédula" },
+    { key: "nombres", label: "Nombres" },
+    { key: "apellidos", label: "Apellidos" },
+    { key: "email", label: "Email" },
   ];
 
   const searchConfig: SearchConfig<Persona> = {
-    searchPlaceholder: 'Ingresa número de cédula',
-    searchButtonText: 'Buscar Persona',
+    searchPlaceholder: "Ingresa número de cédula",
+    searchButtonText: "Buscar Persona",
     onSearch: async (cedula: string) => {
       const result = await PersonasApi.searchByDocumento(cedula);
       return result.length > 0 ? result[0] : null;
     },
     resultFields: searchResultFields,
-    idField: 'idPersona',
-    emptyMessage: 'No se encontró ninguna persona con esa cédula',
+    idField: "idPersona",
+    emptyMessage: "No se encontró ninguna persona con esa cédula",
   };
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: personaKeys.all });
     if (documentoBusqueda) {
-      queryClient.invalidateQueries({ queryKey: personaKeys.search(documentoBusqueda) });
+      queryClient.invalidateQueries({
+        queryKey: personaKeys.search(documentoBusqueda),
+      });
     }
   };
 
   const handleBuscarDocumento = () => {
     if (!documentoBusqueda) {
       toast({
-        title: 'Ingresa un documento',
-        description: 'Debes escribir un documento antes de buscar',
-        status: 'info',
+        title: "Ingresa un documento",
+        description: "Debes escribir un documento antes de buscar",
+        status: "info",
         duration: 3000,
       });
       return;
@@ -350,7 +383,7 @@ const PersonaList: React.FC = () => {
         exact: true,
       });
     }
-    setFilter('documento', '');
+    setFilter("documento", "");
   };
 
   const handleToggleEstado = (persona: Persona) => {
@@ -405,11 +438,11 @@ const PersonaList: React.FC = () => {
       >
         <PersonaFilters
           documento={filters.documento}
-          onDocumentoChange={(value) => setFilter('documento', value)}
+          onDocumentoChange={(value) => setFilter("documento", value)}
           onBuscar={handleBuscarDocumento}
           onLimpiar={handleLimpiarDocumento}
           estadoFilter={filters.estado}
-          onEstadoChange={(value) => setFilter('estado', value)}
+          onEstadoChange={(value) => setFilter("estado", value)}
           isSearching={personasBusquedaQuery.isFetching}
         />
       </Stack>
@@ -426,7 +459,9 @@ const PersonaList: React.FC = () => {
         <PersonaTable
           data={paginatedData}
           isLoading={isLoading}
-          error={personasQuery.error ? (personasQuery.error as Error).message : null}
+          error={
+            personasQuery.error ? (personasQuery.error as Error).message : null
+          }
           onToggleEstado={handleToggleEstado}
           onEditPersona={handleEditPersona}
           onEditUsuario={handleEditUsuario}
@@ -452,11 +487,11 @@ const PersonaList: React.FC = () => {
         fields={personaFields}
         onSave={async (values) => {
           await createPersonaMutation.mutateAsync({
-            nombres: values.nombres ?? '',
-            apellidos: values.apellidos ?? '',
-            tipoDocumento: values.tipoDocumento ?? '',
-            numeroIdentificacion: values.numeroIdentificacion ?? '',
-            telefonoMovil: values.telefonoMovil ?? '',
+            nombres: values.nombres ?? "",
+            apellidos: values.apellidos ?? "",
+            tipoDocumento: values.tipoDocumento ?? "",
+            numeroIdentificacion: values.numeroIdentificacion ?? "",
+            telefonoMovil: values.telefonoMovil ?? "",
             rol: { id: Number(values.rol) },
           });
           personaModal.onClose();
@@ -464,7 +499,7 @@ const PersonaList: React.FC = () => {
       />
 
       <GenericModal
-        key={`edit-persona-${selectedPersona?.idPersona ?? 'new'}`}
+        key={`edit-persona-${selectedPersona?.idPersona ?? "new"}`}
         isOpen={editPersonaModal.isOpen}
         onClose={closePersonaModal}
         title="Editar Persona"
@@ -474,17 +509,18 @@ const PersonaList: React.FC = () => {
             ? {
                 nombres: selectedPersona.nombres,
                 apellidos: selectedPersona.apellidos,
-                tipoDocumento: selectedPersona.tipoDocumento ?? '',
-                numeroIdentificacion: selectedPersona.numeroIdentificacion ?? '',
-                telefonoMovil: selectedPersona.telefonoMovil ?? '',
+                tipoDocumento: selectedPersona.tipoDocumento ?? "",
+                numeroIdentificacion:
+                  selectedPersona.numeroIdentificacion ?? "",
+                telefonoMovil: selectedPersona.telefonoMovil ?? "",
                 rol:
                   rolesOptions.find(
                     (option) =>
                       option.label ===
-                      (typeof selectedPersona.rol === 'string'
+                      (typeof selectedPersona.rol === "string"
                         ? selectedPersona.rol
-                        : selectedPersona.rol?.nombre)
-                  )?.value ?? '',
+                        : selectedPersona.rol?.nombre),
+                  )?.value ?? "",
               }
             : undefined
         }
@@ -493,11 +529,11 @@ const PersonaList: React.FC = () => {
           await updatePersonaMutation.mutateAsync({
             idPersona: selectedPersona.idPersona,
             payload: {
-              nombres: values.nombres ?? '',
-              apellidos: values.apellidos ?? '',
-              tipoDocumento: values.tipoDocumento ?? '',
-              numeroIdentificacion: values.numeroIdentificacion ?? '',
-              telefonoMovil: values.telefonoMovil ?? '',
+              nombres: values.nombres ?? "",
+              apellidos: values.apellidos ?? "",
+              tipoDocumento: values.tipoDocumento ?? "",
+              numeroIdentificacion: values.numeroIdentificacion ?? "",
+              telefonoMovil: values.telefonoMovil ?? "",
               rol: { id: Number(values.rol) },
             },
           });
@@ -506,7 +542,7 @@ const PersonaList: React.FC = () => {
       />
 
       <GenericModal
-        key={`edit-usuario-${selectedPersona?.idUsuario ?? 'new'}`}
+        key={`edit-usuario-${selectedPersona?.idUsuario ?? "new"}`}
         isOpen={editUsuarioModal.isOpen}
         onClose={closeUsuarioModal}
         title="Editar Usuario"
@@ -514,18 +550,18 @@ const PersonaList: React.FC = () => {
         initialValues={
           selectedPersona
             ? {
-                email: selectedPersona.email ?? '',
-                password: '',
+                email: selectedPersona.email ?? "",
+                password: "",
               }
             : undefined
         }
         onSave={async (values) => {
           if (!selectedPersona?.idUsuario) return;
           const payload: UpdateUsuarioPayload = {
-            email: values.email ?? '',
+            email: values.email ?? "",
             persona: { id: selectedPersona.idPersona },
           };
-          if (values.password && values.password.trim() !== '') {
+          if (values.password && values.password.trim() !== "") {
             payload.password = values.password;
           }
           await updateUsuarioMutation.mutateAsync({
@@ -545,16 +581,16 @@ const PersonaList: React.FC = () => {
         onSave={async (values, personaId) => {
           if (!personaId) {
             toast({
-              title: 'Error',
-              description: 'Debes seleccionar una persona primero',
-              status: 'error',
+              title: "Error",
+              description: "Debes seleccionar una persona primero",
+              status: "error",
               duration: 3000,
             });
             return;
           }
           await createUsuarioMutation.mutateAsync({
-            email: values.email ?? '',
-            password: values.password ?? '',
+            email: values.email ?? "",
+            password: values.password ?? "",
             persona: { id: personaId },
           });
           usuarioModal.onClose();

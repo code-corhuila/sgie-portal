@@ -66,12 +66,8 @@ function Login() {
             </Text>
           </Stack>
           <Stack spacing={3} fontSize="sm" color="whiteAlpha.800">
-            <Text>
-              • Control en tiempo real de reservas y mantenimientos.
-            </Text>
-            <Text>
-              • Gestión centralizada de usuarios, roles y permisos.
-            </Text>
+            <Text>• Control en tiempo real de reservas y mantenimientos.</Text>
+            <Text>• Gestión centralizada de usuarios, roles y permisos.</Text>
             <Text>
               • Disponibilidad segura gracias a sesiones autenticadas.
             </Text>
@@ -79,12 +75,7 @@ function Login() {
         </Stack>
       </Flex>
 
-      <Flex
-        flex={1}
-        align="center"
-        justify="center"
-        p={{ base: 6, md: 12 }}
-      >
+      <Flex flex={1} align="center" justify="center" p={{ base: 6, md: 12 }}>
         <Box
           as="form"
           onSubmit={handleSubmit}
@@ -164,4 +155,3 @@ function Login() {
 }
 
 export default Login;
-

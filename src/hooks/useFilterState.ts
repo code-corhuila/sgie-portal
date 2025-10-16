@@ -1,6 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from "react";
 
-export function useFilterState<T extends Record<string, unknown>>(initialFilters: T) {
+export function useFilterState<T extends Record<string, unknown>>(
+  initialFilters: T,
+) {
   const [filters, setFilters] = useState<T>(initialFilters);
 
   const updateFilter = useCallback(<K extends keyof T>(key: K, value: T[K]) => {
@@ -21,7 +23,7 @@ export function useFilterState<T extends Record<string, unknown>>(initialFilters
         const initialValue = initialFilters[key as keyof T];
         return value !== initialValue;
       }),
-    [filters, initialFilters]
+    [filters, initialFilters],
   );
 
   return {

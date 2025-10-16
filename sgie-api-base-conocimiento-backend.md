@@ -1,12 +1,14 @@
 # Corhuila SGIE API - Base de conocimiento tecnico
 
 ## Resumen ejecutivo
+
 - **Objetivo**: Plataforma REST para administrar reservas, mantenimientos e inventario de instalaciones y equipos de la Universidad Corhuila, con control de usuarios, roles y permisos finos por entidad.
 - **Dominio clave**: Personas (usuarios internos), ubicaciones (continente a instalacion), equipos, reservas (instalacion/equipo), mantenimientos y notificaciones.
 - **Tecnologias base**: Spring Boot 3.5.5 (Java 17), Spring Data JPA, Spring Security con JWT, PostgreSQL, Spring Mail, SpringDoc OpenAPI.
 - **Estilo de API**: REST JSON con prefijo `v1/api`, entidad enrrollada en `ApiResponseDto`. Autorizacion basada en JWT (cookie `token` o header `Authorization`) y verificacion de permisos `ENTIDAD:ACCION`.
 
 ## Stack y configuracion
+
 - **Dependencias principales** (`pom.xml`):
   - Spring Boot starters (web, data-jpa, security, validation, mail, data-jdbc).
   - SpringDoc OpenAPI 2.5.0 (swagger UI en `/swagger-ui`).
@@ -22,6 +24,7 @@
   - CORS abierto para `http://localhost:5173`, cookies HTTP-only `same-site=Lax`.
 
 ## Arquitectura
+
 - **Capas**:
   - **Controller**: expone endpoints REST. La mayoria extiende `BaseController<T,S>` para CRUD estandar y permisos dinamicos.
   - **Service**: logica de negocio; todos extienden `BaseService<T>` con hooks (`afterSave`) y metodos comunes (soft delete, cambio de estado).
@@ -43,11 +46,13 @@
 ## Modelado de dominio (resumen por modulo)
 
 ### Common
+
 - `Auditoria`: estado booleano, timestamps y usuarios de auditoria. Eventos `@PrePersist`/`@PreUpdate`.
 - `ApiResponseDto<T>`: estructura de respuesta (`message`, `data`, `status`).
 - `Views`: vistas Jackson (`Simple`, `Complete`) para respuestas personalizadas.
 
 ### User
+
 - `Persona`: datos personales, relacion `Rol`, `Usuario`, reservas asociadas.
 - `Usuario`: credenciales (`email`, `password` bcrypt), `Persona` asociada (1:1 obligatoria).
 - `Rol`: nombre, descripcion.
@@ -60,6 +65,7 @@
   - `LoginRequest`: payload login email/password.
 
 ### Site
+
 - Jerarquia geografica: `Continente`, `Pais`, `Departamento`, `Municipio`.
 - `Campus`: pertenece a `Municipio`, agrupa `Instalacion`.
 - `CategoriaInstalacion`: tipifica instalaciones.
@@ -67,12 +73,14 @@
 - Proyeccion `IInstalacionCampusDTO`: retorna arbol completo de ubicacion y categoria.
 
 ### Equipment
+
 - `CategoriaEquipo` -> `TipoEquipo` -> `Equipo` (relaciones n: n).
 - `Equipo`: codigo unico, `Instalacion` fisica, `TipoEquipo`.
 - DTO relevantes: `IEquipoInstalacionDTO` (equipos por campus), `EquipoDTO`, `HojaDeVidaEquipoDTO`, `ReservaEquipoHistorialDTO`, `MantenimientoEquipoHistorialDTO`.
 - `HojaDeVidaEquipoService`: junta equipo, reservas historicas y mantenimientos para un reporte integral.
 
 ### Booking
+
 - `TipoReserva`: define si requiere aprobacion.
 - `Reserva`: fecha, rango horario (`horaInicio`, `horaFin`), descripcion, `TipoReserva`, `Persona`. Esta entidad se reutiliza para reservas y mantenimientos (uno a uno con mantenimiento).
 - `DetalleReservaEquipo`: detalle por equipo, programa academico, estudiantes, instalacion destino.
@@ -83,16 +91,19 @@
   - Requests/responses para actualizacion/cierre de detalles (`ActualizarReservaDetalleEquipoRequestDTO`, `DetalleReservaEquipoResponseDTO`, etc.).
 
 ### Maintenance
+
 - `CategoriaMantenimientoEquipo` y `CategoriaMantenimientoInstalacion`.
 - `MantenimientoEquipo`: descripcion, resultado, fecha proxima, `Reserva` y `Equipo`.
 - `MantenimientoInstalacion`: similar, asociado a `Instalacion`.
 - DTOs: `IMantenimientoEquipoDTO`, `IMantenimientoInstalacionDTO`, requests/response para actualizar y cerrar mantenimientos.
 
 ### Notification
+
 - `NotificacionService`: envio SMTP.
 - `NotificacionDiariaService`: recordatorios diarios de reservas abiertas por persona.
 
 ## Convenciones de API
+
 - **Prefijo global**: todos los endpoints estan bajo `/v1/api`.
 - **Envelope de respuesta** (`ApiResponseDto`):
   ```json
@@ -102,19 +113,20 @@
     "status": true
   }
   ```
+
   - Los endpoints custom (p.ej. horas disponibles) pueden devolver directamente DTO sin envelope cuando retornan listas simples (`ResponseEntity<List<...>>`).
 - **Soft delete y estado**:
   - Campo `state` indica registro activo (true) o inactivo (false).
   - `DELETE` marca `state=false`, `deletedAt` lleno; `PUT {id}/cambiar-estado` actualiza estado sin borrar.
 - **CRUD generico disponible para cada controlador que extiende `BaseController`**:
-  | Metodo | Ruta base                         | Descripcion | Permiso requerido |
+  | Metodo | Ruta base | Descripcion | Permiso requerido |
   |--------|-----------------------------------|-------------|-------------------|
-  | GET    | `/v1/api/{recurso}`               | Lista activos (`service.findByStateTrue()`) | `{ENTIDAD}:CONSULTAR` |
-  | GET    | `/v1/api/{recurso}/{id}`          | Obtiene registro por id | `{ENTIDAD}:CONSULTAR` |
-  | POST   | `/v1/api/{recurso}`               | Crea nuevo registro | `{ENTIDAD}:CREAR` |
-  | PUT    | `/v1/api/{recurso}/{id}`          | Actualiza registro (ignora campos auditoria, password) | `{ENTIDAD}:ACTUALIZAR` |
-  | PUT    | `/v1/api/{recurso}/{id}/cambiar-estado` | Cambia estado booleano | `{ENTIDAD}:ACTUALIZAR` |
-  | DELETE | `/v1/api/{recurso}/{id}`          | Soft delete | `{ENTIDAD}:ELIMINAR` |
+  | GET | `/v1/api/{recurso}` | Lista activos (`service.findByStateTrue()`) | `{ENTIDAD}:CONSULTAR` |
+  | GET | `/v1/api/{recurso}/{id}` | Obtiene registro por id | `{ENTIDAD}:CONSULTAR` |
+  | POST | `/v1/api/{recurso}` | Crea nuevo registro | `{ENTIDAD}:CREAR` |
+  | PUT | `/v1/api/{recurso}/{id}` | Actualiza registro (ignora campos auditoria, password) | `{ENTIDAD}:ACTUALIZAR` |
+  | PUT | `/v1/api/{recurso}/{id}/cambiar-estado` | Cambia estado booleano | `{ENTIDAD}:ACTUALIZAR` |
+  | DELETE | `/v1/api/{recurso}/{id}` | Soft delete | `{ENTIDAD}:ELIMINAR` |
 
   > Nota: el nombre de entidad configurado en cada controlador (ej. `super(service, "EQUIPO")`) define el prefijo del permiso.
 
@@ -123,6 +135,7 @@
   - Horas: `HH:mm:ss` (segun `@JsonFormat` y funciones de BD).
 
 ## Autenticacion y autorizacion
+
 - **Login** `POST /v1/api/usuario/login`
   - Body (`LoginRequest`):
     ```json
@@ -156,6 +169,7 @@
 ## Endpoints por modulo
 
 ### Usuario y permisos
+
 - **Rutas base (CRUD generico)**:
   - `Persona` `/v1/api/persona` (entidad `PERSONA`).
   - `Usuario` `/v1/api/usuario` (`USUARIO`).
@@ -196,6 +210,7 @@
   - Password se guarda encriptado (BCrypt). En update, password solo se actualiza si viene en request.
 
 ### Ubicaciones (Site)
+
 - Controladores con CRUD generico: `Continente`, `Pais`, `Departamento`, `Municipio`, `Campus`, `CategoriaInstalacion`.
 - **Endpoint custom**:
   - `GET /v1/api/instalacion/instalacion-campus?nombreInstalacion=...&nombreCampus=...`
@@ -203,6 +218,7 @@
     - Campos clave: ids y nombres de continente/pais/departamento/municipio/campus/instalacion, categoria, estados.
 
 ### Equipos
+
 - CRUD generico para `CategoriaEquipo`, `TipoEquipo`, `Equipo`.
 - **Consultas especificas**:
   - `GET /v1/api/equipo/equipo-instalacion?codigoEquipo=...&nombreInstalacion=...`
@@ -242,6 +258,7 @@
       ```
 
 ### Reservas
+
 - **CRUD base**: `Reserva`, `TipoReserva`, `DetalleReservaEquipo`, `DetalleReservaInstalacion`.
 - **Calculo de disponibilidad**:
   - `GET /v1/api/reserva/horas-disponibles-instalacion?fecha=2024-11-21&idInstalacion=5&idDetalle=10`
@@ -267,6 +284,7 @@
   - `afterSave` en `DetalleReservaEquipoService` y `DetalleReservaInstalacionService` envia correo de confirmacion al usuario asociado a la reserva via `NotificacionService`.
 
 ### Mantenimientos
+
 - **CRUD base**: `CategoriaMantenimientoEquipo`, `CategoriaMantenimientoInstalacion`, `MantenimientoEquipo`, `MantenimientoInstalacion`.
 - **Acciones especificas**:
   - `PUT /v1/api/mantenimiento-equipo/{id}/cerrar-mantenimiento-equipo`
@@ -282,12 +300,14 @@
   - `afterSave` en servicios de mantenimiento envia correo de confirmacion.
 
 ### Notificaciones programadas
+
 - Aunque no hay endpoint publico, `NotificacionDiariaService.enviarNotificacionReservasAbiertas()` se ejecuta a diario:
   1. Consulta reservas activas del dia (`IReservaRepository.findByFechaReservaAndStateTrue`).
   2. Agrupa por persona y envia correo con resumen de reservas pendientes.
   3. Usa direccion remitente `jszambrano@corhuila.edu.co`.
 
 ## Flujos de negocio clave
+
 1. **Reserva de equipo**:
    1. Front consulta `GET /reserva/horas-disponibles-equipo`.
    2. Crea `Reserva` via `POST /reserva`.
@@ -307,6 +327,7 @@
    - Cron nocturno envia correo a cada persona con reservas abiertas el mismo dia; front puede complementar mostrando banner si hay reservas `state=true`.
 
 ## Consideraciones para frontend
+
 - Siempre manejar `status` en `ApiResponseDto`. Una respuesta 200 con `status=false` implica error de negocio.
 - Para endpoints que devuelven listas simples (sin envelope) verificar tipo esperado (p.ej. `HoraDisponibleDTO`).
 - Incluir `credentials: 'include'` al hacer fetch para reutilizar cookie `token`. Alternativamente mandar header `Authorization`.
@@ -324,6 +345,7 @@
 - Configurar swagger (via cookie) para pruebas: `Authorization` -> `Bearer <token>`.
 
 ## Puntos de extension y riesgos
+
 - **Funciones nativas** `horas_disponibles_instalacion/equipo` deben existir en BD. Para ambientes nuevos documentar scripts de creacion.
 - **Envio de correo**: credenciales Gmail en properties; para produccion migrar a variables de entorno y `secure=true`.
 - **AuditoriaListener** espera que `Authentication.getDetails()` sea `Long idUsuario`; el JWT filter coloca este valor via `authToken.setDetails(idUsuario)`.
@@ -333,18 +355,18 @@
 
 ## Referencias rapidas de rutas
 
-| Modulo | Recurso base | Endpoint custom clave |
-|--------|--------------|-----------------------|
-| Usuario | `/v1/api/usuario` | `/login`, `/me`, `/logout` |
-| Persona | `/v1/api/persona` | `/persona-usuario` |
-| Permisos | `/v1/api/permiso-rol-entidad` | `/persona-permisos-rol-entidad`, `/todos-permisos-rol-entidad` |
-| Ubicaciones | `/v1/api/instalacion` | `/instalacion-campus` |
-| Equipos | `/v1/api/equipo` | `/equipo-instalacion`, `/hoja-vida-equipo/{id}` |
-| Reservas | `/v1/api/reserva` | `/horas-disponibles-*`, `/reservas-mantenimientos` |
-| Detalle reserva equipo | `/v1/api/detalle-reserva-equipo` | `/cerrar-detalle-reserva-equipo`, `/actualizar-detalle-reserva-equipo`, `/reservas-equipos` |
-| Detalle reserva instalacion | `/v1/api/detalle-reserva-instalacion` | `/cerrar-detalle-reserva-instalacion`, `/actualizar-detalle-reserva`, `/reservas-instalaciones` |
-| Mantenimiento equipo | `/v1/api/mantenimiento-equipo` | `/cerrar-mantenimiento-equipo`, `/actualizar-mantenimiento-equipo`, `/mantenimientos-equipos` |
-| Mantenimiento instalacion | `/v1/api/mantenimiento-instalacion` | `/cerrar-mantenimiento-instalacion`, `/actualizar-mantenimiento-instalacion`, `/mantenimientos-instalaciones` |
+| Modulo                      | Recurso base                          | Endpoint custom clave                                                                                         |
+| --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Usuario                     | `/v1/api/usuario`                     | `/login`, `/me`, `/logout`                                                                                    |
+| Persona                     | `/v1/api/persona`                     | `/persona-usuario`                                                                                            |
+| Permisos                    | `/v1/api/permiso-rol-entidad`         | `/persona-permisos-rol-entidad`, `/todos-permisos-rol-entidad`                                                |
+| Ubicaciones                 | `/v1/api/instalacion`                 | `/instalacion-campus`                                                                                         |
+| Equipos                     | `/v1/api/equipo`                      | `/equipo-instalacion`, `/hoja-vida-equipo/{id}`                                                               |
+| Reservas                    | `/v1/api/reserva`                     | `/horas-disponibles-*`, `/reservas-mantenimientos`                                                            |
+| Detalle reserva equipo      | `/v1/api/detalle-reserva-equipo`      | `/cerrar-detalle-reserva-equipo`, `/actualizar-detalle-reserva-equipo`, `/reservas-equipos`                   |
+| Detalle reserva instalacion | `/v1/api/detalle-reserva-instalacion` | `/cerrar-detalle-reserva-instalacion`, `/actualizar-detalle-reserva`, `/reservas-instalaciones`               |
+| Mantenimiento equipo        | `/v1/api/mantenimiento-equipo`        | `/cerrar-mantenimiento-equipo`, `/actualizar-mantenimiento-equipo`, `/mantenimientos-equipos`                 |
+| Mantenimiento instalacion   | `/v1/api/mantenimiento-instalacion`   | `/cerrar-mantenimiento-instalacion`, `/actualizar-mantenimiento-instalacion`, `/mantenimientos-instalaciones` |
 
 ---
 

@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@chakra-ui/react';
-import { ReservaApi } from '../../../api/reserva';
-import { reservaKeys } from '../queryKeys';
+import { useCallback, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@chakra-ui/react";
+import { ReservaApi } from "../../../api/reserva";
+import { reservaKeys } from "../queryKeys";
 import type {
   CerrarReservaPayload,
   CreateReservaPayload,
@@ -22,23 +22,25 @@ import type {
   UpdateDetalleReservaInstalacionPayload,
   UpdateMantenimientoPayload,
   UpdateReservaCorePayload,
-} from '../types';
+} from "../types";
 
 const resolveGrupoFromNombre = (nombreTipo: string): ReservaGrupo => {
-  const lower = (nombreTipo || '').toLowerCase();
-  const isMantenimiento = lower.includes('manten');
-  const isEquipo = lower.includes('equipo');
-  const isInstalacion = lower.includes('instal');
-  if (isMantenimiento && isEquipo) return 'MANTENIMIENTO_EQUIPO';
-  if (isMantenimiento && isInstalacion) return 'MANTENIMIENTO_INSTALACION';
-  if (!isMantenimiento && isEquipo) return 'RESERVA_EQUIPO';
-  return 'RESERVA_INSTALACION';
+  const lower = (nombreTipo || "").toLowerCase();
+  const isMantenimiento = lower.includes("manten");
+  const isEquipo = lower.includes("equipo");
+  const isInstalacion = lower.includes("instal");
+  if (isMantenimiento && isEquipo) return "MANTENIMIENTO_EQUIPO";
+  if (isMantenimiento && isInstalacion) return "MANTENIMIENTO_INSTALACION";
+  if (!isMantenimiento && isEquipo) return "RESERVA_EQUIPO";
+  return "RESERVA_INSTALACION";
 };
 
 export function userReserva() {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [currentDocumento, setCurrentDocumento] = useState<string | undefined>(undefined);
+  const [currentDocumento, setCurrentDocumento] = useState<string | undefined>(
+    undefined,
+  );
   const [horasDisponibles, setHorasDisponibles] = useState<string[]>([]);
 
   const reservasQuery = useQuery<ReservaGeneral[]>({
@@ -78,11 +80,17 @@ export function userReserva() {
 
   const data = reservasQuery.data ?? [];
   const loading = reservasQuery.isLoading || reservasQuery.isFetching;
-  const error = reservasQuery.error ? (reservasQuery.error as Error).message : null;
+  const error = reservasQuery.error
+    ? (reservasQuery.error as Error).message
+    : null;
 
   const tipoReservaOptions = useMemo(
-    () => (tiposReservaQuery.data ?? []).map((tipo) => ({ value: tipo.id, label: tipo.nombre })),
-    [tiposReservaQuery.data]
+    () =>
+      (tiposReservaQuery.data ?? []).map((tipo) => ({
+        value: tipo.id,
+        label: tipo.nombre,
+      })),
+    [tiposReservaQuery.data],
   );
 
   const equipoOptions = useMemo(
@@ -93,25 +101,33 @@ export function userReserva() {
           value: item.id,
           label: `${item.tipoEquipo.nombre} (${item.codigo})`,
         })),
-    [equiposQuery.data]
+    [equiposQuery.data],
   );
 
   const instalacionOptions = useMemo(
     () =>
       (instalacionesQuery.data ?? [])
-        .filter((item) => item.nombre && item.nombre.trim() !== '')
+        .filter((item) => item.nombre && item.nombre.trim() !== "")
         .map((item) => ({ value: item.id, label: item.nombre })),
-    [instalacionesQuery.data]
+    [instalacionesQuery.data],
   );
 
   const catMtoEquipoOptions = useMemo(
-    () => (catMtoEquipoQuery.data ?? []).map((item) => ({ value: item.id, label: item.nombre })),
-    [catMtoEquipoQuery.data]
+    () =>
+      (catMtoEquipoQuery.data ?? []).map((item) => ({
+        value: item.id,
+        label: item.nombre,
+      })),
+    [catMtoEquipoQuery.data],
   );
 
   const catMtoInstOptions = useMemo(
-    () => (catMtoInstQuery.data ?? []).map((item) => ({ value: item.id, label: item.nombre })),
-    [catMtoInstQuery.data]
+    () =>
+      (catMtoInstQuery.data ?? []).map((item) => ({
+        value: item.id,
+        label: item.nombre,
+      })),
+    [catMtoInstQuery.data],
   );
 
   const fetchAll = useCallback(
@@ -122,7 +138,7 @@ export function userReserva() {
         setCurrentDocumento(numeroIdentificacion);
       }
     },
-    [currentDocumento, reservasQuery]
+    [currentDocumento, reservasQuery],
   );
 
   const getHorasDisponiblesInstalacion = useCallback(
@@ -140,14 +156,14 @@ export function userReserva() {
         setHorasDisponibles(list.map((item: HoraDisponible) => item.hora));
       } catch (err) {
         toast({
-          title: 'Error obteniendo horas disponibles',
+          title: "Error obteniendo horas disponibles",
           description: (err as Error).message,
-          status: 'error',
+          status: "error",
           duration: 4000,
         });
       }
     },
-    [toast]
+    [toast],
   );
 
   const getHorasDisponiblesEquipo = useCallback(
@@ -165,31 +181,35 @@ export function userReserva() {
         setHorasDisponibles(list.map((item: HoraDisponible) => item.hora));
       } catch (err) {
         toast({
-          title: 'Error obteniendo horas disponibles',
+          title: "Error obteniendo horas disponibles",
           description: (err as Error).message,
-          status: 'error',
+          status: "error",
           duration: 4000,
         });
       }
     },
-    [toast]
+    [toast],
   );
 
   const invalidateReservas = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: reservaKeys.list(currentDocumento) });
+    queryClient.invalidateQueries({
+      queryKey: reservaKeys.list(currentDocumento),
+    });
   }, [currentDocumento, queryClient]);
 
   const createReservaFlow = useCallback(
     async (personaId: number, paso1: Paso1Values, paso2: Paso2Values) => {
-      const tipoSel = tiposReservaQuery.data?.find((tipo) => tipo.id === paso1.tipoReservaId);
-      if (!tipoSel) throw new Error('Tipo de reserva inválido');
+      const tipoSel = tiposReservaQuery.data?.find(
+        (tipo) => tipo.id === paso1.tipoReservaId,
+      );
+      if (!tipoSel) throw new Error("Tipo de reserva inválido");
 
       const corePayload: CreateReservaPayload = {
-        fechaReserva: paso1.fechaReserva ?? '',
-        horaInicio: paso1.horaInicio ?? '',
-        horaFin: paso1.horaFin ?? '',
-        nombre: paso1.nombreReserva ?? '',
-        descripcion: paso1.descripcionReserva ?? '',
+        fechaReserva: paso1.fechaReserva ?? "",
+        horaInicio: paso1.horaInicio ?? "",
+        horaFin: paso1.horaFin ?? "",
+        nombre: paso1.nombreReserva ?? "",
+        descripcion: paso1.descripcionReserva ?? "",
         tipoReserva: { id: String(paso1.tipoReservaId) },
         persona: { id: String(personaId) },
       };
@@ -197,15 +217,16 @@ export function userReserva() {
       const reservaCreada = await ReservaApi.createReserva(corePayload);
       const reservaId = reservaCreada.id;
       if (!reservaId) {
-        throw new Error('No se pudo obtener el id de la reserva creada');
+        throw new Error("No se pudo obtener el id de la reserva creada");
       }
 
       const grupo = resolveGrupoFromNombre(tipoSel.nombre);
 
-      if (grupo === 'RESERVA_INSTALACION') {
-        if (!paso1.idInstalacion) throw new Error('Debe seleccionar una instalación');
+      if (grupo === "RESERVA_INSTALACION") {
+        if (!paso1.idInstalacion)
+          throw new Error("Debe seleccionar una instalación");
         const payload: DetalleReservaInstalacionPayload = {
-          programaAcademico: paso2.programaAcademico ?? '',
+          programaAcademico: paso2.programaAcademico ?? "",
           numeroEstudiantes: paso2.numeroEstudiantes ?? 0,
           entregaInstalacion: null,
           reserva: { id: String(reservaId) },
@@ -214,14 +235,14 @@ export function userReserva() {
         await ReservaApi.createDetalleInstalacion(payload);
       }
 
-      if (grupo === 'RESERVA_EQUIPO') {
-        if (!paso1.idEquipo) throw new Error('Debe seleccionar un equipo');
+      if (grupo === "RESERVA_EQUIPO") {
+        if (!paso1.idEquipo) throw new Error("Debe seleccionar un equipo");
         const payload: DetalleReservaEquipoPayload = {
-          programaAcademico: paso2.programaAcademico ?? '',
+          programaAcademico: paso2.programaAcademico ?? "",
           numeroEstudiantes: paso2.numeroEstudiantes ?? 0,
           entregaEquipo: null,
-          observacionesDevolucion: '',
-          fechaDevolucionReal: '',
+          observacionesDevolucion: "",
+          fechaDevolucionReal: "",
           reserva: { id: String(reservaId) },
           equipo: { id: String(paso1.idEquipo) },
           ...(paso2.idInstalacionDestino
@@ -231,27 +252,36 @@ export function userReserva() {
         await ReservaApi.createDetalleEquipo(payload);
       }
 
-      if (grupo === 'MANTENIMIENTO_INSTALACION') {
-        if (!paso1.idInstalacion) throw new Error('Debe seleccionar una instalación');
+      if (grupo === "MANTENIMIENTO_INSTALACION") {
+        if (!paso1.idInstalacion)
+          throw new Error("Debe seleccionar una instalación");
         const payload: MantenimientoInstalacionPayload = {
-          descripcion: paso2.descripcionMantenimiento ?? '',
+          descripcion: paso2.descripcionMantenimiento ?? "",
           reserva: { id: String(reservaId) },
           instalacion: { id: String(paso1.idInstalacion) },
           ...(paso2.categoriaMantenimientoInstalacionId
-            ? { categoriaMantenimientoInstalacion: { id: String(paso2.categoriaMantenimientoInstalacionId) } }
+            ? {
+                categoriaMantenimientoInstalacion: {
+                  id: String(paso2.categoriaMantenimientoInstalacionId),
+                },
+              }
             : {}),
         };
         await ReservaApi.createMantenimientoInstalacion(payload);
       }
 
-      if (grupo === 'MANTENIMIENTO_EQUIPO') {
-        if (!paso1.idEquipo) throw new Error('Debe seleccionar un equipo');
+      if (grupo === "MANTENIMIENTO_EQUIPO") {
+        if (!paso1.idEquipo) throw new Error("Debe seleccionar un equipo");
         const payload: MantenimientoEquipoPayload = {
-          descripcion: paso2.descripcionMantenimiento ?? '',
+          descripcion: paso2.descripcionMantenimiento ?? "",
           reserva: { id: String(reservaId) },
           equipo: { id: String(paso1.idEquipo) },
           ...(paso2.categoriaMantenimientoEquipoId
-            ? { categoriaMantenimientoEquipo: { id: String(paso2.categoriaMantenimientoEquipoId) } }
+            ? {
+                categoriaMantenimientoEquipo: {
+                  id: String(paso2.categoriaMantenimientoEquipoId),
+                },
+              }
             : {}),
         };
         await ReservaApi.createMantenimientoEquipo(payload);
@@ -259,7 +289,7 @@ export function userReserva() {
 
       invalidateReservas();
     },
-    [invalidateReservas, tiposReservaQuery.data]
+    [invalidateReservas, tiposReservaQuery.data],
   );
 
   const updateReservaCore = useCallback(
@@ -274,7 +304,7 @@ export function userReserva() {
       await ReservaApi.updateReserva(idReserva, payload);
       invalidateReservas();
     },
-    [invalidateReservas]
+    [invalidateReservas],
   );
 
   const updateDetalleReservaInstalacion = useCallback(
@@ -292,7 +322,7 @@ export function userReserva() {
       await ReservaApi.updateDetalleInstalacion(idDetalle, payload);
       invalidateReservas();
     },
-    [invalidateReservas]
+    [invalidateReservas],
   );
 
   const updateDetalleReservaEquipo = useCallback(
@@ -311,7 +341,7 @@ export function userReserva() {
       await ReservaApi.updateDetalleEquipo(idDetalle, payload);
       invalidateReservas();
     },
-    [invalidateReservas]
+    [invalidateReservas],
   );
 
   const updateMantenimientoInstalacion = useCallback(
@@ -329,7 +359,7 @@ export function userReserva() {
       await ReservaApi.updateMantenimientoInstalacion(idMantenimiento, payload);
       invalidateReservas();
     },
-    [invalidateReservas]
+    [invalidateReservas],
   );
 
   const updateMantenimientoEquipo = useCallback(
@@ -347,7 +377,7 @@ export function userReserva() {
       await ReservaApi.updateMantenimientoEquipo(idMantenimiento, payload);
       invalidateReservas();
     },
-    [invalidateReservas]
+    [invalidateReservas],
   );
 
   const cerrarReserva = useCallback(
@@ -360,19 +390,22 @@ export function userReserva() {
         resultadoMantenimiento: values.resultadoMantenimiento,
       };
 
-      if (lower.includes('instalacion') && !lower.includes('mantenimiento')) {
+      if (lower.includes("instalacion") && !lower.includes("mantenimiento")) {
         await ReservaApi.cerrarDetalleInstalacion(idDetalle, payload);
-      } else if (lower.includes('equipo') && !lower.includes('mantenimiento')) {
+      } else if (lower.includes("equipo") && !lower.includes("mantenimiento")) {
         await ReservaApi.cerrarDetalleEquipo(idDetalle, payload);
-      } else if (lower.includes('mantenimiento') && lower.includes('instalacion')) {
+      } else if (
+        lower.includes("mantenimiento") &&
+        lower.includes("instalacion")
+      ) {
         await ReservaApi.cerrarMantenimientoInstalacion(idDetalle, payload);
-      } else if (lower.includes('mantenimiento') && lower.includes('equipo')) {
+      } else if (lower.includes("mantenimiento") && lower.includes("equipo")) {
         await ReservaApi.cerrarMantenimientoEquipo(idDetalle, payload);
       }
 
       invalidateReservas();
     },
-    [invalidateReservas]
+    [invalidateReservas],
   );
 
   return {

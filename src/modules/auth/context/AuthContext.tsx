@@ -1,4 +1,10 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import type { ReactNode } from "react";
 import { AuthApi } from "../../../api/auth";
 import { setupInterceptor } from "../../../utils/interceptor";
@@ -67,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPermissions(data.permisos ?? []);
       setEmail(data.email ?? null);
       setUserId(data.idUsuario ?? null);
-      
+
       return true;
     } catch {
       return false;
@@ -83,16 +89,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider 
-      value={{ 
-        role, 
+    <AuthContext.Provider
+      value={{
+        role,
         permissions,
         email,
         userId,
-        login, 
-        logout, 
-        checkingAuth, 
-        isAuthenticated: !!role 
+        login,
+        logout,
+        checkingAuth,
+        isAuthenticated: !!role,
       }}
     >
       {children}

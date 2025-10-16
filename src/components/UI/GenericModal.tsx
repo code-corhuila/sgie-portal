@@ -23,7 +23,7 @@ import {
   HStack,
   Box,
 } from "@chakra-ui/react";
-import { MultiSelect } from './MultiSelect';
+import { MultiSelect } from "./MultiSelect";
 
 export interface FieldOption {
   value: string | number;
@@ -34,7 +34,15 @@ export interface Field<T = any> {
   name: keyof T;
   label: string;
   // 👇 Agrega "textarea"
-  type: "text" | "select" | "multiselect" | "number" | "email" | "password" | "date" | "textarea";
+  type:
+    | "text"
+    | "select"
+    | "multiselect"
+    | "number"
+    | "email"
+    | "password"
+    | "date"
+    | "textarea";
   value?: T[keyof T];
   // 👇 CAMBIO CLAVE: aceptar función para opciones dinámicas (retrocompatible)
   options?: FieldOption[] | ((values: Partial<T>) => FieldOption[]);
@@ -66,10 +74,8 @@ const GenericModal = <T extends Record<string, any>>({
   initialValues,
   saveButtonText = "Guardar",
   cancelButtonText = "Cancelar",
-  onValuesChange
-}: 
-
-GenericModalProps<T>) => {
+  onValuesChange,
+}: GenericModalProps<T>) => {
   const toast = useToast();
   const [values, setValues] = useState<Partial<T>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -78,7 +84,9 @@ GenericModalProps<T>) => {
     const init: Partial<T> = {};
     fields.forEach((f) => {
       const fallback = f.type === "multiselect" ? [] : "";
-      init[f.name] = (initialValues?.[f.name] ?? f.value ?? fallback) as T[keyof T];
+      init[f.name] = (initialValues?.[f.name] ??
+        f.value ??
+        fallback) as T[keyof T];
     });
     return init;
   }, [fields, initialValues]);
@@ -88,19 +96,19 @@ GenericModalProps<T>) => {
       setValues(defaultValues);
     }
   }, [isOpen, defaultValues]);
-/*
+  /*
   const handleChange = (name: keyof T, value: any) =>
     setValues((prev) => ({ ...prev, [name]: value}
       
     ));
 */
-     const handleChange = (name: keyof T, value: any) => { 
-         setValues((prev) => {   
-             const next = { ...prev, [name]: value };
-                 onValuesChange?.(next); 
-                 return next;   
-                 });
-                  };
+  const handleChange = (name: keyof T, value: any) => {
+    setValues((prev) => {
+      const next = { ...prev, [name]: value };
+      onValuesChange?.(next);
+      return next;
+    });
+  };
 
   const isFormValid = useMemo(
     () =>
@@ -115,7 +123,7 @@ GenericModalProps<T>) => {
         }
         return (currentValue ?? "") !== "";
       }),
-    [fields, values]
+    [fields, values],
   );
 
   const handleSave = async () => {
@@ -131,7 +139,12 @@ GenericModalProps<T>) => {
     setIsSaving(true);
     try {
       await onSave(values);
-      toast({ title: "Guardado correctamente", status: "success", duration: 3000, isClosable: true });
+      toast({
+        title: "Guardado correctamente",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
       onClose();
     } catch (error: any) {
       toast({
@@ -154,7 +167,12 @@ GenericModalProps<T>) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="lg" closeOnOverlayClick={!isSaving}>
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      size="lg"
+      closeOnOverlayClick={!isSaving}
+    >
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>{title}</ModalHeader>
@@ -166,7 +184,7 @@ GenericModalProps<T>) => {
               const resolvedOptions =
                 typeof field.options === "function"
                   ? field.options(values)
-                  : field.options ?? [];
+                  : (field.options ?? []);
 
               const helperText = field.placeholder;
 
@@ -184,8 +202,13 @@ GenericModalProps<T>) => {
                         value={values[field.name] ?? ""}
                         onChange={(e) => {
                           const rawValue = e.target.value;
-                          const selected = resolvedOptions.find((opt) => String(opt.value) === rawValue);
-                          handleChange(field.name, selected ? selected.value : rawValue);
+                          const selected = resolvedOptions.find(
+                            (opt) => String(opt.value) === rawValue,
+                          );
+                          handleChange(
+                            field.name,
+                            selected ? selected.value : rawValue,
+                          );
                         }}
                         placeholder={field.placeholder || "Seleccionar"}
                         isDisabled={field.disabled}
@@ -193,7 +216,10 @@ GenericModalProps<T>) => {
                         variant="outline"
                       >
                         {resolvedOptions.map((opt, optIndex) => (
-                          <option key={`${String(field.name)}-${String(opt.value)}-${optIndex}`} value={opt.value}>
+                          <option
+                            key={`${String(field.name)}-${String(opt.value)}-${optIndex}`}
+                            value={opt.value}
+                          >
                             {opt.label}
                           </option>
                         ))}
@@ -208,12 +234,16 @@ GenericModalProps<T>) => {
                         }
                         options={resolvedOptions}
                         placeholder={field.placeholder}
-                        onChange={(selected) => handleChange(field.name, selected)}
+                        onChange={(selected) =>
+                          handleChange(field.name, selected)
+                        }
                       />
                     ) : field.type === "textarea" ? (
                       <Textarea
                         value={values[field.name] ?? ""}
-                        onChange={(e) => handleChange(field.name, e.target.value)}
+                        onChange={(e) =>
+                          handleChange(field.name, e.target.value)
+                        }
                         placeholder={field.placeholder}
                         isDisabled={field.disabled}
                         size="md"
@@ -224,7 +254,9 @@ GenericModalProps<T>) => {
                       <Input
                         type={field.type}
                         value={values[field.name] ?? ""}
-                        onChange={(e) => handleChange(field.name, e.target.value)}
+                        onChange={(e) =>
+                          handleChange(field.name, e.target.value)
+                        }
                         placeholder={field.placeholder}
                         isDisabled={field.disabled}
                         size="md"
@@ -253,10 +285,19 @@ GenericModalProps<T>) => {
               <Box />
             )}
             <HStack spacing={3}>
-              <Button variant="ghost" onClick={handleClose} isDisabled={isSaving}>
+              <Button
+                variant="ghost"
+                onClick={handleClose}
+                isDisabled={isSaving}
+              >
                 {cancelButtonText}
               </Button>
-              <Button colorScheme="brand" onClick={handleSave} isLoading={isSaving} isDisabled={!isFormValid}>
+              <Button
+                colorScheme="brand"
+                onClick={handleSave}
+                isLoading={isSaving}
+                isDisabled={!isFormValid}
+              >
                 {saveButtonText}
               </Button>
             </HStack>

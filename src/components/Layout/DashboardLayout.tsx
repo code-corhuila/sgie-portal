@@ -44,11 +44,36 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { path: "/permisos", label: "Permisos", roles: ["ADMINISTRADOR"], icon: FiShield },
-  { path: "/persona", label: "Personas", roles: ["ADMINISTRADOR"], icon: FiUsers },
-  { path: "/ubicacion", label: "Ubicaciones", roles: ["ADMINISTRADOR", "ADMINISTRATIVO"], icon: FiMapPin },
-  { path: "/equipo", label: "Equipos", roles: ["ADMINISTRADOR", "ADMINISTRATIVO"], icon: FiCpu },
-  { path: "/reserva", label: "Reservas", roles: ["ADMINISTRADOR", "ADMINISTRATIVO"], icon: FiCalendar },
+  {
+    path: "/permisos",
+    label: "Permisos",
+    roles: ["ADMINISTRADOR"],
+    icon: FiShield,
+  },
+  {
+    path: "/persona",
+    label: "Personas",
+    roles: ["ADMINISTRADOR"],
+    icon: FiUsers,
+  },
+  {
+    path: "/ubicacion",
+    label: "Ubicaciones",
+    roles: ["ADMINISTRADOR", "ADMINISTRATIVO"],
+    icon: FiMapPin,
+  },
+  {
+    path: "/equipo",
+    label: "Equipos",
+    roles: ["ADMINISTRADOR", "ADMINISTRATIVO"],
+    icon: FiCpu,
+  },
+  {
+    path: "/reserva",
+    label: "Reservas",
+    roles: ["ADMINISTRADOR", "ADMINISTRATIVO"],
+    icon: FiCalendar,
+  },
 ];
 
 const DashboardLayout = () => {
@@ -70,7 +95,7 @@ const DashboardLayout = () => {
     };
     const insertIndex = Math.max(
       base.findIndex((item) => item.path === "/reserva") + 1,
-      0
+      0,
     );
     const menuWithLogout = [...base];
     menuWithLogout.splice(insertIndex, 0, logoutItem);
@@ -79,10 +104,13 @@ const DashboardLayout = () => {
 
   const activeItem = useMemo(() => {
     const current = filteredMenu.find(
-      (item) => item.path !== "__logout__" && location.pathname.startsWith(item.path)
+      (item) =>
+        item.path !== "__logout__" && location.pathname.startsWith(item.path),
     );
     if (current) return current;
-    return filteredMenu.find((item) => item.path !== "__logout__") ?? filteredMenu[0];
+    return (
+      filteredMenu.find((item) => item.path !== "__logout__") ?? filteredMenu[0]
+    );
   }, [filteredMenu, location.pathname]);
 
   const breadcrumbs = useMemo(() => {
@@ -93,7 +121,8 @@ const DashboardLayout = () => {
     return segments.map((segment, index) => {
       const path = `/${segments.slice(0, index + 1).join("/")}`;
       const item = navItems.find((nav) => nav.path === path);
-      const label = item?.label ?? segment.charAt(0).toUpperCase() + segment.slice(1);
+      const label =
+        item?.label ?? segment.charAt(0).toUpperCase() + segment.slice(1);
       return { label, path };
     });
   }, [location.pathname]);
@@ -110,9 +139,19 @@ const DashboardLayout = () => {
         transition="width 0.2s ease"
         boxShadow="xl"
       >
-        <Flex align="center" justify={collapsed ? "center" : "space-between"} px={5} py={6}>
+        <Flex
+          align="center"
+          justify={collapsed ? "center" : "space-between"}
+          px={5}
+          py={6}
+        >
           <Stack spacing={0} align={collapsed ? "center" : "flex-start"}>
-            <Text fontSize="sm" fontWeight="medium" letterSpacing="wide" color="mint.200">
+            <Text
+              fontSize="sm"
+              fontWeight="medium"
+              letterSpacing="wide"
+              color="mint.200"
+            >
               CORHUILA
             </Text>
             {!collapsed && (
@@ -136,7 +175,9 @@ const DashboardLayout = () => {
 
         <Stack as="nav" spacing={2} px={3} py={6} flex="1" overflowY="auto">
           {filteredMenu.map((item) => {
-            const isActive = item.path !== "__logout__" && location.pathname.startsWith(item.path);
+            const isActive =
+              item.path !== "__logout__" &&
+              location.pathname.startsWith(item.path);
             const isLogout = item.path === "__logout__";
 
             if (isLogout) {
@@ -185,7 +226,9 @@ const DashboardLayout = () => {
               >
                 {!collapsed && (
                   <Flex justify="space-between" align="center" flex="1">
-                    <Text fontWeight={isActive ? "semibold" : "medium"}>{item.label}</Text>
+                    <Text fontWeight={isActive ? "semibold" : "medium"}>
+                      {item.label}
+                    </Text>
                     {isActive && <Badge variant="success">Activo</Badge>}
                   </Flex>
                 )}
@@ -200,7 +243,12 @@ const DashboardLayout = () => {
           px={collapsed ? 2 : 5}
           pb={6}
         >
-          <Avatar size={collapsed ? "sm" : "md"} name={role ?? "Usuario"} bg="mint.300" color="navy.900" />
+          <Avatar
+            size={collapsed ? "sm" : "md"}
+            name={role ?? "Usuario"}
+            bg="mint.300"
+            color="navy.900"
+          />
           {!collapsed && (
             <>
               <Text fontSize="sm" fontWeight="semibold">
@@ -241,7 +289,10 @@ const DashboardLayout = () => {
             <Stack spacing={1}>
               <Breadcrumb fontSize="xs" color="neutral.500">
                 {breadcrumbs.map((crumb, idx) => (
-                  <BreadcrumbItem key={crumb.path} isCurrentPage={idx === breadcrumbs.length - 1}>
+                  <BreadcrumbItem
+                    key={crumb.path}
+                    isCurrentPage={idx === breadcrumbs.length - 1}
+                  >
                     {idx === breadcrumbs.length - 1 ? (
                       <Text fontWeight="medium">{crumb.label}</Text>
                     ) : (
@@ -267,7 +318,15 @@ const DashboardLayout = () => {
             >
               Ayuda
             </Button>
-            <HStack spacing={2} px={3} py={2} borderWidth="1px" borderColor="neutral.100" borderRadius="full" bg="neutral.50">
+            <HStack
+              spacing={2}
+              px={3}
+              py={2}
+              borderWidth="1px"
+              borderColor="neutral.100"
+              borderRadius="full"
+              bg="neutral.50"
+            >
               <Avatar size="xs" name={role ?? "Usuario"} />
               <Text fontSize="sm" color="neutral.700">
                 {role ?? "Usuario"}
@@ -284,7 +343,9 @@ const DashboardLayout = () => {
             <DrawerBody mt={16}>
               <Stack spacing={4}>
                 {filteredMenu.map((item) => {
-                  const isActive = item.path !== "__logout__" && location.pathname.startsWith(item.path);
+                  const isActive =
+                    item.path !== "__logout__" &&
+                    location.pathname.startsWith(item.path);
                   const isLogout = item.path === "__logout__";
 
                   if (isLogout) {
@@ -325,7 +386,13 @@ const DashboardLayout = () => {
           </DrawerContent>
         </Drawer>
 
-        <Box as="main" flex="1" px={{ base: 4, md: 8 }} py={{ base: 6, md: 8 }} overflowY="auto">
+        <Box
+          as="main"
+          flex="1"
+          px={{ base: 4, md: 8 }}
+          py={{ base: 6, md: 8 }}
+          overflowY="auto"
+        >
           <Box
             bg="white"
             borderRadius="2xl"

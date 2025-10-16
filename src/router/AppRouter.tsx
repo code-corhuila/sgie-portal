@@ -23,7 +23,10 @@ function AppRouter() {
   return (
     <Routes>
       {/* Ruta pública */}
-      <Route path="/login" element={!role ? <Login /> : <Navigate to="/dashboard" />} />
+      <Route
+        path="/login"
+        element={!role ? <Login /> : <Navigate to="/dashboard" />}
+      />
 
       {/* Rutas privadas */}
       {role ? (

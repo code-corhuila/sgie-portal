@@ -8,16 +8,16 @@ import {
   Select,
   Stack,
   Text,
-} from '@chakra-ui/react';
-import { FiSearch } from 'react-icons/fi';
+} from "@chakra-ui/react";
+import { FiSearch } from "react-icons/fi";
 
 interface PersonaFiltersProps {
   documento: string;
   onDocumentoChange: (value: string) => void;
   onBuscar: () => void;
   onLimpiar: () => void;
-  estadoFilter: 'Todos' | 'Activos' | 'Inactivos';
-  onEstadoChange: (value: 'Todos' | 'Activos' | 'Inactivos') => void;
+  estadoFilter: "Todos" | "Activos" | "Inactivos";
+  onEstadoChange: (value: "Todos" | "Activos" | "Inactivos") => void;
   isSearching: boolean;
 }
 
@@ -33,11 +33,11 @@ export function PersonaFilters({
   return (
     <Stack spacing={4}>
       <Stack
-        direction={{ base: 'column', md: 'row' }}
+        direction={{ base: "column", md: "row" }}
         spacing={4}
-        align={{ base: 'stretch', md: 'flex-end' }}
+        align={{ base: "stretch", md: "flex-end" }}
       >
-        <InputGroup maxW={{ base: '100%', md: '320px' }}>
+        <InputGroup maxW={{ base: "100%", md: "320px" }}>
           <InputLeftElement pointerEvents="none">
             <Icon as={FiSearch} color="neutral.400" />
           </InputLeftElement>
@@ -45,7 +45,7 @@ export function PersonaFilters({
             placeholder="Número de documento"
             value={documento}
             onChange={(event) => onDocumentoChange(event.target.value)}
-            onKeyDown={(event) => event.key === 'Enter' && onBuscar()}
+            onKeyDown={(event) => event.key === "Enter" && onBuscar()}
           />
         </InputGroup>
         <ButtonGroup size="sm">
@@ -67,7 +67,14 @@ export function PersonaFilters({
         <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
           Estado
         </Text>
-        <Select value={estadoFilter} onChange={(event) => onEstadoChange(event.target.value as PersonaFiltersProps['estadoFilter'])}>
+        <Select
+          value={estadoFilter}
+          onChange={(event) =>
+            onEstadoChange(
+              event.target.value as PersonaFiltersProps["estadoFilter"],
+            )
+          }
+        >
           <option value="Todos">Todos</option>
           <option value="Activos">Activos</option>
           <option value="Inactivos">Inactivos</option>

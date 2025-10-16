@@ -1,9 +1,8 @@
-
 export type ReservaGrupo =
-  | 'RESERVA_INSTALACION'
-  | 'RESERVA_EQUIPO'
-  | 'MANTENIMIENTO_INSTALACION'
-  | 'MANTENIMIENTO_EQUIPO';
+  | "RESERVA_INSTALACION"
+  | "RESERVA_EQUIPO"
+  | "MANTENIMIENTO_INSTALACION"
+  | "MANTENIMIENTO_EQUIPO";
 
 export interface TipoReserva {
   id: number;

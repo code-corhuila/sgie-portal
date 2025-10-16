@@ -45,185 +45,200 @@ interface DataTableProps<T> {
 }
 
 // 🔥 MEJORA: Memoizar el componente
-export const DataTable = memo(<T extends Record<string, any>>({
-  columns,
-  data,
-  loading,
-  error,
-  onEdit,
-  onDelete,
-  onView,
-  keyExtractor,
-  emptyMessage = "No hay datos disponibles",
-}: DataTableProps<T>) => {
-  const isMobile = useBreakpointValue({ base: true, lg: false });
+export const DataTable = memo(
+  <T extends Record<string, any>>({
+    columns,
+    data,
+    loading,
+    error,
+    onEdit,
+    onDelete,
+    onView,
+    keyExtractor,
+    emptyMessage = "No hay datos disponibles",
+  }: DataTableProps<T>) => {
+    const isMobile = useBreakpointValue({ base: true, lg: false });
 
-  if (loading) {
-    return (
-      <Stack spacing={4}>
-        <Skeleton height="48px" borderRadius="xl" />
-        <Skeleton height="240px" borderRadius="xl" />
-      </Stack>
-    );
-  }
+    if (loading) {
+      return (
+        <Stack spacing={4}>
+          <Skeleton height="48px" borderRadius="xl" />
+          <Skeleton height="240px" borderRadius="xl" />
+        </Stack>
+      );
+    }
 
-  if (error) {
-    return (
-      <Alert status="error" borderRadius="md">
-        <AlertIcon />
-        {error}
-      </Alert>
-    );
-  }
+    if (error) {
+      return (
+        <Alert status="error" borderRadius="md">
+          <AlertIcon />
+          {error}
+        </Alert>
+      );
+    }
 
-  // 🔥 MEJORA: Manejo de datos vacíos
-  if (!data || data.length === 0) {
-    return (
-      <Box
-        textAlign="center"
-        py={12}
-        borderWidth={1}
-        borderStyle="dashed"
-        borderRadius="2xl"
-        borderColor="neutral.200"
-        bg="white"
-      >
-        <Text fontSize="md" color="neutral.500">
-          {emptyMessage}
-        </Text>
-      </Box>
-    );
-  }
+    // 🔥 MEJORA: Manejo de datos vacíos
+    if (!data || data.length === 0) {
+      return (
+        <Box
+          textAlign="center"
+          py={12}
+          borderWidth={1}
+          borderStyle="dashed"
+          borderRadius="2xl"
+          borderColor="neutral.200"
+          bg="white"
+        >
+          <Text fontSize="md" color="neutral.500">
+            {emptyMessage}
+          </Text>
+        </Box>
+      );
+    }
 
-  // Vista móvil
-  if (isMobile) {
-    return (
-      <Stack spacing={4}>
-        {data.map((item) => (
-          <Box
-            key={keyExtractor(item)}
-            p={5}
-            borderRadius="2xl"
-            borderWidth="1px"
-            borderColor="neutral.100"
-            bg="white"
-            boxShadow="sm"
-            transition="all 0.2s ease"
-            _hover={{ boxShadow: "md", transform: "translateY(-2px)" }}
-          >
-            {columns
-              .filter((col) => !col.hideOnMobile)
-              .map((col) => {
-                // 🔥 No mostrar columna de acciones en cards
-                if (col.key === "actions") return null;
-
-                return (
-                  <Stack
-                    key={`${keyExtractor(item)}-${getColumnKey(col.key)}`}
-                    spacing={0}
-                    mb={3}
-                  >
-                    <Text
-                      fontSize="xs"
-                      textTransform="uppercase"
-                      color="neutral.500"
-                      fontWeight="semibold"
-                    >
-                      {col.label}
-                    </Text>
-                    <Text fontSize="sm" color="neutral.800">
-                      {col.render ? col.render(item) : String(item[col.key as keyof T] ?? "")}
-                    </Text>
-                  </Stack>
-                );
-              })}
-
-            {(onEdit || onDelete || onView) && (
-              <HStack mt={1} spacing={2}>
-                {onView && (
-                  <Tooltip label="Ver detalle">
-                    <IconButton
-                      aria-label="Ver detalle"
-                      icon={<FiEye />}
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onView(item)}
-                    />
-                  </Tooltip>
-                )}
-                {onDelete && (
-                  <Tooltip label="Cambiar estado">
-                    <IconButton
-                      aria-label="Cambiar estado"
-                      icon={<FiXCircle />}
-                      variant="ghost"
-                      colorScheme="red"
-                      size="sm"
-                      onClick={() => onDelete(item)}
-                    />
-                  </Tooltip>
-                )}
-                {onEdit && (
-                  <Tooltip label="Editar">
-                    <IconButton
-                      aria-label="Editar"
-                      icon={<FiEdit2 />}
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onEdit(item)}
-                    />
-                  </Tooltip>
-                )}
-              </HStack>
-            )}
-          </Box>
-        ))}
-      </Stack>
-    );
-  }
-
-  // Vista desktop
-  return (
-    <TableContainer
-      borderRadius="2xl"
-      bg="white"
-      boxShadow="md"
-      borderWidth="1px"
-      borderColor="neutral.100"
-      overflow="hidden"
-      overflowX="auto"
-      w="full"
-    >
-      <Table variant="simple" size="sm">
-        <Thead position="sticky" top={0} zIndex={1} bg="white" boxShadow="sm">
-          <Tr>
-            {columns.map((col, index) => (
-              <Th key={`header-${getColumnKey(col.key)}-${index}`} px={4} py={3}>
-                {col.label}
-              </Th>
-            ))}
-          </Tr>
-        </Thead>
-        <Tbody>
+    // Vista móvil
+    if (isMobile) {
+      return (
+        <Stack spacing={4}>
           {data.map((item) => (
-            <Tr
+            <Box
               key={keyExtractor(item)}
-              _odd={{ bg: "neutral.50" }}
-              _hover={{ bg: "brand.50" }}
-              transition="background-color 0.2s ease-in-out"
+              p={5}
+              borderRadius="2xl"
+              borderWidth="1px"
+              borderColor="neutral.100"
+              bg="white"
+              boxShadow="sm"
+              transition="all 0.2s ease"
+              _hover={{ boxShadow: "md", transform: "translateY(-2px)" }}
             >
+              {columns
+                .filter((col) => !col.hideOnMobile)
+                .map((col) => {
+                  // 🔥 No mostrar columna de acciones en cards
+                  if (col.key === "actions") return null;
+
+                  return (
+                    <Stack
+                      key={`${keyExtractor(item)}-${getColumnKey(col.key)}`}
+                      spacing={0}
+                      mb={3}
+                    >
+                      <Text
+                        fontSize="xs"
+                        textTransform="uppercase"
+                        color="neutral.500"
+                        fontWeight="semibold"
+                      >
+                        {col.label}
+                      </Text>
+                      <Text fontSize="sm" color="neutral.800">
+                        {col.render
+                          ? col.render(item)
+                          : String(item[col.key as keyof T] ?? "")}
+                      </Text>
+                    </Stack>
+                  );
+                })}
+
+              {(onEdit || onDelete || onView) && (
+                <HStack mt={1} spacing={2}>
+                  {onView && (
+                    <Tooltip label="Ver detalle">
+                      <IconButton
+                        aria-label="Ver detalle"
+                        icon={<FiEye />}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onView(item)}
+                      />
+                    </Tooltip>
+                  )}
+                  {onDelete && (
+                    <Tooltip label="Cambiar estado">
+                      <IconButton
+                        aria-label="Cambiar estado"
+                        icon={<FiXCircle />}
+                        variant="ghost"
+                        colorScheme="red"
+                        size="sm"
+                        onClick={() => onDelete(item)}
+                      />
+                    </Tooltip>
+                  )}
+                  {onEdit && (
+                    <Tooltip label="Editar">
+                      <IconButton
+                        aria-label="Editar"
+                        icon={<FiEdit2 />}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEdit(item)}
+                      />
+                    </Tooltip>
+                  )}
+                </HStack>
+              )}
+            </Box>
+          ))}
+        </Stack>
+      );
+    }
+
+    // Vista desktop
+    return (
+      <TableContainer
+        borderRadius="2xl"
+        bg="white"
+        boxShadow="md"
+        borderWidth="1px"
+        borderColor="neutral.100"
+        overflow="hidden"
+        overflowX="auto"
+        w="full"
+      >
+        <Table variant="simple" size="sm">
+          <Thead position="sticky" top={0} zIndex={1} bg="white" boxShadow="sm">
+            <Tr>
               {columns.map((col, index) => (
-                <Td key={`${keyExtractor(item)}-${getColumnKey(col.key)}-${index}`} px={4} py={3}>
-                  {col.render ? col.render(item) : String(item[col.key as keyof T] ?? "")}
-                </Td>
+                <Th
+                  key={`header-${getColumnKey(col.key)}-${index}`}
+                  px={4}
+                  py={3}
+                >
+                  {col.label}
+                </Th>
               ))}
             </Tr>
-          ))}
-        </Tbody>
-      </Table>
-    </TableContainer>
-  );
-}) as <T extends Record<string, any>>(props: DataTableProps<T>) => JSX.Element;
+          </Thead>
+          <Tbody>
+            {data.map((item) => (
+              <Tr
+                key={keyExtractor(item)}
+                _odd={{ bg: "neutral.50" }}
+                _hover={{ bg: "brand.50" }}
+                transition="background-color 0.2s ease-in-out"
+              >
+                {columns.map((col, index) => (
+                  <Td
+                    key={`${keyExtractor(item)}-${getColumnKey(col.key)}-${index}`}
+                    px={4}
+                    py={3}
+                  >
+                    {col.render
+                      ? col.render(item)
+                      : String(item[col.key as keyof T] ?? "")}
+                  </Td>
+                ))}
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </TableContainer>
+    );
+  },
+) as <T extends Record<string, any>>(props: DataTableProps<T>) => JSX.Element;
 
 // 🔥 Nombre para debugging
-(DataTable as React.MemoExoticComponent<typeof DataTable>).displayName = "DataTable";
+(DataTable as React.MemoExoticComponent<typeof DataTable>).displayName =
+  "DataTable";

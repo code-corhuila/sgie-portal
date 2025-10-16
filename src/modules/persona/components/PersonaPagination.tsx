@@ -1,5 +1,10 @@
-import { Button, HStack, IconButton, Select, Text } from '@chakra-ui/react';
-import { FiChevronLeft, FiChevronRight, FiChevronsLeft, FiChevronsRight } from 'react-icons/fi';
+import { Button, HStack, IconButton, Select, Text } from "@chakra-ui/react";
+import {
+  FiChevronLeft,
+  FiChevronRight,
+  FiChevronsLeft,
+  FiChevronsRight,
+} from "react-icons/fi";
 
 interface PersonaPaginationProps {
   page: number;
@@ -45,7 +50,10 @@ export function PersonaPagination({
 
       <HStack spacing={2}>
         <Text fontSize="sm" color="gray.600">
-          {totalItems === 0 ? '0–0' : `${page * pageSize + 1}–${Math.min((page + 1) * pageSize, totalItems)}`} de {totalItems}
+          {totalItems === 0
+            ? "0–0"
+            : `${page * pageSize + 1}–${Math.min((page + 1) * pageSize, totalItems)}`}{" "}
+          de {totalItems}
         </Text>
         <IconButton
           aria-label="Primera página"
@@ -64,7 +72,8 @@ export function PersonaPagination({
           icon={<FiChevronLeft />}
         />
         <Button size="sm" variant="outline" isDisabled>
-          {totalItems === 0 ? 0 : page + 1} / {totalItems === 0 ? 0 : totalPages}
+          {totalItems === 0 ? 0 : page + 1} /{" "}
+          {totalItems === 0 ? 0 : totalPages}
         </Button>
         <IconButton
           aria-label="Siguiente"

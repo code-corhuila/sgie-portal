@@ -1,4 +1,8 @@
-import { extendTheme, type ThemeConfig, type ComponentStyleConfig } from "@chakra-ui/react";
+import {
+  extendTheme,
+  type ThemeConfig,
+  type ComponentStyleConfig,
+} from "@chakra-ui/react";
 
 const config: ThemeConfig = {
   initialColorMode: "light",
@@ -287,14 +291,14 @@ const toastStyles = {
         props?.status === "error"
           ? "red.50"
           : props?.status === "warning"
-          ? "yellow.50"
-          : "brand.50",
+            ? "yellow.50"
+            : "brand.50",
       color:
         props?.status === "error"
           ? "red.700"
           : props?.status === "warning"
-          ? "yellow.800"
-          : "brand.700",
+            ? "yellow.800"
+            : "brand.700",
     }),
   },
   defaultProps: {

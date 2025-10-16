@@ -32,7 +32,7 @@ import {
   Spinner,
 } from "@chakra-ui/react";
 import { FiInfo, FiSearch } from "react-icons/fi";
-import { MultiSelect } from './MultiSelect';
+import { MultiSelect } from "./MultiSelect";
 
 export interface FieldOption {
   value: string | number;
@@ -42,7 +42,15 @@ export interface FieldOption {
 export interface Field<T = any> {
   name: keyof T;
   label: string;
-  type: "text" | "select" | "multiselect" | "number" | "email" | "password" | "date" | "textarea";
+  type:
+    | "text"
+    | "select"
+    | "multiselect"
+    | "number"
+    | "email"
+    | "password"
+    | "date"
+    | "textarea";
   value?: T[keyof T];
   options?: FieldOption[] | ((values: Partial<T>) => FieldOption[]);
   required?: boolean;
@@ -77,7 +85,10 @@ interface SearchableFormModalProps<T = any, S = any> {
   cancelButtonText?: string;
 }
 
-const SearchableFormModal = <T extends Record<string, any>, S extends Record<string, any>>({
+const SearchableFormModal = <
+  T extends Record<string, any>,
+  S extends Record<string, any>,
+>({
   isOpen,
   onClose,
   onSave,
@@ -91,7 +102,7 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
   const toast = useToast();
   const [formValues, setFormValues] = useState<Partial<T>>({});
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Estados para búsqueda
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResult, setSearchResult] = useState<S | null>(null);
@@ -132,16 +143,16 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
     setIsSearching(true);
     setSearchResult(null);
     setCapturedId(null);
-    
+
     try {
       const result = await searchConfig.onSearch(searchQuery);
-      
+
       if (result) {
         setSearchResult(result);
         // Capturar el ID del campo especificado
         const id = result[searchConfig.idField] as number;
         setCapturedId(id);
-        
+
         toast({
           title: "Registro encontrado",
           status: "success",
@@ -171,7 +182,7 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
     if (searchConfig && !capturedId) {
       return false;
     }
-    
+
     // Validar campos requeridos del formulario
     return formFields.every((field) => {
       if (field.required) {
@@ -186,9 +197,10 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
     if (!isFormValid) {
       toast({
         title: "Campos requeridos",
-        description: searchConfig && !capturedId 
-          ? "Debes buscar y seleccionar un registro primero"
-          : "Por favor completa todos los campos obligatorios",
+        description:
+          searchConfig && !capturedId
+            ? "Debes buscar y seleccionar un registro primero"
+            : "Por favor completa todos los campos obligatorios",
         status: "warning",
         duration: 3000,
       });
@@ -240,7 +252,7 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
       <ModalContent>
         <ModalHeader>{title}</ModalHeader>
         <ModalCloseButton isDisabled={isSaving} />
-        
+
         <ModalBody>
           <Stack spacing={6}>
             {/* Sección de Búsqueda */}
@@ -264,7 +276,9 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
                       <FiSearch />
                     </InputLeftElement>
                     <Input
-                      placeholder={searchConfig.searchPlaceholder || "Buscar..."}
+                      placeholder={
+                        searchConfig.searchPlaceholder || "Buscar..."
+                      }
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -319,12 +333,20 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
                             bg="whiteAlpha.700"
                             p={2}
                           >
-                            <Text fontSize="xs" textTransform="uppercase" color="neutral.500" fontWeight="semibold">
+                            <Text
+                              fontSize="xs"
+                              textTransform="uppercase"
+                              color="neutral.500"
+                              fontWeight="semibold"
+                            >
                               {field.label}
                             </Text>
                             <Text fontSize="sm" color="neutral.800">
                               {field.render
-                                ? field.render(searchResult[field.key], searchResult)
+                                ? field.render(
+                                    searchResult[field.key],
+                                    searchResult,
+                                  )
                                 : String(searchResult[field.key] || "")}
                             </Text>
                           </Stack>
@@ -336,7 +358,8 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
 
                 {!isSearching && searchQuery && !searchResult && (
                   <Text color="neutral.500" fontSize="sm">
-                    {searchConfig.emptyMessage || "No se encontraron resultados"}
+                    {searchConfig.emptyMessage ||
+                      "No se encontraron resultados"}
                   </Text>
                 )}
               </Stack>
@@ -356,56 +379,68 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
                         {field.label}
                       </FormLabel>
 
-                      {field.type === "select" || field.type === "multiselect" ? (
+                      {field.type === "select" ||
+                      field.type === "multiselect" ? (
                         (() => {
-                          const optionList = typeof field.options === "function"
-                            ? field.options(formValues)
-                            : field.options ?? [];
+                          const optionList =
+                            typeof field.options === "function"
+                              ? field.options(formValues)
+                              : (field.options ?? []);
                           const isMulti = field.type === "multiselect";
                           const currentValue = formValues[field.name];
-                          return (
-                        isMulti ? (
-                          <MultiSelect
-                            value={
-                              Array.isArray(currentValue)
-                                ? (currentValue as Array<string | number>)
-                                : []
-                            }
-                            options={optionList}
-                            placeholder={field.placeholder}
-                            onChange={(selected) => handleFormChange(field.name, selected)}
-                          />
-                        ) : (
-                          <Select
-                            value={(currentValue as string | number | undefined) ?? ""}
-                            onChange={(e) => {
-                              const rawValue = e.target.value;
-                              const selectedOption = optionList?.find(
-                                (opt) => String(opt.value) === rawValue
-                              );
-                              handleFormChange(
-                                field.name,
-                                selectedOption ? selectedOption.value : rawValue
-                              );
-                            }}
-                            placeholder={field.placeholder || "Seleccionar"}
-                            isDisabled={field.disabled}
-                            size="md"
-                            variant="outline"
-                          >
-                            {optionList?.map((opt) => (
-                              <option key={`${String(opt.value)}`} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </Select>
-                        )
+                          return isMulti ? (
+                            <MultiSelect
+                              value={
+                                Array.isArray(currentValue)
+                                  ? (currentValue as Array<string | number>)
+                                  : []
+                              }
+                              options={optionList}
+                              placeholder={field.placeholder}
+                              onChange={(selected) =>
+                                handleFormChange(field.name, selected)
+                              }
+                            />
+                          ) : (
+                            <Select
+                              value={
+                                (currentValue as string | number | undefined) ??
+                                ""
+                              }
+                              onChange={(e) => {
+                                const rawValue = e.target.value;
+                                const selectedOption = optionList?.find(
+                                  (opt) => String(opt.value) === rawValue,
+                                );
+                                handleFormChange(
+                                  field.name,
+                                  selectedOption
+                                    ? selectedOption.value
+                                    : rawValue,
+                                );
+                              }}
+                              placeholder={field.placeholder || "Seleccionar"}
+                              isDisabled={field.disabled}
+                              size="md"
+                              variant="outline"
+                            >
+                              {optionList?.map((opt) => (
+                                <option
+                                  key={`${String(opt.value)}`}
+                                  value={opt.value}
+                                >
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </Select>
                           );
                         })()
                       ) : field.type === "textarea" ? (
                         <Textarea
                           value={formValues[field.name] ?? ""}
-                          onChange={(e) => handleFormChange(field.name, e.target.value)}
+                          onChange={(e) =>
+                            handleFormChange(field.name, e.target.value)
+                          }
                           placeholder={field.placeholder}
                           isDisabled={field.disabled}
                           size="md"
@@ -416,7 +451,9 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
                         <Input
                           type={field.type}
                           value={formValues[field.name] ?? ""}
-                          onChange={(e) => handleFormChange(field.name, e.target.value)}
+                          onChange={(e) =>
+                            handleFormChange(field.name, e.target.value)
+                          }
                           placeholder={field.placeholder}
                           isDisabled={field.disabled}
                           size="md"
@@ -438,7 +475,8 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
                 <HStack spacing={2} color="neutral.500" fontSize="sm">
                   <Icon as={FiInfo} />
                   <Text>
-                    Debes seleccionar un registro válido para habilitar el guardado.
+                    Debes seleccionar un registro válido para habilitar el
+                    guardado.
                   </Text>
                 </HStack>
               )}
@@ -457,7 +495,11 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
               <Box />
             )}
             <HStack spacing={3}>
-              <Button variant="ghost" onClick={handleClose} isDisabled={isSaving}>
+              <Button
+                variant="ghost"
+                onClick={handleClose}
+                isDisabled={isSaving}
+              >
                 {cancelButtonText}
               </Button>
               <Button

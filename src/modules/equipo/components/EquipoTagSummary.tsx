@@ -1,8 +1,15 @@
-import { Badge, Tag, TagCloseButton, TagLabel, Wrap, WrapItem } from '@chakra-ui/react';
+import {
+  Badge,
+  Tag,
+  TagCloseButton,
+  TagLabel,
+  Wrap,
+  WrapItem,
+} from "@chakra-ui/react";
 
 interface EquipoTagSummaryProps {
   codigo?: string;
-  statusFilter: 'ALL' | 'ACTIVE' | 'INACTIVE';
+  statusFilter: "ALL" | "ACTIVE" | "INACTIVE";
   tipoFilter: string;
   instalacionFilter: string;
   categoriaFilter: string;
@@ -39,15 +46,17 @@ export function EquipoTagSummary({
           </Tag>
         </WrapItem>
       )}
-      {statusFilter !== 'ALL' && (
+      {statusFilter !== "ALL" && (
         <WrapItem>
           <Tag borderRadius="full" variant="solid" colorScheme="teal">
-            <TagLabel>Estado: {statusFilter === 'ACTIVE' ? 'Activos' : 'Inactivos'}</TagLabel>
+            <TagLabel>
+              Estado: {statusFilter === "ACTIVE" ? "Activos" : "Inactivos"}
+            </TagLabel>
             <TagCloseButton onClick={onClearStatus} />
           </Tag>
         </WrapItem>
       )}
-      {tipoFilter !== 'Todos' && (
+      {tipoFilter !== "Todos" && (
         <WrapItem>
           <Tag borderRadius="full" variant="solid" colorScheme="teal">
             <TagLabel>Tipo: {tipoFilter}</TagLabel>
@@ -55,7 +64,7 @@ export function EquipoTagSummary({
           </Tag>
         </WrapItem>
       )}
-      {instalacionFilter !== 'Todos' && (
+      {instalacionFilter !== "Todos" && (
         <WrapItem>
           <Tag borderRadius="full" variant="solid" colorScheme="teal">
             <TagLabel>Instalación: {instalacionFilter}</TagLabel>
@@ -63,7 +72,7 @@ export function EquipoTagSummary({
           </Tag>
         </WrapItem>
       )}
-      {categoriaFilter !== 'Todos' && (
+      {categoriaFilter !== "Todos" && (
         <WrapItem>
           <Tag borderRadius="full" variant="solid" colorScheme="teal">
             <TagLabel>Categoría: {categoriaFilter}</TagLabel>

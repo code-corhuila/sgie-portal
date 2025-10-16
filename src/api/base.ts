@@ -1,4 +1,6 @@
-const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080/v1/api').replace(/\/$/, '');
+const BASE_URL = (
+  import.meta.env.VITE_API_URL ?? "http://localhost:8080/v1/api"
+).replace(/\/$/, "");
 
 export interface ApiEnvelope<T> {
   status: boolean;
@@ -29,17 +31,24 @@ interface ApiCallOptions extends RequestInit {
   skipJson?: boolean;
 }
 
-const isFormData = (value: unknown): value is FormData => typeof FormData !== 'undefined' && value instanceof FormData;
+const isFormData = (value: unknown): value is FormData =>
+  typeof FormData !== "undefined" && value instanceof FormData;
 
-const buildHeaders = (base: HeadersInit | undefined, body?: BodyInit | null) => {
+const buildHeaders = (
+  base: HeadersInit | undefined,
+  body?: BodyInit | null,
+) => {
   const headers = new Headers(base ?? {});
-  if (body && !headers.has('Content-Type') && !isFormData(body)) {
-    headers.set('Content-Type', 'application/json');
+  if (body && !headers.has("Content-Type") && !isFormData(body)) {
+    headers.set("Content-Type", "application/json");
   }
   return headers;
 };
 
-const readPayload = async <T>(response: Response, skipJson: boolean): Promise<T> => {
+const readPayload = async <T>(
+  response: Response,
+  skipJson: boolean,
+): Promise<T> => {
   if (skipJson || response.status === 204) {
     return undefined as T;
   }
@@ -52,7 +61,10 @@ const readPayload = async <T>(response: Response, skipJson: boolean): Promise<T>
   try {
     return JSON.parse(raw) as T;
   } catch (parseError) {
-    throw new ApiError(response.status, 'Respuesta JSON inválida', { cause: parseError, raw });
+    throw new ApiError(response.status, "Respuesta JSON inválida", {
+      cause: parseError,
+      raw,
+    });
   }
 };
 
@@ -61,18 +73,21 @@ const notifyUnauthorized = (error: ApiError) => {
     try {
       listener(error);
     } catch (listenerError) {
-      console.warn('Error en listener de sesión expirada', listenerError);
+      console.warn("Error en listener de sesión expirada", listenerError);
     }
   });
 };
 
-export async function apiCall<T = unknown>(endpoint: string, options: ApiCallOptions = {}): Promise<T> {
+export async function apiCall<T = unknown>(
+  endpoint: string,
+  options: ApiCallOptions = {},
+): Promise<T> {
   const { skipJson = false, headers: baseHeaders, body, ...rest } = options;
   const headers = buildHeaders(baseHeaders, body);
   const config: RequestInit = {
     ...rest,
     body,
-    credentials: rest.credentials ?? 'include',
+    credentials: rest.credentials ?? "include",
     headers,
   };
 
@@ -90,7 +105,9 @@ export async function apiCall<T = unknown>(endpoint: string, options: ApiCallOpt
     }
 
     const message =
-      errorData && typeof errorData === 'object' && 'message' in (errorData as Record<string, unknown>)
+      errorData &&
+      typeof errorData === "object" &&
+      "message" in (errorData as Record<string, unknown>)
         ? String((errorData as { message?: unknown }).message)
         : `Error: ${response.status}`;
 
@@ -107,4 +124,6 @@ export async function apiCall<T = unknown>(endpoint: string, options: ApiCallOpt
 }
 
 export const unwrapApiEnvelope = <T>(payload: ApiEnvelope<T> | T): T =>
-  (payload && typeof payload === 'object' && 'data' in payload ? (payload as ApiEnvelope<T>).data : payload) as T;
+  (payload && typeof payload === "object" && "data" in payload
+    ? (payload as ApiEnvelope<T>).data
+    : payload) as T;

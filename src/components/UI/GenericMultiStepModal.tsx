@@ -32,7 +32,7 @@ import {
 } from "@chakra-ui/react";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { type Field, type FieldOption } from "../UI/GenericModal";
-import { MultiSelect } from './MultiSelect';
+import { MultiSelect } from "./MultiSelect";
 
 function isDifferent(a: any, b: any) {
   return JSON.stringify(a) !== JSON.stringify(b);
@@ -60,20 +60,31 @@ export interface GenericMultiStepModalProps {
   onStepValuesChange?: (stepIndex: number, values: Record<string, any>) => void;
 
   /** Renderiza contenido arriba de los campos de cada paso (p. ej., búsqueda de persona) */
-  renderStepHeader?: (stepIndex: number, values: Record<string, any>) => ReactNode;
+  renderStepHeader?: (
+    stepIndex: number,
+    values: Record<string, any>,
+  ) => ReactNode;
 
   /** Renderiza contenido debajo de los campos de cada paso (p. ej., botón disponibilidad, selects de hora) */
-  renderStepFooter?: (stepIndex: number, values: Record<string, any>) => ReactNode;
+  renderStepFooter?: (
+    stepIndex: number,
+    values: Record<string, any>,
+  ) => ReactNode;
 
   /** Renderiza chips/resumen para el paso activo (se muestra en el header) */
-  renderStepSummary?: (stepIndex: number, values: Record<string, any>) => ReactNode;
+  renderStepSummary?: (
+    stepIndex: number,
+    values: Record<string, any>,
+  ) => ReactNode;
 
   /**
    * (Opcional) Se ejecuta al final del Guardar,
    * después de invocar los onSave de cada paso que haya cambiado.
    * Recibe todos los valores actuales de todos los pasos.
    */
-  onSubmit?: (allValues: Record<number, Record<string, any>>) => Promise<void> | void;
+  onSubmit?: (
+    allValues: Record<number, Record<string, any>>,
+  ) => Promise<void> | void;
 }
 
 const GenericMultiStepModal = ({
@@ -93,7 +104,9 @@ const GenericMultiStepModal = ({
 }: GenericMultiStepModalProps) => {
   const toast = useToast();
   const [tabIndex, setTabIndex] = useState(0);
-  const [formValues, setFormValues] = useState<Record<number, Record<string, any>>>({});
+  const [formValues, setFormValues] = useState<
+    Record<number, Record<string, any>>
+  >({});
   const [isSaving, setIsSaving] = useState(false);
   const onStepValuesChangeRef = useRef(onStepValuesChange);
   const wasOpenRef = useRef(false);
@@ -102,15 +115,18 @@ const GenericMultiStepModal = ({
   useEffect(() => {
     const isOpening = isOpen && !wasOpenRef.current;
     if (isOpening) {
-      const initial = steps.reduce((acc, step, i) => {
-        const values: Record<string, any> = {};
-        step.fields.forEach((f) => {
-          const key = String(f.name);
-          values[key] = step.initialValues?.[key] ?? f.value ?? "";
-        });
-        acc[i] = values;
-        return acc;
-      }, {} as Record<number, Record<string, any>>);
+      const initial = steps.reduce(
+        (acc, step, i) => {
+          const values: Record<string, any> = {};
+          step.fields.forEach((f) => {
+            const key = String(f.name);
+            values[key] = step.initialValues?.[key] ?? f.value ?? "";
+          });
+          acc[i] = values;
+          return acc;
+        },
+        {} as Record<number, Record<string, any>>,
+      );
       setFormValues(initial);
       setTabIndex(0);
     }
@@ -133,14 +149,14 @@ const GenericMultiStepModal = ({
         ...prev,
         [stepIndex]: nextStepValues,
       };
-      
+
       // Notificar cambio de forma segura usando la referencia
       if (onStepValuesChangeRef.current) {
         setTimeout(() => {
           onStepValuesChangeRef.current!(stepIndex, nextStepValues);
         }, 0);
       }
-      
+
       return next;
     });
   };
@@ -193,7 +209,7 @@ const GenericMultiStepModal = ({
           const options: FieldOption[] =
             typeof field.options === "function"
               ? field.options(values)
-              : field.options ?? [];
+              : (field.options ?? []);
 
           return (
             <FormControl
@@ -210,9 +226,13 @@ const GenericMultiStepModal = ({
                     onChange={(e) => {
                       const raw = e.target.value;
                       const selected = options.find(
-                        (opt: FieldOption) => String(opt.value) === raw
+                        (opt: FieldOption) => String(opt.value) === raw,
                       );
-                      handleChange(stepIndex, key, selected ? selected.value : raw);
+                      handleChange(
+                        stepIndex,
+                        key,
+                        selected ? selected.value : raw,
+                      );
                     }}
                     placeholder={field.placeholder || "Seleccionar"}
                     isDisabled={field.disabled}
@@ -236,12 +256,16 @@ const GenericMultiStepModal = ({
                     }
                     options={options}
                     placeholder={field.placeholder}
-                    onChange={(selected) => handleChange(stepIndex, key, selected)}
+                    onChange={(selected) =>
+                      handleChange(stepIndex, key, selected)
+                    }
                   />
                 ) : field.type === "textarea" ? (
                   <Textarea
                     value={values[key] ?? ""}
-                    onChange={(e) => handleChange(stepIndex, key, e.target.value)}
+                    onChange={(e) =>
+                      handleChange(stepIndex, key, e.target.value)
+                    }
                     placeholder={field.placeholder}
                     isDisabled={field.disabled}
                     size="md"
@@ -252,7 +276,9 @@ const GenericMultiStepModal = ({
                   <Input
                     type={field.type as React.HTMLInputTypeAttribute}
                     value={values[key] ?? ""}
-                    onChange={(e) => handleChange(stepIndex, key, e.target.value)}
+                    onChange={(e) =>
+                      handleChange(stepIndex, key, e.target.value)
+                    }
                     placeholder={field.placeholder}
                     isDisabled={field.disabled}
                     size="md"
@@ -378,7 +404,12 @@ const GenericMultiStepModal = ({
               <Button variant="ghost" onClick={onClose} isDisabled={isSaving}>
                 {cancelButtonText}
               </Button>
-              <Button colorScheme="brand" onClick={handleSave} isLoading={isSaving} isDisabled={isLoading}>
+              <Button
+                colorScheme="brand"
+                onClick={handleSave}
+                isLoading={isSaving}
+                isDisabled={isLoading}
+              >
                 {saveButtonText}
               </Button>
             </HStack>

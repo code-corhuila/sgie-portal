@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   AlertDialog,
   AlertDialogBody,
@@ -31,12 +31,15 @@ import {
   useToast,
   FormControl,
   FormLabel,
-} from '@chakra-ui/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import GenericModal, { type Field, type FieldOption } from '../../../components/UI/GenericModal';
-import { DataTable, type Column } from '../../../components/UI/DataTable';
-import { PermisosApi } from '../../../api/permisos';
-import { permisosKeys } from '../queryKeys';
+} from "@chakra-ui/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import GenericModal, {
+  type Field,
+  type FieldOption,
+} from "../../../components/UI/GenericModal";
+import { DataTable, type Column } from "../../../components/UI/DataTable";
+import { PermisosApi } from "../../../api/permisos";
+import { permisosKeys } from "../queryKeys";
 import type {
   CreatePermisoRolEntidadPayload,
   Entidad,
@@ -44,9 +47,9 @@ import type {
   PermisoRolEntidad,
   Rol,
   UpdatePermisoRolEntidadPayload,
-} from '../types';
-import { useFilterState } from '../../../hooks/useFilterState';
-import { useTableManager } from '../../../hooks/useTableManager';
+} from "../types";
+import { useFilterState } from "../../../hooks/useFilterState";
+import { useTableManager } from "../../../hooks/useTableManager";
 import {
   FiEdit2,
   FiPlusCircle,
@@ -56,7 +59,7 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiChevronsRight,
-} from 'react-icons/fi';
+} from "react-icons/fi";
 
 interface PermisoFormValues {
   rol: string | number | undefined;
@@ -65,12 +68,12 @@ interface PermisoFormValues {
 }
 
 const ENTITY_LABELS: Record<string, string> = {
-  usuario: 'Usuarios',
-  rol: 'Roles',
-  permiso: 'Permisos',
-  equipo: 'Equipos',
-  instalacion: 'Instalaciones',
-  campus: 'Campus',
+  usuario: "Usuarios",
+  rol: "Roles",
+  permiso: "Permisos",
+  equipo: "Equipos",
+  instalacion: "Instalaciones",
+  campus: "Campus",
 };
 
 const toTitleCase = (value: string) =>
@@ -79,42 +82,58 @@ const toTitleCase = (value: string) =>
     .split(/[\s_]+/)
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+    .join(" ");
 
 const formatEntityLabel = (raw?: string) => {
-  if (!raw) return '—';
+  if (!raw) return "—";
   const normalized = raw.toLowerCase();
-  return ENTITY_LABELS[normalized] ?? toTitleCase(raw.replace(/_/g, ' '));
+  return ENTITY_LABELS[normalized] ?? toTitleCase(raw.replace(/_/g, " "));
 };
 
-const toOption = (item: { id: number; nombre: string }, formatter: (value: string) => string = toTitleCase): FieldOption => ({
+const toOption = (
+  item: { id: number; nombre: string },
+  formatter: (value: string) => string = toTitleCase,
+): FieldOption => ({
   value: item.id,
   label: formatter(item.nombre),
 });
 
-const getNameFromEntity = (value: Rol | Permiso | Entidad | string | undefined): string | undefined => {
+const getNameFromEntity = (
+  value: Rol | Permiso | Entidad | string | undefined,
+): string | undefined => {
   if (!value) return undefined;
-  if (typeof value === 'string') return value;
-  if ('nombre' in value && typeof value.nombre === 'string') {
+  if (typeof value === "string") return value;
+  if ("nombre" in value && typeof value.nombre === "string") {
     return value.nombre;
   }
   return undefined;
 };
 
-const getIdFromValue = (value: any, list: { id: number; nombre: string }[]): number | null => {
+const getIdFromValue = (
+  value: any,
+  list: { id: number; nombre: string }[],
+): number | null => {
   if (value == null) return null;
-  if (typeof value === 'number' && !Number.isNaN(value)) return value;
-  if (typeof value === 'string') {
+  if (typeof value === "number" && !Number.isNaN(value)) return value;
+  if (typeof value === "string") {
     const numeric = Number(value);
     if (!Number.isNaN(numeric)) return numeric;
     const found = list.find((item) => item.nombre === value);
     return found ? found.id : null;
   }
-  if (typeof value === 'object' && 'id' in value && (typeof value.id === 'number' || typeof value.id === 'string')) {
+  if (
+    typeof value === "object" &&
+    "id" in value &&
+    (typeof value.id === "number" || typeof value.id === "string")
+  ) {
     const numeric = Number(value.id);
     return Number.isNaN(numeric) ? null : numeric;
   }
-  if (typeof value === 'object' && 'nombre' in value && typeof value.nombre === 'string') {
+  if (
+    typeof value === "object" &&
+    "nombre" in value &&
+    typeof value.nombre === "string"
+  ) {
     const found = list.find((item) => item.nombre === value.nombre);
     return found ? found.id : null;
   }
@@ -131,13 +150,22 @@ const PermisosList: React.FC = () => {
   const confirmDialog = useDisclosure();
   const cancelRef = useRef<HTMLButtonElement | null>(null);
 
-  const [selectedItem, setSelectedItem] = useState<PermisoRolEntidad | null>(null);
-  const [confirmData, setConfirmData] = useState<{ item: PermisoRolEntidad; nextState: boolean } | null>(null);
-  const [selectedRolId, setSelectedRolId] = useState<number | ''>('');
-  const [editRolNombre, setEditRolNombre] = useState('');
-  const [editRolDescripcion, setEditRolDescripcion] = useState('');
+  const [selectedItem, setSelectedItem] = useState<PermisoRolEntidad | null>(
+    null,
+  );
+  const [confirmData, setConfirmData] = useState<{
+    item: PermisoRolEntidad;
+    nextState: boolean;
+  } | null>(null);
+  const [selectedRolId, setSelectedRolId] = useState<number | "">("");
+  const [editRolNombre, setEditRolNombre] = useState("");
+  const [editRolDescripcion, setEditRolDescripcion] = useState("");
 
-  const { filters, setFilter } = useFilterState({ rol: 'Todos', estado: 'Todos', entidad: 'Todas' });
+  const { filters, setFilter } = useFilterState({
+    rol: "Todos",
+    estado: "Todos",
+    entidad: "Todas",
+  });
 
   const permisosQuery = useQuery<PermisoRolEntidad[]>({
     queryKey: permisosKeys.all,
@@ -165,16 +193,21 @@ const PermisosList: React.FC = () => {
   const data = permisosQuery.data ?? [];
 
   useEffect(() => {
-    if (!editarRolModal.isOpen || !rolesQuery.data || rolesQuery.data.length === 0) {
+    if (
+      !editarRolModal.isOpen ||
+      !rolesQuery.data ||
+      rolesQuery.data.length === 0
+    ) {
       return;
     }
     const roleToLoad =
-      (selectedRolId !== '' && rolesQuery.data.find((rol) => rol.id === selectedRolId)) ??
+      (selectedRolId !== "" &&
+        rolesQuery.data.find((rol) => rol.id === selectedRolId)) ??
       rolesQuery.data[0];
     if (!roleToLoad) return;
     setSelectedRolId(roleToLoad.id);
-    setEditRolNombre(roleToLoad.nombre ?? '');
-    setEditRolDescripcion(roleToLoad.descripcion ?? '');
+    setEditRolNombre(roleToLoad.nombre ?? "");
+    setEditRolDescripcion(roleToLoad.descripcion ?? "");
   }, [editarRolModal.isOpen, rolesQuery.data, selectedRolId]);
 
   const filteredData = useMemo(() => {
@@ -182,25 +215,37 @@ const PermisosList: React.FC = () => {
       const rolName = getNameFromEntity(item.rol as any);
       const entidadName = getNameFromEntity(item.entidad as any);
       const estadoOk =
-        filters.estado === 'Todos' ||
-        (filters.estado === 'Activos' && item.estado) ||
-        (filters.estado === 'Inactivos' && !item.estado);
-      const rolOk = filters.rol === 'Todos' || rolName === filters.rol;
-      const entidadOk = filters.entidad === 'Todas' || entidadName === filters.entidad;
+        filters.estado === "Todos" ||
+        (filters.estado === "Activos" && item.estado) ||
+        (filters.estado === "Inactivos" && !item.estado);
+      const rolOk = filters.rol === "Todos" || rolName === filters.rol;
+      const entidadOk =
+        filters.entidad === "Todas" || entidadName === filters.entidad;
       return estadoOk && rolOk && entidadOk;
     });
   }, [data, filters.entidad, filters.estado, filters.rol]);
 
-  const tableManager = useTableManager(filteredData, { totalItems: filteredData.length });
-  const { page, pageSize, data: paginatedData, totalItems, totalPages, pageSizeOptions, goto, setPageSize } = tableManager;
+  const tableManager = useTableManager(filteredData, {
+    totalItems: filteredData.length,
+  });
+  const {
+    page,
+    pageSize,
+    data: paginatedData,
+    totalItems,
+    totalPages,
+    pageSizeOptions,
+    goto,
+    setPageSize,
+  } = tableManager;
 
   const rolOptionsFiltered = useMemo(() => {
     return Array.from(
       new Set(
         data
-          .map((item) => getNameFromEntity(item.rol as any) ?? '')
-          .filter((rol) => rol && rol.trim() !== '')
-      )
+          .map((item) => getNameFromEntity(item.rol as any) ?? "")
+          .filter((rol) => rol && rol.trim() !== ""),
+      ),
     );
   }, [data]);
 
@@ -209,21 +254,35 @@ const PermisosList: React.FC = () => {
       Array.from(
         new Set(
           data
-            .map((item) => getNameFromEntity(item.entidad as any) ?? '')
-            .filter((ent) => ent && ent.trim() !== '')
-        )
-      ).map((entidad) => ({ value: entidad, label: formatEntityLabel(entidad) })),
-    [data]
+            .map((item) => getNameFromEntity(item.entidad as any) ?? "")
+            .filter((ent) => ent && ent.trim() !== ""),
+        ),
+      ).map((entidad) => ({
+        value: entidad,
+        label: formatEntityLabel(entidad),
+      })),
+    [data],
   );
 
-  const toggleEstadoMutation = useMutation<void, Error, { id: number; nextState: boolean }, { previous?: PermisoRolEntidad[] }>({
+  const toggleEstadoMutation = useMutation<
+    void,
+    Error,
+    { id: number; nextState: boolean },
+    { previous?: PermisoRolEntidad[] }
+  >({
     mutationFn: ({ id, nextState }) => PermisosApi.toggleEstado(id, nextState),
     onMutate: async ({ id, nextState }) => {
       await queryClient.cancelQueries({ queryKey: permisosKeys.all });
-      const previous = queryClient.getQueryData<PermisoRolEntidad[]>(permisosKeys.all);
+      const previous = queryClient.getQueryData<PermisoRolEntidad[]>(
+        permisosKeys.all,
+      );
       if (previous) {
-        queryClient.setQueryData<PermisoRolEntidad[]>(permisosKeys.all, (prev = []) =>
-          prev.map((item) => (item.id === id ? { ...item, estado: nextState } : item))
+        queryClient.setQueryData<PermisoRolEntidad[]>(
+          permisosKeys.all,
+          (prev = []) =>
+            prev.map((item) =>
+              item.id === id ? { ...item, estado: nextState } : item,
+            ),
         );
       }
       return { previous };
@@ -233,16 +292,16 @@ const PermisosList: React.FC = () => {
         queryClient.setQueryData(permisosKeys.all, context.previous);
       }
       toast({
-        title: 'Error al cambiar estado',
+        title: "Error al cambiar estado",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
     onSuccess: (_data, { nextState }) => {
       toast({
-        title: `Asignación ${nextState ? 'habilitada' : 'inhabilitada'} correctamente`,
-        status: 'success',
+        title: `Asignación ${nextState ? "habilitada" : "inhabilitada"} correctamente`,
+        status: "success",
         duration: 2000,
       });
     },
@@ -251,98 +310,137 @@ const PermisosList: React.FC = () => {
     },
   });
 
-  const updatePermisoMutation = useMutation<void, Error, { id: number; payload: UpdatePermisoRolEntidadPayload }>({
+  const updatePermisoMutation = useMutation<
+    void,
+    Error,
+    { id: number; payload: UpdatePermisoRolEntidadPayload }
+  >({
     mutationFn: ({ id, payload }) => PermisosApi.update(id, payload),
     onSuccess: () => {
-      toast({ title: 'Permiso actualizado', status: 'success', duration: 2000 });
+      toast({
+        title: "Permiso actualizado",
+        status: "success",
+        duration: 2000,
+      });
       queryClient.invalidateQueries({ queryKey: permisosKeys.all });
     },
     onError: (error) => {
       toast({
-        title: 'Error al actualizar permiso',
+        title: "Error al actualizar permiso",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
   });
 
-  const createPermisoMutation = useMutation<void, Error, CreatePermisoRolEntidadPayload>({
+  const createPermisoMutation = useMutation<
+    void,
+    Error,
+    CreatePermisoRolEntidadPayload
+  >({
     mutationFn: (payload) => PermisosApi.create(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: permisosKeys.all });
     },
     onError: (error) => {
       toast({
-        title: 'Error al asignar permiso',
+        title: "Error al asignar permiso",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
   });
 
-  const createRolMutation = useMutation<void, Error, { nombre: string; descripcion?: string }>({
+  const createRolMutation = useMutation<
+    void,
+    Error,
+    { nombre: string; descripcion?: string }
+  >({
     mutationFn: (payload) => PermisosApi.createRol(payload),
     onSuccess: () => {
-      toast({ title: 'Rol creado', status: 'success', duration: 2000 });
+      toast({ title: "Rol creado", status: "success", duration: 2000 });
       queryClient.invalidateQueries({ queryKey: permisosKeys.roles });
       queryClient.invalidateQueries({ queryKey: permisosKeys.all });
     },
     onError: (error) => {
       toast({
-        title: 'Error al crear rol',
+        title: "Error al crear rol",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
   });
 
-  const updateRolMutation = useMutation<void, Error, { id: number; nombre: string; descripcion?: string }>({
-    mutationFn: ({ id, nombre, descripcion }) => PermisosApi.updateRol(id, { nombre, descripcion }),
+  const updateRolMutation = useMutation<
+    void,
+    Error,
+    { id: number; nombre: string; descripcion?: string }
+  >({
+    mutationFn: ({ id, nombre, descripcion }) =>
+      PermisosApi.updateRol(id, { nombre, descripcion }),
     onSuccess: () => {
-      toast({ title: 'Rol actualizado', status: 'success', duration: 2000 });
+      toast({ title: "Rol actualizado", status: "success", duration: 2000 });
       queryClient.invalidateQueries({ queryKey: permisosKeys.roles });
       queryClient.invalidateQueries({ queryKey: permisosKeys.all });
     },
     onError: (error) => {
       toast({
-        title: 'Error al actualizar rol',
+        title: "Error al actualizar rol",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
   });
 
-  const rolOptions = useMemo(() => (rolesQuery.data ?? []).map((rol) => toOption(rol)), [rolesQuery.data]);
+  const rolOptions = useMemo(
+    () => (rolesQuery.data ?? []).map((rol) => toOption(rol)),
+    [rolesQuery.data],
+  );
   const permisoOptions = useMemo(
     () =>
       (permisosCatalogQuery.data ?? []).map((permiso) =>
-        toOption(permiso, (value) => toTitleCase(value))
+        toOption(permiso, (value) => toTitleCase(value)),
       ),
-    [permisosCatalogQuery.data]
+    [permisosCatalogQuery.data],
   );
   const entidadOptionsCatalog = useMemo(
-    () => (entidadesQuery.data ?? []).map((entidad) => toOption(entidad, formatEntityLabel)),
-    [entidadesQuery.data]
+    () =>
+      (entidadesQuery.data ?? []).map((entidad) =>
+        toOption(entidad, formatEntityLabel),
+      ),
+    [entidadesQuery.data],
   );
 
   const permisoFields: Field<PermisoFormValues>[] = useMemo(
     () => [
-      { name: 'rol', label: 'Rol', type: 'select', options: rolOptions, required: true },
       {
-        name: 'permiso',
-        label: 'Permisos',
-        type: 'multiselect',
+        name: "rol",
+        label: "Rol",
+        type: "select",
+        options: rolOptions,
+        required: true,
+      },
+      {
+        name: "permiso",
+        label: "Permisos",
+        type: "multiselect",
         options: permisoOptions,
         required: true,
-        placeholder: 'Selecciona uno o varios permisos',
+        placeholder: "Selecciona uno o varios permisos",
       },
-      { name: 'entidad', label: 'Entidad', type: 'select', options: entidadOptionsCatalog, required: true },
+      {
+        name: "entidad",
+        label: "Entidad",
+        type: "select",
+        options: entidadOptionsCatalog,
+        required: true,
+      },
     ],
-    [entidadOptionsCatalog, permisoOptions, rolOptions]
+    [entidadOptionsCatalog, permisoOptions, rolOptions],
   );
 
   const permisoInitialValues = useMemo(() => {
@@ -363,19 +461,24 @@ const PermisosList: React.FC = () => {
     const permisosIds = selectedItem.idPermiso
       ? [Number(selectedItem.idPermiso)].filter((value) => !Number.isNaN(value))
       : [getIdFromValue(selectedItem.permiso as any, permisosRaw)].filter(
-          (id): id is number => typeof id === 'number'
+          (id): id is number => typeof id === "number",
         );
 
     return {
-      rol: rolId ?? '',
+      rol: rolId ?? "",
       permiso: permisosIds.length > 0 ? permisosIds : [],
-      entidad: entidadId ?? '',
+      entidad: entidadId ?? "",
     } satisfies PermisoFormValues;
-  }, [selectedItem, rolesQuery.data, permisosCatalogQuery.data, entidadesQuery.data]);
+  }, [
+    selectedItem,
+    rolesQuery.data,
+    permisosCatalogQuery.data,
+    entidadesQuery.data,
+  ]);
 
   const rolFields: Field<{ nombre: string; descripcion?: string }>[] = [
-    { name: 'nombre', label: 'Nombre', type: 'text', required: true },
-    { name: 'descripcion', label: 'Descripción', type: 'text' },
+    { name: "nombre", label: "Nombre", type: "text", required: true },
+    { name: "descripcion", label: "Descripción", type: "text" },
   ];
 
   const handleToggleEstado = (item: PermisoRolEntidad) => {
@@ -394,9 +497,9 @@ const PermisosList: React.FC = () => {
   };
 
   const handleCloseEditarRol = () => {
-    setSelectedRolId('');
-    setEditRolNombre('');
-    setEditRolDescripcion('');
+    setSelectedRolId("");
+    setEditRolNombre("");
+    setEditRolDescripcion("");
     editarRolModal.onClose();
   };
 
@@ -405,8 +508,8 @@ const PermisosList: React.FC = () => {
   return (
     <Stack spacing={8}>
       <Flex
-        direction={{ base: 'column', md: 'row' }}
-        align={{ base: 'flex-start', md: 'center' }}
+        direction={{ base: "column", md: "row" }}
+        align={{ base: "flex-start", md: "center" }}
         justify="space-between"
         gap={4}
       >
@@ -419,38 +522,45 @@ const PermisosList: React.FC = () => {
           </Text>
         </Stack>
         <ButtonGroup size="sm" flexWrap="wrap" gap={2}>
-        <Button
-          leftIcon={<Icon as={FiRefreshCw} />}
-          variant="outline"
-          onClick={() => permisosQuery.refetch()}
-          isLoading={isLoading}
-        >
-          Actualizar
-        </Button>
-        <Button leftIcon={<Icon as={FiPlusCircle} />} onClick={rolModal.onOpen}>
-          Crear rol
-        </Button>
-        <Button
-          leftIcon={<Icon as={FiEdit2} />}
-          variant="outline"
-          onClick={async () => {
-            if (!rolesQuery.data || rolesQuery.data.length === 0) {
-              const result = await rolesQuery.refetch();
-              if (!result.data || result.data.length === 0) {
-                toast({ title: 'No hay roles disponibles para editar', status: 'info', duration: 3000 });
-                return;
+          <Button
+            leftIcon={<Icon as={FiRefreshCw} />}
+            variant="outline"
+            onClick={() => permisosQuery.refetch()}
+            isLoading={isLoading}
+          >
+            Actualizar
+          </Button>
+          <Button
+            leftIcon={<Icon as={FiPlusCircle} />}
+            onClick={rolModal.onOpen}
+          >
+            Crear rol
+          </Button>
+          <Button
+            leftIcon={<Icon as={FiEdit2} />}
+            variant="outline"
+            onClick={async () => {
+              if (!rolesQuery.data || rolesQuery.data.length === 0) {
+                const result = await rolesQuery.refetch();
+                if (!result.data || result.data.length === 0) {
+                  toast({
+                    title: "No hay roles disponibles para editar",
+                    status: "info",
+                    duration: 3000,
+                  });
+                  return;
+                }
               }
-            }
-            editarRolModal.onOpen();
-          }}
-        >
-          Editar rol
-        </Button>
-        <Button
-          colorScheme="brand"
-          leftIcon={<Icon as={FiEdit2} />}
-          onClick={() => {
-            setSelectedItem(null);
+              editarRolModal.onOpen();
+            }}
+          >
+            Editar rol
+          </Button>
+          <Button
+            colorScheme="brand"
+            leftIcon={<Icon as={FiEdit2} />}
+            onClick={() => {
+              setSelectedItem(null);
               permisoModal.onOpen();
             }}
           >
@@ -468,12 +578,15 @@ const PermisosList: React.FC = () => {
         boxShadow="md"
         p={6}
       >
-        <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
+        <Flex direction={{ base: "column", md: "row" }} gap={4}>
           <Stack flex={1}>
             <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
               Filtrar por rol
             </Text>
-            <Select value={filters.rol} onChange={(event) => setFilter('rol', event.target.value)}>
+            <Select
+              value={filters.rol}
+              onChange={(event) => setFilter("rol", event.target.value)}
+            >
               <option value="Todos">Todos</option>
               {rolOptionsFiltered.map((rol) => (
                 <option key={rol} value={rol}>
@@ -487,7 +600,10 @@ const PermisosList: React.FC = () => {
             <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
               Estado
             </Text>
-            <Select value={filters.estado} onChange={(event) => setFilter('estado', event.target.value)}>
+            <Select
+              value={filters.estado}
+              onChange={(event) => setFilter("estado", event.target.value)}
+            >
               <option value="Todos">Todos</option>
               <option value="Activos">Activos</option>
               <option value="Inactivos">Inactivos</option>
@@ -498,7 +614,10 @@ const PermisosList: React.FC = () => {
             <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
               Filtrar por entidad
             </Text>
-            <Select value={filters.entidad} onChange={(event) => setFilter('entidad', event.target.value)}>
+            <Select
+              value={filters.entidad}
+              onChange={(event) => setFilter("entidad", event.target.value)}
+            >
               <option value="Todas">Todas</option>
               {entidadOptions.map((ent) => (
                 <option key={ent.value} value={ent.value}>
@@ -524,96 +643,116 @@ const PermisosList: React.FC = () => {
         p={6}
       >
         <DataTable
-          columns={[
-            { key: 'id', label: 'ID' },
-            {
-              key: 'rol',
-              label: 'Rol',
-              render: (item) => (
-                <Badge variant="info" borderRadius="full">
-                  {(() => {
-                    const name = getNameFromEntity((item as any).rol);
-                    return name ? toTitleCase(name) : '—';
-                  })()}
-                </Badge>
-              ),
-            },
-            {
-              key: 'permiso',
-              label: 'Permiso',
-              render: (item) => (
-                <Badge variant="neutral" borderRadius="full">
-                  {(() => {
-                    const name = getNameFromEntity((item as any).permiso);
-                    return name ? toTitleCase(name) : '—';
-                  })()}
-                </Badge>
-              ),
-            },
-            {
-              key: 'entidad',
-              label: 'Entidad',
-              render: (item) => (
-                <Badge variant="neutral" borderRadius="full">
-                  {formatEntityLabel(getNameFromEntity((item as any).entidad))}
-                </Badge>
-              ),
-            },
-            {
-              key: 'nombreCompleto',
-              label: 'Nombre Completo',
-              render: (item) => `${(item as any).nombres ?? ''} ${(item as any).apellidos ?? ''}`.trim(),
-              hideOnMobile: true,
-            },
-            {
-              key: 'estado',
-              label: 'Estado',
-              render: (item) => (
-                <Badge variant={(item as any).estado ? 'success' : 'neutral'}>
-                  {(item as any).estado ? 'Activo' : 'Inactivo'}
-                </Badge>
-              ),
-            },
-            {
-              key: 'actions',
-              label: 'Acciones',
-              render: (item) => (
-                <HStack spacing={2}>
-                  <Tooltip label={(item as any).estado ? 'Inhabilitar asignación' : 'Habilitar asignación'}>
-                    <IconButton
-                      aria-label={`${(item as any).estado ? 'Inhabilitar' : 'Habilitar'} asignación del rol ${getNameFromEntity((item as any).rol) ?? ''}`}
-                      aria-pressed={(item as any).estado}
-                      size="sm"
-                      variant="ghost"
-                      colorScheme={(item as any).estado ? 'red' : 'green'}
-                      icon={<FiToggleLeft />}
-                      onClick={() => handleToggleEstado(item as PermisoRolEntidad)}
-                    />
-                  </Tooltip>
-                  <Tooltip label="Actualizar permiso">
-                    <IconButton
-                      aria-label="Actualizar permiso"
-                      size="sm"
-                      variant="ghost"
-                      icon={<FiEdit2 />}
-                      onClick={() => handleEditPermiso(item as PermisoRolEntidad)}
-                    />
-                  </Tooltip>
-                </HStack>
-              ),
-            },
-          ] as Column<PermisoRolEntidad>[]}
+          columns={
+            [
+              { key: "id", label: "ID" },
+              {
+                key: "rol",
+                label: "Rol",
+                render: (item) => (
+                  <Badge variant="info" borderRadius="full">
+                    {(() => {
+                      const name = getNameFromEntity((item as any).rol);
+                      return name ? toTitleCase(name) : "—";
+                    })()}
+                  </Badge>
+                ),
+              },
+              {
+                key: "permiso",
+                label: "Permiso",
+                render: (item) => (
+                  <Badge variant="neutral" borderRadius="full">
+                    {(() => {
+                      const name = getNameFromEntity((item as any).permiso);
+                      return name ? toTitleCase(name) : "—";
+                    })()}
+                  </Badge>
+                ),
+              },
+              {
+                key: "entidad",
+                label: "Entidad",
+                render: (item) => (
+                  <Badge variant="neutral" borderRadius="full">
+                    {formatEntityLabel(
+                      getNameFromEntity((item as any).entidad),
+                    )}
+                  </Badge>
+                ),
+              },
+              {
+                key: "nombreCompleto",
+                label: "Nombre Completo",
+                render: (item) =>
+                  `${(item as any).nombres ?? ""} ${(item as any).apellidos ?? ""}`.trim(),
+                hideOnMobile: true,
+              },
+              {
+                key: "estado",
+                label: "Estado",
+                render: (item) => (
+                  <Badge variant={(item as any).estado ? "success" : "neutral"}>
+                    {(item as any).estado ? "Activo" : "Inactivo"}
+                  </Badge>
+                ),
+              },
+              {
+                key: "actions",
+                label: "Acciones",
+                render: (item) => (
+                  <HStack spacing={2}>
+                    <Tooltip
+                      label={
+                        (item as any).estado
+                          ? "Inhabilitar asignación"
+                          : "Habilitar asignación"
+                      }
+                    >
+                      <IconButton
+                        aria-label={`${(item as any).estado ? "Inhabilitar" : "Habilitar"} asignación del rol ${getNameFromEntity((item as any).rol) ?? ""}`}
+                        aria-pressed={(item as any).estado}
+                        size="sm"
+                        variant="ghost"
+                        colorScheme={(item as any).estado ? "red" : "green"}
+                        icon={<FiToggleLeft />}
+                        onClick={() =>
+                          handleToggleEstado(item as PermisoRolEntidad)
+                        }
+                      />
+                    </Tooltip>
+                    <Tooltip label="Actualizar permiso">
+                      <IconButton
+                        aria-label="Actualizar permiso"
+                        size="sm"
+                        variant="ghost"
+                        icon={<FiEdit2 />}
+                        onClick={() =>
+                          handleEditPermiso(item as PermisoRolEntidad)
+                        }
+                      />
+                    </Tooltip>
+                  </HStack>
+                ),
+              },
+            ] as Column<PermisoRolEntidad>[]
+          }
           data={paginatedData}
           loading={isLoading}
-          error={permisosQuery.error ? (permisosQuery.error as Error).message : null}
+          error={
+            permisosQuery.error ? (permisosQuery.error as Error).message : null
+          }
           keyExtractor={(item) => item.id}
           emptyMessage="No hay asignaciones registradas"
         />
 
-        <Flex direction={{ base: 'column', md: 'row' }} align="center" gap={4}>
+        <Flex direction={{ base: "column", md: "row" }} align="center" gap={4}>
           <HStack spacing={2}>
             <Text fontSize="sm" color="gray.600">
-              {totalItems === 0 ? '0–0' : `${page * pageSize + 1}–${Math.min((page + 1) * pageSize, totalItems)}`} de {totalItems}
+              {totalItems === 0
+                ? "0–0"
+                : `${page * pageSize + 1}–${Math.min((page + 1) * pageSize, totalItems)}`}{" "}
+              de {totalItems}
             </Text>
 
             <IconButton
@@ -633,14 +772,17 @@ const PermisosList: React.FC = () => {
               icon={<FiChevronLeft />}
             />
             <Button size="sm" variant="outline" isDisabled>
-              {totalItems === 0 ? 0 : page + 1} / {totalItems === 0 ? 0 : totalPages}
+              {totalItems === 0 ? 0 : page + 1} /{" "}
+              {totalItems === 0 ? 0 : totalPages}
             </Button>
             <IconButton
               aria-label="Siguiente"
               size="sm"
               variant="ghost"
               onClick={() => goto(page + 1)}
-              isDisabled={page >= totalPages - 1 || isLoading || totalItems === 0}
+              isDisabled={
+                page >= totalPages - 1 || isLoading || totalItems === 0
+              }
               icon={<FiChevronRight />}
             />
             <IconButton
@@ -648,7 +790,9 @@ const PermisosList: React.FC = () => {
               size="sm"
               variant="ghost"
               onClick={() => goto(totalPages - 1)}
-              isDisabled={page >= totalPages - 1 || isLoading || totalItems === 0}
+              isDisabled={
+                page >= totalPages - 1 || isLoading || totalItems === 0
+              }
               icon={<FiChevronsRight />}
             />
           </HStack>
@@ -683,18 +827,20 @@ const PermisosList: React.FC = () => {
         fields={rolFields}
         onSave={async (values) => {
           await createRolMutation.mutateAsync({
-            nombre: values.nombre ?? '',
-            descripcion: values.descripcion ?? '',
+            nombre: values.nombre ?? "",
+            descripcion: values.descripcion ?? "",
           });
           rolModal.onClose();
         }}
       />
 
       <GenericModal
-        key={selectedItem?.id ?? 'new'}
+        key={selectedItem?.id ?? "new"}
         isOpen={permisoModal.isOpen}
         onClose={handleClosePermisoModal}
-        title={selectedItem ? 'Actualizar Permiso a Rol' : 'Asignar Permiso a Rol'}
+        title={
+          selectedItem ? "Actualizar Permiso a Rol" : "Asignar Permiso a Rol"
+        }
         fields={permisoFields}
         initialValues={permisoInitialValues}
         onSave={async (values) => {
@@ -707,25 +853,27 @@ const PermisosList: React.FC = () => {
           const permisosSeleccionados = Array.isArray(values.permiso)
             ? values.permiso
             : values.permiso != null
-            ? [values.permiso]
-            : [];
+              ? [values.permiso]
+              : [];
 
           if (!rolId || !entidadId || permisosSeleccionados.length === 0) {
-            throw new Error('Rol, Permisos y Entidad deben estar seleccionados correctamente');
+            throw new Error(
+              "Rol, Permisos y Entidad deben estar seleccionados correctamente",
+            );
           }
 
           const permisosIds = permisosSeleccionados
             .map((permiso) => getIdFromValue(permiso, permisosRaw))
-            .filter((id): id is number => typeof id === 'number');
+            .filter((id): id is number => typeof id === "number");
 
           if (permisosIds.length === 0) {
-            throw new Error('Debes seleccionar al menos un permiso válido');
+            throw new Error("Debes seleccionar al menos un permiso válido");
           }
 
           const basePayload = {
             rol: { id: rolId },
             entidad: { id: entidadId },
-          } satisfies Omit<CreatePermisoRolEntidadPayload, 'permiso'>;
+          } satisfies Omit<CreatePermisoRolEntidadPayload, "permiso">;
 
           if (selectedItem) {
             const [firstPermiso, ...extraPermisos] = permisosIds;
@@ -744,8 +892,8 @@ const PermisosList: React.FC = () => {
                   createPermisoMutation.mutateAsync({
                     ...basePayload,
                     permiso: { id: permisoId },
-                  })
-                )
+                  }),
+                ),
               );
             }
           } else {
@@ -754,10 +902,14 @@ const PermisosList: React.FC = () => {
                 createPermisoMutation.mutateAsync({
                   ...basePayload,
                   permiso: { id: permisoId },
-                })
-              )
+                }),
+              ),
             );
-            toast({ title: 'Permiso asignado', status: 'success', duration: 2000 });
+            toast({
+              title: "Permiso asignado",
+              status: "success",
+              duration: 2000,
+            });
           }
 
           await queryClient.invalidateQueries({ queryKey: permisosKeys.all });
@@ -765,7 +917,11 @@ const PermisosList: React.FC = () => {
         }}
       />
 
-      <Modal isOpen={editarRolModal.isOpen} onClose={handleCloseEditarRol} closeOnOverlayClick={!updateRolMutation.isPending}>
+      <Modal
+        isOpen={editarRolModal.isOpen}
+        onClose={handleCloseEditarRol}
+        closeOnOverlayClick={!updateRolMutation.isPending}
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Editar rol</ModalHeader>
@@ -779,9 +935,11 @@ const PermisosList: React.FC = () => {
                   onChange={(event) => {
                     const nextId = Number(event.target.value);
                     setSelectedRolId(nextId);
-                    const role = rolesQuery.data?.find((rol) => rol.id === nextId);
-                    setEditRolNombre(role?.nombre ?? '');
-                    setEditRolDescripcion(role?.descripcion ?? '');
+                    const role = rolesQuery.data?.find(
+                      (rol) => rol.id === nextId,
+                    );
+                    setEditRolNombre(role?.nombre ?? "");
+                    setEditRolDescripcion(role?.descripcion ?? "");
                   }}
                 >
                   {(rolesQuery.data ?? []).map((rol) => (
@@ -804,20 +962,31 @@ const PermisosList: React.FC = () => {
                 <FormLabel>Descripción</FormLabel>
                 <Input
                   value={editRolDescripcion}
-                  onChange={(event) => setEditRolDescripcion(event.target.value)}
+                  onChange={(event) =>
+                    setEditRolDescripcion(event.target.value)
+                  }
                 />
               </FormControl>
             </Stack>
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={handleCloseEditarRol} isDisabled={updateRolMutation.isPending}>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={handleCloseEditarRol}
+              isDisabled={updateRolMutation.isPending}
+            >
               Cancelar
             </Button>
             <Button
               colorScheme="brand"
               onClick={async () => {
                 if (!selectedRolId) {
-                  toast({ title: 'Selecciona un rol', status: 'warning', duration: 3000 });
+                  toast({
+                    title: "Selecciona un rol",
+                    status: "warning",
+                    duration: 3000,
+                  });
                   return;
                 }
                 try {
@@ -828,7 +997,7 @@ const PermisosList: React.FC = () => {
                   });
                   handleCloseEditarRol();
                 } catch (err) {
-                  console.error('Error actualizando rol', err);
+                  console.error("Error actualizando rol", err);
                 }
               }}
               isLoading={updateRolMutation.isPending}
@@ -855,8 +1024,8 @@ const PermisosList: React.FC = () => {
 
           <AlertDialogBody>
             {confirmData
-              ? `¿Seguro deseas ${confirmData.nextState ? 'habilitar' : 'inhabilitar'} la asignación del rol ${getNameFromEntity(confirmData.item.rol as any)}?`
-              : 'Confirma la acción solicitada.'}
+              ? `¿Seguro deseas ${confirmData.nextState ? "habilitar" : "inhabilitar"} la asignación del rol ${getNameFromEntity(confirmData.item.rol as any)}?`
+              : "Confirma la acción solicitada."}
           </AlertDialogBody>
 
           <AlertDialogFooter>

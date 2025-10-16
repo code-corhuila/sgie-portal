@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export interface TableManagerOptions {
   initialPage?: number;
@@ -19,8 +19,16 @@ export interface TableManagerResult<T> {
   reset: () => void;
 }
 
-export function useTableManager<T>(source: T[], options: TableManagerOptions = {}): TableManagerResult<T> {
-  const { initialPage = 0, initialPageSize = 10, pageSizeOptions = [10, 20, 50, 100], totalItems } = options;
+export function useTableManager<T>(
+  source: T[],
+  options: TableManagerOptions = {},
+): TableManagerResult<T> {
+  const {
+    initialPage = 0,
+    initialPageSize = 10,
+    pageSizeOptions = [10, 20, 50, 100],
+    totalItems,
+  } = options;
   const [page, setPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
 
@@ -50,7 +58,7 @@ export function useTableManager<T>(source: T[], options: TableManagerOptions = {
       const clamped = Math.min(Math.max(target, 0), totalPages - 1);
       setPage(clamped);
     },
-    [totalPages]
+    [totalPages],
   );
 
   const handlePageSizeChange = useCallback((size: number) => {

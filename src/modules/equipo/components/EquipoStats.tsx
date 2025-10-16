@@ -1,4 +1,4 @@
-import { SimpleGrid, Stack, Text } from '@chakra-ui/react';
+import { SimpleGrid, Stack, Text } from "@chakra-ui/react";
 
 interface EquipoStatsProps {
   total: number;
@@ -6,7 +6,11 @@ interface EquipoStatsProps {
   enMantenimiento: number;
 }
 
-export function EquipoStats({ total, activos, enMantenimiento }: EquipoStatsProps) {
+export function EquipoStats({
+  total,
+  activos,
+  enMantenimiento,
+}: EquipoStatsProps) {
   return (
     <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
       <Stack

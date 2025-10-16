@@ -6,9 +6,9 @@ import {
   Icon,
   Stack,
   Text,
-} from '@chakra-ui/react';
-import { FiFilter, FiLayers, FiPlusCircle, FiRefreshCw } from 'react-icons/fi';
-import type { ReactNode } from 'react';
+} from "@chakra-ui/react";
+import { FiFilter, FiLayers, FiPlusCircle, FiRefreshCw } from "react-icons/fi";
+import type { ReactNode } from "react";
 
 interface EquipoHeaderProps {
   onRefresh: () => void;
@@ -29,8 +29,8 @@ export function EquipoHeader({
 }: EquipoHeaderProps) {
   return (
     <Flex
-      direction={{ base: 'column', md: 'row' }}
-      align={{ base: 'flex-start', md: 'center' }}
+      direction={{ base: "column", md: "row" }}
+      align={{ base: "flex-start", md: "center" }}
       justify="space-between"
       gap={4}
     >
@@ -39,7 +39,8 @@ export function EquipoHeader({
           Gestión de equipos
         </Heading>
         <Text fontSize="sm" color="neutral.500">
-          Controla el parque tecnológico con filtros rápidos y acciones de mantenimiento.
+          Controla el parque tecnológico con filtros rápidos y acciones de
+          mantenimiento.
         </Text>
       </Stack>
       <ButtonGroup size="sm" flexWrap="wrap" gap={2}>
@@ -54,7 +55,11 @@ export function EquipoHeader({
         <Button leftIcon={<Icon as={FiLayers} />} onClick={onOpenCategoria}>
           Categoría
         </Button>
-        <Button leftIcon={<Icon as={FiFilter} />} onClick={onOpenTipo} variant="outline">
+        <Button
+          leftIcon={<Icon as={FiFilter} />}
+          onClick={onOpenTipo}
+          variant="outline"
+        >
           Tipo
         </Button>
         <Button

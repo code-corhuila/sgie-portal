@@ -1,5 +1,5 @@
-import { Checkbox, CheckboxGroup, Input, Stack, Text } from '@chakra-ui/react';
-import { useMemo, useState } from 'react';
+import { Checkbox, CheckboxGroup, Input, Stack, Text } from "@chakra-ui/react";
+import { useMemo, useState } from "react";
 
 export interface MultiSelectOption {
   value: string | number;
@@ -13,13 +13,20 @@ interface MultiSelectProps {
   onChange: (value: Array<string | number>) => void;
 }
 
-export function MultiSelect({ value, options, placeholder, onChange }: MultiSelectProps) {
-  const [search, setSearch] = useState('');
+export function MultiSelect({
+  value,
+  options,
+  placeholder,
+  onChange,
+}: MultiSelectProps) {
+  const [search, setSearch] = useState("");
 
   const normalized = useMemo(() => {
     if (!search) return options;
     const term = search.toLowerCase();
-    return options.filter((option) => option.label.toLowerCase().includes(term));
+    return options.filter((option) =>
+      option.label.toLowerCase().includes(term),
+    );
   }, [options, search]);
 
   return (
@@ -27,15 +34,21 @@ export function MultiSelect({ value, options, placeholder, onChange }: MultiSele
       <Input
         value={search}
         onChange={(event) => setSearch(event.target.value)}
-        placeholder={placeholder ?? 'Buscar'}
+        placeholder={placeholder ?? "Buscar"}
         size="sm"
       />
       <CheckboxGroup
         value={value.map(String)}
-        onChange={(next) => onChange((next as string[]).map((item) => {
-          const original = options.find((option) => String(option.value) === item);
-          return original ? original.value : item;
-        }))}
+        onChange={(next) =>
+          onChange(
+            (next as string[]).map((item) => {
+              const original = options.find(
+                (option) => String(option.value) === item,
+              );
+              return original ? original.value : item;
+            }),
+          )
+        }
       >
         <Stack spacing={2} maxH="160px" overflowY="auto">
           {normalized.length === 0 ? (

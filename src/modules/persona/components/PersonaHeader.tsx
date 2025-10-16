@@ -6,8 +6,8 @@ import {
   Icon,
   Stack,
   Text,
-} from '@chakra-ui/react';
-import { FiRefreshCw, FiUserPlus, FiLock } from 'react-icons/fi';
+} from "@chakra-ui/react";
+import { FiRefreshCw, FiUserPlus, FiLock } from "react-icons/fi";
 
 interface PersonaHeaderProps {
   onRefresh: () => void;
@@ -16,11 +16,16 @@ interface PersonaHeaderProps {
   isLoading: boolean;
 }
 
-export function PersonaHeader({ onRefresh, onOpenPersona, onOpenUsuario, isLoading }: PersonaHeaderProps) {
+export function PersonaHeader({
+  onRefresh,
+  onOpenPersona,
+  onOpenUsuario,
+  isLoading,
+}: PersonaHeaderProps) {
   return (
     <Flex
-      direction={{ base: 'column', md: 'row' }}
-      align={{ base: 'flex-start', md: 'center' }}
+      direction={{ base: "column", md: "row" }}
+      align={{ base: "flex-start", md: "center" }}
       justify="space-between"
       gap={4}
     >
@@ -29,7 +34,8 @@ export function PersonaHeader({ onRefresh, onOpenPersona, onOpenUsuario, isLoadi
           Gestión de personas y usuarios
         </Heading>
         <Text fontSize="sm" color="neutral.500">
-          Crea personas, asigna usuarios y controla sus permisos desde un único panel.
+          Crea personas, asigna usuarios y controla sus permisos desde un único
+          panel.
         </Text>
       </Stack>
       <ButtonGroup size="sm" flexWrap="wrap" gap={2}>
@@ -44,7 +50,11 @@ export function PersonaHeader({ onRefresh, onOpenPersona, onOpenUsuario, isLoadi
         <Button leftIcon={<Icon as={FiUserPlus} />} onClick={onOpenPersona}>
           Crear persona
         </Button>
-        <Button leftIcon={<Icon as={FiLock} />} onClick={onOpenUsuario} colorScheme="brand">
+        <Button
+          leftIcon={<Icon as={FiLock} />}
+          onClick={onOpenUsuario}
+          colorScheme="brand"
+        >
           Crear usuario
         </Button>
       </ButtonGroup>

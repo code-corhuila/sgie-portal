@@ -1,17 +1,17 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Box, Stack, useDisclosure, useToast } from '@chakra-ui/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import GenericModal, { type Field } from '../../../components/UI/GenericModal';
-import { EquiposApi } from '../../../api/equipo';
-import { equipoKeys } from '../queryKeys';
-import { useFilterState } from '../../../hooks/useFilterState';
-import { useTableManager } from '../../../hooks/useTableManager';
-import { EquipoHeader } from '../components/EquipoHeader';
-import { EquipoFilters } from '../components/EquipoFilters';
-import { EquipoTagSummary } from '../components/EquipoTagSummary';
-import { EquipoStats } from '../components/EquipoStats';
-import { EquipoTable } from '../components/EquipoTable';
-import { EquipoPagination } from '../components/EquipoPagination';
+import React, { useEffect, useMemo, useState } from "react";
+import { Box, Stack, useDisclosure, useToast } from "@chakra-ui/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import GenericModal, { type Field } from "../../../components/UI/GenericModal";
+import { EquiposApi } from "../../../api/equipo";
+import { equipoKeys } from "../queryKeys";
+import { useFilterState } from "../../../hooks/useFilterState";
+import { useTableManager } from "../../../hooks/useTableManager";
+import { EquipoHeader } from "../components/EquipoHeader";
+import { EquipoFilters } from "../components/EquipoFilters";
+import { EquipoTagSummary } from "../components/EquipoTagSummary";
+import { EquipoStats } from "../components/EquipoStats";
+import { EquipoTable } from "../components/EquipoTable";
+import { EquipoPagination } from "../components/EquipoPagination";
 import type {
   CategoriaEquipo,
   CreateCategoriaEquipoPayload,
@@ -21,7 +21,7 @@ import type {
   InstalacionOption,
   TipoEquipo,
   UpdateEquipoPayload,
-} from '../types';
+} from "../types";
 
 interface TipoEquipoFormValues {
   nombre: string;
@@ -35,14 +35,14 @@ interface EquipoFormValues {
   instalacion: string | number;
 }
 
-type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
+type StatusFilter = "ALL" | "ACTIVE" | "INACTIVE";
 
 const initialFilters = {
-  codigo: '',
-  status: 'ALL' as StatusFilter,
-  tipo: 'Todos',
-  instalacion: 'Todos',
-  categoria: 'Todos',
+  codigo: "",
+  status: "ALL" as StatusFilter,
+  tipo: "Todos",
+  instalacion: "Todos",
+  categoria: "Todos",
 };
 
 const toOption = (item: { id: number; nombre: string }) => ({
@@ -58,7 +58,9 @@ const EquipoList: React.FC = () => {
   const equipoModal = useDisclosure();
   const editModal = useDisclosure();
 
-  const [selectedEquipo, setSelectedEquipo] = useState<EquipoSummary | null>(null);
+  const [selectedEquipo, setSelectedEquipo] = useState<EquipoSummary | null>(
+    null,
+  );
 
   const { filters, setFilter } = useFilterState(initialFilters);
   const codigoBusqueda = filters.codigo.trim();
@@ -106,10 +108,10 @@ const EquipoList: React.FC = () => {
         new Set(
           equiposBase
             .map((item) => item.nombreEquipo)
-            .filter((value): value is string => Boolean(value))
-        )
+            .filter((value): value is string => Boolean(value)),
+        ),
       ),
-    [equiposBase]
+    [equiposBase],
   );
 
   const instalacionesDisponibles = useMemo(
@@ -118,10 +120,10 @@ const EquipoList: React.FC = () => {
         new Set(
           equiposBase
             .map((item) => item.nombreInstalacion)
-            .filter((value): value is string => Boolean(value))
-        )
+            .filter((value): value is string => Boolean(value)),
+        ),
       ),
-    [equiposBase]
+    [equiposBase],
   );
 
   const categoriasDisponibles = useMemo(
@@ -130,29 +132,40 @@ const EquipoList: React.FC = () => {
         new Set(
           equiposBase
             .map((item) => item.nombreCategoriaEquipo)
-            .filter((value): value is string => Boolean(value))
-        )
+            .filter((value): value is string => Boolean(value)),
+        ),
       ),
-    [equiposBase]
+    [equiposBase],
   );
 
   const filteredEquipos = useMemo(() => {
     return equipos.filter((item) => {
       const statusOk =
-        filters.status === 'ALL' ||
-        (filters.status === 'ACTIVE' && item.estadoEquipo) ||
-        (filters.status === 'INACTIVE' && !item.estadoEquipo);
-      const tipoOk = filters.tipo === 'Todos' || item.nombreEquipo === filters.tipo;
+        filters.status === "ALL" ||
+        (filters.status === "ACTIVE" && item.estadoEquipo) ||
+        (filters.status === "INACTIVE" && !item.estadoEquipo);
+      const tipoOk =
+        filters.tipo === "Todos" || item.nombreEquipo === filters.tipo;
       const instalacionOk =
-        filters.instalacion === 'Todos' || item.nombreInstalacion === filters.instalacion;
+        filters.instalacion === "Todos" ||
+        item.nombreInstalacion === filters.instalacion;
       const categoriaOk =
-        filters.categoria === 'Todos' || item.nombreCategoriaEquipo === filters.categoria;
+        filters.categoria === "Todos" ||
+        item.nombreCategoriaEquipo === filters.categoria;
 
       return statusOk && tipoOk && instalacionOk && categoriaOk;
     });
-  }, [equipos, filters.categoria, filters.instalacion, filters.status, filters.tipo]);
+  }, [
+    equipos,
+    filters.categoria,
+    filters.instalacion,
+    filters.status,
+    filters.tipo,
+  ]);
 
-  const tableManager = useTableManager(filteredEquipos, { totalItems: filteredEquipos.length });
+  const tableManager = useTableManager(filteredEquipos, {
+    totalItems: filteredEquipos.length,
+  });
   const {
     page,
     pageSize,
@@ -166,36 +179,54 @@ const EquipoList: React.FC = () => {
 
   useEffect(() => {
     goto(0);
-  }, [filters.categoria, filters.instalacion, filters.status, filters.tipo, filters.codigo, goto]);
+  }, [
+    filters.categoria,
+    filters.instalacion,
+    filters.status,
+    filters.tipo,
+    filters.codigo,
+    goto,
+  ]);
 
   const totalEquipos = equiposBase.length;
   const activos = equiposBase.filter((item) => item.estadoEquipo).length;
   const enMantenimiento = equiposBase.filter(
-    (item) => !item.estadoInstalacion || !item.estadoCampus
+    (item) => !item.estadoInstalacion || !item.estadoCampus,
   ).length;
 
   const categoriaOptions = useMemo(
     () => (categoriasQuery.data ?? []).map(toOption),
-    [categoriasQuery.data]
+    [categoriasQuery.data],
   );
 
-  const tipoOptions = useMemo(() => (tiposQuery.data ?? []).map(toOption), [tiposQuery.data]);
+  const tipoOptions = useMemo(
+    () => (tiposQuery.data ?? []).map(toOption),
+    [tiposQuery.data],
+  );
   const instalacionOptions = useMemo(
     () => (instalacionesQuery.data ?? []).map(toOption),
-    [instalacionesQuery.data]
+    [instalacionesQuery.data],
   );
 
-  const createCategoriaMutation = useMutation<void, Error, CreateCategoriaEquipoPayload>({
+  const createCategoriaMutation = useMutation<
+    void,
+    Error,
+    CreateCategoriaEquipoPayload
+  >({
     mutationFn: EquiposApi.createCategoria,
     onSuccess: () => {
-      toast({ title: 'Categoría de equipo creada', status: 'success', duration: 2000 });
+      toast({
+        title: "Categoría de equipo creada",
+        status: "success",
+        duration: 2000,
+      });
       queryClient.invalidateQueries({ queryKey: equipoKeys.categories });
     },
     onError: (error) => {
       toast({
-        title: 'Error al crear categoría de equipo',
+        title: "Error al crear categoría de equipo",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
@@ -204,14 +235,18 @@ const EquipoList: React.FC = () => {
   const createTipoMutation = useMutation<void, Error, CreateTipoEquipoPayload>({
     mutationFn: EquiposApi.createTipo,
     onSuccess: () => {
-      toast({ title: 'Tipo de equipo creado', status: 'success', duration: 2000 });
+      toast({
+        title: "Tipo de equipo creado",
+        status: "success",
+        duration: 2000,
+      });
       queryClient.invalidateQueries({ queryKey: equipoKeys.types });
     },
     onError: (error) => {
       toast({
-        title: 'Error al crear tipo de equipo',
+        title: "Error al crear tipo de equipo",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
@@ -220,17 +255,19 @@ const EquipoList: React.FC = () => {
   const createEquipoMutation = useMutation<void, Error, CreateEquipoPayload>({
     mutationFn: EquiposApi.createEquipo,
     onSuccess: () => {
-      toast({ title: 'Equipo creado', status: 'success', duration: 2000 });
+      toast({ title: "Equipo creado", status: "success", duration: 2000 });
       queryClient.invalidateQueries({ queryKey: equipoKeys.all });
       if (codigoBusqueda) {
-        queryClient.invalidateQueries({ queryKey: equipoKeys.search(codigoBusqueda) });
+        queryClient.invalidateQueries({
+          queryKey: equipoKeys.search(codigoBusqueda),
+        });
       }
     },
     onError: (error) => {
       toast({
-        title: 'Error al crear equipo',
+        title: "Error al crear equipo",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
@@ -241,19 +278,22 @@ const EquipoList: React.FC = () => {
     Error,
     { idEquipo: number; payload: UpdateEquipoPayload }
   >({
-    mutationFn: ({ idEquipo, payload }) => EquiposApi.updateEquipo(idEquipo, payload),
+    mutationFn: ({ idEquipo, payload }) =>
+      EquiposApi.updateEquipo(idEquipo, payload),
     onSuccess: () => {
-      toast({ title: 'Equipo actualizado', status: 'success', duration: 2000 });
+      toast({ title: "Equipo actualizado", status: "success", duration: 2000 });
       queryClient.invalidateQueries({ queryKey: equipoKeys.all });
       if (codigoBusqueda) {
-        queryClient.invalidateQueries({ queryKey: equipoKeys.search(codigoBusqueda) });
+        queryClient.invalidateQueries({
+          queryKey: equipoKeys.search(codigoBusqueda),
+        });
       }
     },
     onError: (error) => {
       toast({
-        title: 'Error al actualizar equipo',
+        title: "Error al actualizar equipo",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
@@ -265,26 +305,39 @@ const EquipoList: React.FC = () => {
     { idEquipo: number; nextEstado: boolean; codigo?: string },
     { previousEquipos?: EquipoSummary[]; previousBusqueda?: EquipoSummary[] }
   >({
-    mutationFn: ({ idEquipo, nextEstado }) => EquiposApi.toggleEstado(idEquipo, nextEstado),
+    mutationFn: ({ idEquipo, nextEstado }) =>
+      EquiposApi.toggleEstado(idEquipo, nextEstado),
     onMutate: async ({ idEquipo, nextEstado, codigo }) => {
       await queryClient.cancelQueries({ queryKey: equipoKeys.all });
-      const previousEquipos = queryClient.getQueryData<EquipoSummary[]>(equipoKeys.all);
+      const previousEquipos = queryClient.getQueryData<EquipoSummary[]>(
+        equipoKeys.all,
+      );
       if (previousEquipos) {
         queryClient.setQueryData<EquipoSummary[]>(equipoKeys.all, (prev = []) =>
           prev.map((item) =>
-            item.idEquipo === idEquipo ? { ...item, estadoEquipo: nextEstado } : item
-          )
+            item.idEquipo === idEquipo
+              ? { ...item, estadoEquipo: nextEstado }
+              : item,
+          ),
         );
       }
       let previousBusqueda: EquipoSummary[] | undefined;
       if (codigo) {
-        await queryClient.cancelQueries({ queryKey: equipoKeys.search(codigo) });
-        previousBusqueda = queryClient.getQueryData<EquipoSummary[]>(equipoKeys.search(codigo));
+        await queryClient.cancelQueries({
+          queryKey: equipoKeys.search(codigo),
+        });
+        previousBusqueda = queryClient.getQueryData<EquipoSummary[]>(
+          equipoKeys.search(codigo),
+        );
         if (previousBusqueda) {
-          queryClient.setQueryData<EquipoSummary[]>(equipoKeys.search(codigo), (prev = []) =>
-            prev.map((item) =>
-              item.idEquipo === idEquipo ? { ...item, estadoEquipo: nextEstado } : item
-            )
+          queryClient.setQueryData<EquipoSummary[]>(
+            equipoKeys.search(codigo),
+            (prev = []) =>
+              prev.map((item) =>
+                item.idEquipo === idEquipo
+                  ? { ...item, estadoEquipo: nextEstado }
+                  : item,
+              ),
           );
         }
       }
@@ -295,19 +348,22 @@ const EquipoList: React.FC = () => {
         queryClient.setQueryData(equipoKeys.all, context.previousEquipos);
       }
       if (_variables.codigo && context?.previousBusqueda) {
-        queryClient.setQueryData(equipoKeys.search(_variables.codigo), context.previousBusqueda);
+        queryClient.setQueryData(
+          equipoKeys.search(_variables.codigo),
+          context.previousBusqueda,
+        );
       }
       toast({
-        title: 'Error al cambiar estado',
+        title: "Error al cambiar estado",
         description: error.message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     },
     onSuccess: (_data, { nextEstado }) => {
       toast({
-        title: `Equipo ${nextEstado ? 'habilitado' : 'inhabilitado'} correctamente`,
-        status: 'success',
+        title: `Equipo ${nextEstado ? "habilitado" : "inhabilitado"} correctamente`,
+        status: "success",
         duration: 2000,
       });
     },
@@ -326,9 +382,9 @@ const EquipoList: React.FC = () => {
   useEffect(() => {
     if (searchQuery.error && codigoBusqueda) {
       toast({
-        title: 'Error buscando equipo',
+        title: "Error buscando equipo",
         description: (searchQuery.error as Error).message,
-        status: 'error',
+        status: "error",
         duration: 4000,
       });
     }
@@ -337,16 +393,18 @@ const EquipoList: React.FC = () => {
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: equipoKeys.all });
     if (codigoBusqueda) {
-      queryClient.invalidateQueries({ queryKey: equipoKeys.search(codigoBusqueda) });
+      queryClient.invalidateQueries({
+        queryKey: equipoKeys.search(codigoBusqueda),
+      });
     }
   };
 
   const handleSearchByCodigo = () => {
     if (!codigoBusqueda) {
       toast({
-        title: 'Ingresa un código',
-        description: 'Debes escribir un código antes de buscar',
-        status: 'info',
+        title: "Ingresa un código",
+        description: "Debes escribir un código antes de buscar",
+        status: "info",
         duration: 3000,
       });
       return;
@@ -356,41 +414,56 @@ const EquipoList: React.FC = () => {
 
   const handleClearCodigo = () => {
     if (filters.codigo) {
-      queryClient.removeQueries({ queryKey: equipoKeys.search(filters.codigo.trim()), exact: true });
+      queryClient.removeQueries({
+        queryKey: equipoKeys.search(filters.codigo.trim()),
+        exact: true,
+      });
     }
-    setFilter('codigo', '');
+    setFilter("codigo", "");
   };
 
   const categoriaFields: Field<CreateCategoriaEquipoPayload>[] = useMemo(
     () => [
-      { name: 'nombre', label: 'Nombre', type: 'text', required: true },
-      { name: 'descripcion', label: 'Descripción', type: 'text' },
+      { name: "nombre", label: "Nombre", type: "text", required: true },
+      { name: "descripcion", label: "Descripción", type: "text" },
     ],
-    []
+    [],
   );
 
   const tipoFields: Field<TipoEquipoFormValues>[] = useMemo(
     () => [
-      { name: 'nombre', label: 'Nombre', type: 'text', required: true },
-      { name: 'descripcion', label: 'Descripción', type: 'text' },
+      { name: "nombre", label: "Nombre", type: "text", required: true },
+      { name: "descripcion", label: "Descripción", type: "text" },
       {
-        name: 'categoriaEquipo',
-        label: 'Categoría',
-        type: 'select',
+        name: "categoriaEquipo",
+        label: "Categoría",
+        type: "select",
         required: true,
         options: categoriaOptions,
       },
     ],
-    [categoriaOptions]
+    [categoriaOptions],
   );
 
   const equipoFields: Field<EquipoFormValues>[] = useMemo(
     () => [
-      { name: 'codigo', label: 'Código', type: 'text', required: true },
-      { name: 'tipoEquipo', label: 'Tipo de Equipo', type: 'select', options: tipoOptions, required: true },
-      { name: 'instalacion', label: 'Instalación', type: 'select', options: instalacionOptions, required: true },
+      { name: "codigo", label: "Código", type: "text", required: true },
+      {
+        name: "tipoEquipo",
+        label: "Tipo de Equipo",
+        type: "select",
+        options: tipoOptions,
+        required: true,
+      },
+      {
+        name: "instalacion",
+        label: "Instalación",
+        type: "select",
+        options: instalacionOptions,
+        required: true,
+      },
     ],
-    [instalacionOptions, tipoOptions]
+    [instalacionOptions, tipoOptions],
   );
 
   const equipoEditFields: Field<EquipoFormValues>[] = equipoFields;
@@ -447,17 +520,17 @@ const EquipoList: React.FC = () => {
       >
         <EquipoFilters
           codigo={filters.codigo}
-          onCodigoChange={(value) => setFilter('codigo', value)}
+          onCodigoChange={(value) => setFilter("codigo", value)}
           onSearchByCodigo={handleSearchByCodigo}
           onClearCodigo={handleClearCodigo}
           statusFilter={filters.status}
-          onStatusChange={(value) => setFilter('status', value)}
+          onStatusChange={(value) => setFilter("status", value)}
           tipoFilter={filters.tipo}
-          onTipoChange={(value) => setFilter('tipo', value)}
+          onTipoChange={(value) => setFilter("tipo", value)}
           instalacionFilter={filters.instalacion}
-          onInstalacionChange={(value) => setFilter('instalacion', value)}
+          onInstalacionChange={(value) => setFilter("instalacion", value)}
           categoriaFilter={filters.categoria}
-          onCategoriaChange={(value) => setFilter('categoria', value)}
+          onCategoriaChange={(value) => setFilter("categoria", value)}
           tiposDisponibles={tiposDisponibles}
           instalacionesDisponibles={instalacionesDisponibles}
           categoriasDisponibles={categoriasDisponibles}
@@ -473,14 +546,18 @@ const EquipoList: React.FC = () => {
           totalVisible={totalItems}
           totalEquipos={totalEquipos}
           onClearCodigo={handleClearCodigo}
-          onClearStatus={() => setFilter('status', 'ALL')}
-          onClearTipo={() => setFilter('tipo', 'Todos')}
-          onClearInstalacion={() => setFilter('instalacion', 'Todos')}
-          onClearCategoria={() => setFilter('categoria', 'Todos')}
+          onClearStatus={() => setFilter("status", "ALL")}
+          onClearTipo={() => setFilter("tipo", "Todos")}
+          onClearInstalacion={() => setFilter("instalacion", "Todos")}
+          onClearCategoria={() => setFilter("categoria", "Todos")}
         />
       </Stack>
 
-      <EquipoStats total={totalEquipos} activos={activos} enMantenimiento={enMantenimiento} />
+      <EquipoStats
+        total={totalEquipos}
+        activos={activos}
+        enMantenimiento={enMantenimiento}
+      />
 
       <Stack
         spacing={4}
@@ -494,7 +571,9 @@ const EquipoList: React.FC = () => {
         <EquipoTable
           data={paginatedData}
           isLoading={isLoading}
-          error={equiposQuery.error ? (equiposQuery.error as Error).message : null}
+          error={
+            equiposQuery.error ? (equiposQuery.error as Error).message : null
+          }
           onToggleEstado={handleToggleEstado}
           onEdit={handleOpenEdit}
         />
@@ -519,8 +598,8 @@ const EquipoList: React.FC = () => {
         fields={categoriaFields}
         onSave={async (values) => {
           await createCategoriaMutation.mutateAsync({
-            nombre: values.nombre ?? '',
-            descripcion: values.descripcion ?? '',
+            nombre: values.nombre ?? "",
+            descripcion: values.descripcion ?? "",
           });
           categoriaModal.onClose();
         }}
@@ -533,8 +612,8 @@ const EquipoList: React.FC = () => {
         fields={tipoFields}
         onSave={async (values) => {
           await createTipoMutation.mutateAsync({
-            nombre: values.nombre ?? '',
-            descripcion: values.descripcion ?? '',
+            nombre: values.nombre ?? "",
+            descripcion: values.descripcion ?? "",
             categoriaEquipo: { id: Number(values.categoriaEquipo) },
           });
           tipoModal.onClose();
@@ -548,7 +627,7 @@ const EquipoList: React.FC = () => {
         fields={equipoFields}
         onSave={async (values) => {
           await createEquipoMutation.mutateAsync({
-            codigo: values.codigo ?? '',
+            codigo: values.codigo ?? "",
             tipoEquipo: { id: Number(values.tipoEquipo) },
             instalacion: { id: Number(values.instalacion) },
           });
@@ -557,7 +636,7 @@ const EquipoList: React.FC = () => {
       />
 
       <GenericModal
-        key={`edit-equipo-${selectedEquipo?.idEquipo ?? 'new'}`}
+        key={`edit-equipo-${selectedEquipo?.idEquipo ?? "new"}`}
         isOpen={editModal.isOpen}
         onClose={handleCloseEdit}
         title="Editar Equipo"
@@ -567,12 +646,14 @@ const EquipoList: React.FC = () => {
             ? {
                 codigo: selectedEquipo.codigoEquipo,
                 tipoEquipo:
-                  tipoOptions.find((option) => option.label === selectedEquipo.nombreEquipo)?.value ??
-                  '',
+                  tipoOptions.find(
+                    (option) => option.label === selectedEquipo.nombreEquipo,
+                  )?.value ?? "",
                 instalacion:
                   instalacionOptions.find(
-                    (option) => option.label === selectedEquipo.nombreInstalacion
-                  )?.value ?? '',
+                    (option) =>
+                      option.label === selectedEquipo.nombreInstalacion,
+                  )?.value ?? "",
               }
             : undefined
         }
@@ -581,7 +662,7 @@ const EquipoList: React.FC = () => {
           await updateEquipoMutation.mutateAsync({
             idEquipo: selectedEquipo.idEquipo,
             payload: {
-              codigo: values.codigo ?? '',
+              codigo: values.codigo ?? "",
               tipoEquipo: { id: Number(values.tipoEquipo) },
               instalacion: { id: Number(values.instalacion) },
             },
