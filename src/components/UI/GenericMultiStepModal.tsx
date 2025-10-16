@@ -32,6 +32,7 @@ import {
 } from "@chakra-ui/react";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { type Field, type FieldOption } from "../UI/GenericModal";
+import { MultiSelect } from './MultiSelect';
 
 function isDifferent(a: any, b: any) {
   return JSON.stringify(a) !== JSON.stringify(b);
@@ -95,10 +96,12 @@ const GenericMultiStepModal = ({
   const [formValues, setFormValues] = useState<Record<number, Record<string, any>>>({});
   const [isSaving, setIsSaving] = useState(false);
   const onStepValuesChangeRef = useRef(onStepValuesChange);
+  const wasOpenRef = useRef(false);
 
   // Inicializa valores al abrir
   useEffect(() => {
-    if (isOpen) {
+    const isOpening = isOpen && !wasOpenRef.current;
+    if (isOpening) {
       const initial = steps.reduce((acc, step, i) => {
         const values: Record<string, any> = {};
         step.fields.forEach((f) => {
@@ -111,6 +114,7 @@ const GenericMultiStepModal = ({
       setFormValues(initial);
       setTabIndex(0);
     }
+    wasOpenRef.current = isOpen;
   }, [isOpen, steps]);
 
   // Actualizar la referencia cuando cambie la prop
@@ -183,7 +187,7 @@ const GenericMultiStepModal = ({
     const values = formValues[stepIndex] || {};
 
     return (
-      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="100%">
+      <SimpleGrid minChildWidth="240px" spacing={4} w="100%">
         {fields.map((field) => {
           const key = String(field.name);
           const options: FieldOption[] =
@@ -223,6 +227,17 @@ const GenericMultiStepModal = ({
                         </option>
                       ))}
                   </Select>
+                ) : field.type === "multiselect" ? (
+                  <MultiSelect
+                    value={
+                      Array.isArray(values[key])
+                        ? (values[key] as Array<string | number>)
+                        : []
+                    }
+                    options={options}
+                    placeholder={field.placeholder}
+                    onChange={(selected) => handleChange(stepIndex, key, selected)}
+                  />
                 ) : field.type === "textarea" ? (
                   <Textarea
                     value={values[key] ?? ""}

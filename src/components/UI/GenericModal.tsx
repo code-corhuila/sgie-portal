@@ -23,6 +23,7 @@ import {
   HStack,
   Box,
 } from "@chakra-ui/react";
+import { MultiSelect } from './MultiSelect';
 
 export interface FieldOption {
   value: string | number;
@@ -159,7 +160,7 @@ GenericModalProps<T>) => {
         <ModalHeader>{title}</ModalHeader>
         <ModalCloseButton isDisabled={isSaving} />
         <ModalBody>
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+          <SimpleGrid minChildWidth="240px" spacing={4}>
             {fields.map((field, index) => {
               // 👇 RESOLVER opciones: función o array
               const resolvedOptions =
@@ -198,32 +199,17 @@ GenericModalProps<T>) => {
                         ))}
                       </Select>
                     ) : field.type === "multiselect" ? (
-                      <Select
-                        multiple
+                      <MultiSelect
+                        // Comentario: reemplazo del <Select multiple> para cumplir requisitos de accesibilidad.
                         value={
                           Array.isArray(values[field.name])
-                            ? (values[field.name] as Array<string | number>).map(String)
+                            ? (values[field.name] as Array<string | number>)
                             : []
                         }
-                        onChange={(e) => {
-                          const selectedValues = Array.from(e.target.selectedOptions).map((option) => {
-                            const selected = resolvedOptions.find((opt) => String(opt.value) === option.value);
-                            return selected ? selected.value : option.value;
-                          });
-                          handleChange(field.name, selectedValues);
-                        }}
-                        placeholder={field.placeholder || "Seleccionar"}
-                        isDisabled={field.disabled}
-                        size="md"
-                        variant="outline"
-                        height="auto"
-                      >
-                        {resolvedOptions.map((opt, optIndex) => (
-                          <option key={`${String(field.name)}-${String(opt.value)}-${optIndex}`} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </Select>
+                        options={resolvedOptions}
+                        placeholder={field.placeholder}
+                        onChange={(selected) => handleChange(field.name, selected)}
+                      />
                     ) : field.type === "textarea" ? (
                       <Textarea
                         value={values[field.name] ?? ""}

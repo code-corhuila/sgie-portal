@@ -32,13 +32,10 @@ import {
   type Field,
   type FieldOption,
 } from "../../../components/UI/GenericModal";
-import { apiCall, type ApiResponse } from "../../../api/base";
-import {
-  userReserva,
-  type ReservaGeneral,
-  type Paso1Values,
-  type Paso2Values,
-} from "../hooks/UserReserva";
+import { apiCall, type ApiEnvelope } from "../../../api/base";
+type ApiResponse<T> = ApiEnvelope<T>;
+import { userReserva } from "../hooks/UserReserva";
+import type { ReservaGeneral, Paso1Values, Paso2Values } from "../types";
 import {
   FiCheckCircle,
   FiEdit2,
@@ -308,7 +305,7 @@ const ReservaList: React.FC = () => {
 
   /** Limpiar datos al cambiar tipo de reserva */
   const limpiarDatosAlCambiarTipo = useCallback(() => {
-    setEditingReservaPaso1(prev => ({
+    setEditingReservaPaso1((prev: Paso1Values) => ({
       ...prev,
       idEquipo: undefined,
       idInstalacion: undefined,
@@ -760,7 +757,7 @@ const ReservaList: React.FC = () => {
       }
 
       // Limpia selección de horas al refrescar disponibilidad
-      setPaso1((prev) => ({
+      setPaso1((prev: Paso1Values) => ({
         ...prev,
         horaInicio: undefined,
         horaFin: undefined,
@@ -825,7 +822,7 @@ const ReservaList: React.FC = () => {
       }
 
       // Limpia selección de horas al refrescar disponibilidad
-      setEditingReservaPaso1((prev) => ({
+    setEditingReservaPaso1((prev: Paso1Values) => ({
         ...prev,
         horaInicio: undefined,
         horaFin: undefined,
@@ -869,14 +866,20 @@ const ReservaList: React.FC = () => {
     const start = paso1.horaInicio ? normalize(paso1.horaInicio) : null;
     if (!start) return [];
     const avail = new Set((horasDisponibles ?? []).map(normalize));
-    // Construye la cadena contigua: start+1, +2, ... mientras exista en disponibilidad
-    const res: FieldOption[] = [];
+    const options: FieldOption[] = [];
     let cursor = add1h(start);
-    while (avail.has(cursor)) {
-      res.push({ value: cursor, label: cursor.slice(0, 5) });
-      cursor = add1h(cursor);
+
+    if (cursor) {
+      options.push({ value: cursor, label: cursor.slice(0, 5) });
+
+      while (avail.has(cursor)) {
+        cursor = add1h(cursor);
+        if (!cursor) break;
+        options.push({ value: cursor, label: cursor.slice(0, 5) });
+      }
     }
-    return res;
+
+    return options;
   }, [horasDisponibles, paso1.horaInicio]);
 
   // Opciones de hora para editar reserva
@@ -893,14 +896,20 @@ const ReservaList: React.FC = () => {
     const start = editingReservaPaso1.horaInicio ? normalize(editingReservaPaso1.horaInicio) : null;
     if (!start) return [];
     const avail = new Set((horasDisponibles ?? []).map(normalize));
-    // Construye la cadena contigua: start+1, +2, ... mientras exista en disponibilidad
-    const res: FieldOption[] = [];
+    const options: FieldOption[] = [];
     let cursor = add1h(start);
-    while (avail.has(cursor)) {
-      res.push({ value: cursor, label: cursor.slice(0, 5) });
-      cursor = add1h(cursor);
+
+    if (cursor) {
+      options.push({ value: cursor, label: cursor.slice(0, 5) });
+
+      while (avail.has(cursor)) {
+        cursor = add1h(cursor);
+        if (!cursor) break;
+        options.push({ value: cursor, label: cursor.slice(0, 5) });
+      }
     }
-    return res;
+
+    return options;
   }, [horasDisponibles, editingReservaPaso1.horaInicio]);
 
   /** Guardar edición de reserva multi-paso */
@@ -1267,7 +1276,7 @@ const ReservaList: React.FC = () => {
             fields: step1Fields,
             initialValues: paso1,
             onSave: async (values) => {
-              setPaso1((prev) => ({ ...prev, ...(values as Paso1Values) }));
+              setPaso1((prev: Paso1Values) => ({ ...prev, ...(values as Paso1Values) }));
             },
           },
           {
@@ -1275,7 +1284,7 @@ const ReservaList: React.FC = () => {
             fields: step2Fields,
             initialValues: paso2,
             onSave: async (values) => {
-              setPaso2((prev) => ({ ...prev, ...(values as Paso2Values) }));
+              setPaso2((prev: Paso2Values) => ({ ...prev, ...(values as Paso2Values) }));
             },
           },
         ]}
@@ -1386,7 +1395,7 @@ const ReservaList: React.FC = () => {
                     value={paso1.horaInicio ?? ""}
                     onChange={(e) => {
                       const val = e.target.value || undefined;
-                      setPaso1((prev) => ({
+                      setPaso1((prev: Paso1Values) => ({
                         ...prev,
                         horaInicio: val,
                         horaFin: undefined,
@@ -1408,7 +1417,7 @@ const ReservaList: React.FC = () => {
                     placeholder={horaFinOptions.length ? "Seleccionar" : "—"}
                     value={paso1.horaFin ?? ""}
                     onChange={(e) =>
-                      setPaso1((prev) => ({
+                      setPaso1((prev: Paso1Values) => ({
                         ...prev,
                         horaFin: e.target.value || undefined,
                       }))
@@ -1530,7 +1539,7 @@ onSubmit={async () => {
             fields: editReservaStep1Fields,
             initialValues: editingReservaPaso1,
             onSave: async (values) => {
-              setEditingReservaPaso1((prev) => ({ ...prev, ...(values as Paso1Values) }));
+              setEditingReservaPaso1((prev: Paso1Values) => ({ ...prev, ...(values as Paso1Values) }));
             },
           },
           {
@@ -1538,7 +1547,7 @@ onSubmit={async () => {
             fields: editReservaStep2Fields,
             initialValues: editingReservaPaso2,
             onSave: async (values) => {
-              setEditingReservaPaso2((prev) => ({ ...prev, ...(values as Paso2Values) }));
+              setEditingReservaPaso2((prev: Paso2Values) => ({ ...prev, ...(values as Paso2Values) }));
             },
           },
         ]}
@@ -1710,7 +1719,7 @@ onSubmit={async () => {
                     value={editingReservaPaso1.horaInicio ?? ""}
                     onChange={(e) => {
                       const val = e.target.value || undefined;
-                      setEditingReservaPaso1((prev) => ({
+                      setEditingReservaPaso1((prev: Paso1Values) => ({
                         ...prev,
                         horaInicio: val,
                         horaFin: undefined,
@@ -1732,7 +1741,7 @@ onSubmit={async () => {
                     placeholder={editReservaHoraFinOptions.length ? "Seleccionar" : "—"}
                     value={editingReservaPaso1.horaFin ?? ""}
                     onChange={(e) =>
-                      setEditingReservaPaso1((prev) => ({
+                      setEditingReservaPaso1((prev: Paso1Values) => ({
                         ...prev,
                         horaFin: e.target.value || undefined,
                       }))

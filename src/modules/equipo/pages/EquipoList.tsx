@@ -1,378 +1,441 @@
-// src/modules/equipo/pages/EquipoList.tsx
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Badge,
-  Button,
-  ButtonGroup,
-  Flex,
-  Heading,
-  HStack,
-  Icon,
-  IconButton,
-  Input,
-  InputGroup,
-  InputLeftElement,
-  Select,
-  SimpleGrid,
-  Stack,
-  Tag,
-  TagCloseButton,
-  TagLabel,
-  Text,
-  Tooltip,
-  Wrap,
-  WrapItem,
-  Spacer,
-  useDisclosure,
-  useToast,
-} from "@chakra-ui/react";
-import { DataTable, type Column } from "../../../components/UI/DataTable";
-import GenericModal, {
-  type Field,
-  type FieldOption,
-} from "../../../components/UI/GenericModal";
-import { useEquipos } from "../hooks/userEquipo";
-import { apiCall } from "../../../api/base";
-import {
-  FiCpu,
-  FiFilter,
-  FiLayers,
-  FiPlusCircle,
-  FiRefreshCw,
-  FiSearch,
-  FiToggleLeft,
-  FiChevronsLeft,
-  FiChevronLeft,
-  FiChevronRight,
-  FiChevronsRight,
-} from "react-icons/fi";
+import React, { useEffect, useMemo, useState } from 'react';
+import { Box, Stack, useDisclosure, useToast } from '@chakra-ui/react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import GenericModal, { type Field } from '../../../components/UI/GenericModal';
+import { EquiposApi } from '../../../api/equipo';
+import { equipoKeys } from '../queryKeys';
+import { useFilterState } from '../../../hooks/useFilterState';
+import { useTableManager } from '../../../hooks/useTableManager';
+import { EquipoHeader } from '../components/EquipoHeader';
+import { EquipoFilters } from '../components/EquipoFilters';
+import { EquipoTagSummary } from '../components/EquipoTagSummary';
+import { EquipoStats } from '../components/EquipoStats';
+import { EquipoTable } from '../components/EquipoTable';
+import { EquipoPagination } from '../components/EquipoPagination';
+import type {
+  CategoriaEquipo,
+  CreateCategoriaEquipoPayload,
+  CreateEquipoPayload,
+  CreateTipoEquipoPayload,
+  EquipoSummary,
+  InstalacionOption,
+  TipoEquipo,
+  UpdateEquipoPayload,
+} from '../types';
+
+interface TipoEquipoFormValues {
+  nombre: string;
+  descripcion?: string;
+  categoriaEquipo: string | number;
+}
+
+interface EquipoFormValues {
+  codigo: string;
+  tipoEquipo: string | number;
+  instalacion: string | number;
+}
+
+type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
+
+const initialFilters = {
+  codigo: '',
+  status: 'ALL' as StatusFilter,
+  tipo: 'Todos',
+  instalacion: 'Todos',
+  categoria: 'Todos',
+};
+
+const toOption = (item: { id: number; nombre: string }) => ({
+  value: item.id,
+  label: item.nombre,
+});
 
 const EquipoList: React.FC = () => {
   const toast = useToast();
-  const {
-    data,
-    loading,
-    fetchAll,
-    fetchByCodigo,
-    createEquipo,
-    createCategoriaEquipo,
-    createTipoEquipo,
-    cambiarEstado,
-  } = useEquipos();
+  const queryClient = useQueryClient();
+  const categoriaModal = useDisclosure();
+  const tipoModal = useDisclosure();
+  const equipoModal = useDisclosure();
+  const editModal = useDisclosure();
 
-  const [codigo, setCodigo] = useState("");
-  const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
-  const [tipoFilter, setTipoFilter] = useState<string>("Todos");
-  const [instalacionFilter, setInstalacionFilter] = useState<string>("Todos");
-  const [categoriaFilter, setCategoriaFilter] = useState<string>("Todos");
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [selectedEquipo, setSelectedEquipo] = useState<EquipoSummary | null>(null);
 
-  const totalEquipos = data?.length ?? 0;
-  const activos = data?.filter((e) => e.estadoEquipo).length ?? 0;
-  const enMantenimiento = data?.filter((e) => !e.estadoInstalacion || !e.estadoCampus).length ?? 0;
+  const { filters, setFilter } = useFilterState(initialFilters);
+  const codigoBusqueda = filters.codigo.trim();
+
+  const equiposQuery = useQuery<EquipoSummary[]>({
+    queryKey: equipoKeys.all,
+    queryFn: EquiposApi.getAll,
+  });
+
+  const searchQuery = useQuery<EquipoSummary[]>({
+    queryKey: equipoKeys.search(codigoBusqueda),
+    queryFn: () => EquiposApi.searchByCodigo(codigoBusqueda),
+    enabled: false,
+    staleTime: 60_000,
+  });
+
+  const categoriasQuery = useQuery<CategoriaEquipo[]>({
+    queryKey: equipoKeys.categories,
+    queryFn: EquiposApi.getCategorias,
+    enabled: categoriaModal.isOpen || tipoModal.isOpen,
+    staleTime: 300_000,
+  });
+
+  const tiposQuery = useQuery<TipoEquipo[]>({
+    queryKey: equipoKeys.types,
+    queryFn: EquiposApi.getTipos,
+    enabled: tipoModal.isOpen || equipoModal.isOpen || editModal.isOpen,
+    staleTime: 300_000,
+  });
+
+  const instalacionesQuery = useQuery<InstalacionOption[]>({
+    queryKey: equipoKeys.instalaciones,
+    queryFn: EquiposApi.getInstalaciones,
+    enabled: equipoModal.isOpen || editModal.isOpen,
+    staleTime: 300_000,
+  });
+
+  const equiposBase = equiposQuery.data ?? [];
+  const equiposBusqueda = searchQuery.data ?? [];
+  const equipos = codigoBusqueda ? equiposBusqueda : equiposBase;
 
   const tiposDisponibles = useMemo(
-    () => Array.from(new Set((data ?? []).map((e) => e.nombreEquipo).filter(Boolean))),
-    [data]
+    () =>
+      Array.from(
+        new Set(
+          equiposBase
+            .map((item) => item.nombreEquipo)
+            .filter((value): value is string => Boolean(value))
+        )
+      ),
+    [equiposBase]
   );
+
   const instalacionesDisponibles = useMemo(
-    () => Array.from(new Set((data ?? []).map((e) => e.nombreInstalacion).filter(Boolean))),
-    [data]
+    () =>
+      Array.from(
+        new Set(
+          equiposBase
+            .map((item) => item.nombreInstalacion)
+            .filter((value): value is string => Boolean(value))
+        )
+      ),
+    [equiposBase]
   );
+
   const categoriasDisponibles = useMemo(
-    () => Array.from(new Set((data ?? []).map((e) => e.nombreCategoriaEquipo).filter(Boolean))),
-    [data]
+    () =>
+      Array.from(
+        new Set(
+          equiposBase
+            .map((item) => item.nombreCategoriaEquipo)
+            .filter((value): value is string => Boolean(value))
+        )
+      ),
+    [equiposBase]
   );
 
-  const filteredData = useMemo(() => {
-    let result = data ?? [];
+  const filteredEquipos = useMemo(() => {
+    return equipos.filter((item) => {
+      const statusOk =
+        filters.status === 'ALL' ||
+        (filters.status === 'ACTIVE' && item.estadoEquipo) ||
+        (filters.status === 'INACTIVE' && !item.estadoEquipo);
+      const tipoOk = filters.tipo === 'Todos' || item.nombreEquipo === filters.tipo;
+      const instalacionOk =
+        filters.instalacion === 'Todos' || item.nombreInstalacion === filters.instalacion;
+      const categoriaOk =
+        filters.categoria === 'Todos' || item.nombreCategoriaEquipo === filters.categoria;
 
-    if (statusFilter === "ACTIVE") {
-      result = result.filter((item) => item.estadoEquipo);
-    } else if (statusFilter === "INACTIVE") {
-      result = result.filter((item) => !item.estadoEquipo);
-    }
+      return statusOk && tipoOk && instalacionOk && categoriaOk;
+    });
+  }, [equipos, filters.categoria, filters.instalacion, filters.status, filters.tipo]);
 
-    if (tipoFilter !== "Todos") {
-      result = result.filter((item) => item.nombreEquipo === tipoFilter);
-    }
-
-    if (instalacionFilter !== "Todos") {
-      result = result.filter((item) => item.nombreInstalacion === instalacionFilter);
-    }
-
-    if (categoriaFilter !== "Todos") {
-      result = result.filter((item) => item.nombreCategoriaEquipo === categoriaFilter);
-    }
-
-    return result;
-  }, [categoriaFilter, data, instalacionFilter, statusFilter, tipoFilter]);
-
-  const totalFiltered = filteredData.length;
-  const totalPages = totalFiltered === 0 ? 1 : Math.ceil(totalFiltered / size);
-
-  useEffect(() => {
-    setPage(0);
-  }, [statusFilter, tipoFilter, instalacionFilter, categoriaFilter, size, data?.length]);
+  const tableManager = useTableManager(filteredEquipos, { totalItems: filteredEquipos.length });
+  const {
+    page,
+    pageSize,
+    data: paginatedData,
+    totalItems,
+    totalPages,
+    pageSizeOptions,
+    goto,
+    setPageSize,
+  } = tableManager;
 
   useEffect(() => {
-    if (page >= totalPages) {
-      setPage(Math.max(totalPages - 1, 0));
+    goto(0);
+  }, [filters.categoria, filters.instalacion, filters.status, filters.tipo, filters.codigo, goto]);
+
+  const totalEquipos = equiposBase.length;
+  const activos = equiposBase.filter((item) => item.estadoEquipo).length;
+  const enMantenimiento = equiposBase.filter(
+    (item) => !item.estadoInstalacion || !item.estadoCampus
+  ).length;
+
+  const categoriaOptions = useMemo(
+    () => (categoriasQuery.data ?? []).map(toOption),
+    [categoriasQuery.data]
+  );
+
+  const tipoOptions = useMemo(() => (tiposQuery.data ?? []).map(toOption), [tiposQuery.data]);
+  const instalacionOptions = useMemo(
+    () => (instalacionesQuery.data ?? []).map(toOption),
+    [instalacionesQuery.data]
+  );
+
+  const createCategoriaMutation = useMutation<void, Error, CreateCategoriaEquipoPayload>({
+    mutationFn: EquiposApi.createCategoria,
+    onSuccess: () => {
+      toast({ title: 'Categoría de equipo creada', status: 'success', duration: 2000 });
+      queryClient.invalidateQueries({ queryKey: equipoKeys.categories });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error al crear categoría de equipo',
+        description: error.message,
+        status: 'error',
+        duration: 4000,
+      });
+    },
+  });
+
+  const createTipoMutation = useMutation<void, Error, CreateTipoEquipoPayload>({
+    mutationFn: EquiposApi.createTipo,
+    onSuccess: () => {
+      toast({ title: 'Tipo de equipo creado', status: 'success', duration: 2000 });
+      queryClient.invalidateQueries({ queryKey: equipoKeys.types });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error al crear tipo de equipo',
+        description: error.message,
+        status: 'error',
+        duration: 4000,
+      });
+    },
+  });
+
+  const createEquipoMutation = useMutation<void, Error, CreateEquipoPayload>({
+    mutationFn: EquiposApi.createEquipo,
+    onSuccess: () => {
+      toast({ title: 'Equipo creado', status: 'success', duration: 2000 });
+      queryClient.invalidateQueries({ queryKey: equipoKeys.all });
+      if (codigoBusqueda) {
+        queryClient.invalidateQueries({ queryKey: equipoKeys.search(codigoBusqueda) });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error al crear equipo',
+        description: error.message,
+        status: 'error',
+        duration: 4000,
+      });
+    },
+  });
+
+  const updateEquipoMutation = useMutation<
+    void,
+    Error,
+    { idEquipo: number; payload: UpdateEquipoPayload }
+  >({
+    mutationFn: ({ idEquipo, payload }) => EquiposApi.updateEquipo(idEquipo, payload),
+    onSuccess: () => {
+      toast({ title: 'Equipo actualizado', status: 'success', duration: 2000 });
+      queryClient.invalidateQueries({ queryKey: equipoKeys.all });
+      if (codigoBusqueda) {
+        queryClient.invalidateQueries({ queryKey: equipoKeys.search(codigoBusqueda) });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error al actualizar equipo',
+        description: error.message,
+        status: 'error',
+        duration: 4000,
+      });
+    },
+  });
+
+  const toggleEstadoMutation = useMutation<
+    void,
+    Error,
+    { idEquipo: number; nextEstado: boolean; codigo?: string },
+    { previousEquipos?: EquipoSummary[]; previousBusqueda?: EquipoSummary[] }
+  >({
+    mutationFn: ({ idEquipo, nextEstado }) => EquiposApi.toggleEstado(idEquipo, nextEstado),
+    onMutate: async ({ idEquipo, nextEstado, codigo }) => {
+      await queryClient.cancelQueries({ queryKey: equipoKeys.all });
+      const previousEquipos = queryClient.getQueryData<EquipoSummary[]>(equipoKeys.all);
+      if (previousEquipos) {
+        queryClient.setQueryData<EquipoSummary[]>(equipoKeys.all, (prev = []) =>
+          prev.map((item) =>
+            item.idEquipo === idEquipo ? { ...item, estadoEquipo: nextEstado } : item
+          )
+        );
+      }
+      let previousBusqueda: EquipoSummary[] | undefined;
+      if (codigo) {
+        await queryClient.cancelQueries({ queryKey: equipoKeys.search(codigo) });
+        previousBusqueda = queryClient.getQueryData<EquipoSummary[]>(equipoKeys.search(codigo));
+        if (previousBusqueda) {
+          queryClient.setQueryData<EquipoSummary[]>(equipoKeys.search(codigo), (prev = []) =>
+            prev.map((item) =>
+              item.idEquipo === idEquipo ? { ...item, estadoEquipo: nextEstado } : item
+            )
+          );
+        }
+      }
+      return { previousEquipos, previousBusqueda };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previousEquipos) {
+        queryClient.setQueryData(equipoKeys.all, context.previousEquipos);
+      }
+      if (_variables.codigo && context?.previousBusqueda) {
+        queryClient.setQueryData(equipoKeys.search(_variables.codigo), context.previousBusqueda);
+      }
+      toast({
+        title: 'Error al cambiar estado',
+        description: error.message,
+        status: 'error',
+        duration: 4000,
+      });
+    },
+    onSuccess: (_data, { nextEstado }) => {
+      toast({
+        title: `Equipo ${nextEstado ? 'habilitado' : 'inhabilitado'} correctamente`,
+        status: 'success',
+        duration: 2000,
+      });
+    },
+    onSettled: (_data, _error, { codigo }) => {
+      queryClient.invalidateQueries({ queryKey: equipoKeys.all });
+      if (codigo) {
+        queryClient.invalidateQueries({ queryKey: equipoKeys.search(codigo) });
+      }
+    },
+  });
+
+  const isLoadingBase = equiposQuery.isLoading || equiposQuery.isFetching;
+  const isLoadingSearch = searchQuery.isFetching;
+  const isLoading = codigoBusqueda ? isLoadingSearch : isLoadingBase;
+
+  useEffect(() => {
+    if (searchQuery.error && codigoBusqueda) {
+      toast({
+        title: 'Error buscando equipo',
+        description: (searchQuery.error as Error).message,
+        status: 'error',
+        duration: 4000,
+      });
     }
-  }, [page, totalPages]);
+  }, [codigoBusqueda, searchQuery.error, toast]);
 
-  const paginatedData = useMemo(() => {
-    if (totalFiltered === 0) return [];
-    const start = page * size;
-    return filteredData.slice(start, start + size);
-  }, [filteredData, page, size, totalFiltered]);
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: equipoKeys.all });
+    if (codigoBusqueda) {
+      queryClient.invalidateQueries({ queryKey: equipoKeys.search(codigoBusqueda) });
+    }
+  };
 
-  const goto = useCallback((target: number) => {
-    if (totalFiltered === 0) {
-      setPage(0);
+  const handleSearchByCodigo = () => {
+    if (!codigoBusqueda) {
+      toast({
+        title: 'Ingresa un código',
+        description: 'Debes escribir un código antes de buscar',
+        status: 'info',
+        duration: 3000,
+      });
       return;
     }
-    const next = Math.min(Math.max(target, 0), totalPages - 1);
-    setPage(next);
-  }, [totalFiltered, totalPages]);
+    searchQuery.refetch();
+  };
 
-  // Modales
-  const modalCategoria = useDisclosure();
-  const modalTipo = useDisclosure();
-  const modalEquipo = useDisclosure();
-  const modalEditEquipo = useDisclosure();
-
-  // Estados de selects
-  const [categorias, setCategorias] = useState<FieldOption[]>([]);
-  const [tipos, setTipos] = useState<FieldOption[]>([]);
-  const [instalaciones, setInstalaciones] = useState<FieldOption[]>([]);
-
-  // ===============================
-  // 📋 Columnas con botones de acción
-  // ===============================
-  // ===============================
-  // 📥 Cargar opciones para selects
-  // ===============================
-  const loadCategorias = useCallback(async () => {
-    try {
-      const res = await apiCall("/categoria-equipo", { credentials: "include" });
-      const items = Array.isArray(res) ? res : res?.data ?? [];
-      setCategorias(items.map((c: any) => ({ value: c.id, label: c.nombre })));
-    } catch (error: any) {
-      console.error("Error cargando categorías", error);
-      toast({ title: "Error cargando categorías", description: error?.message, status: "error", duration: 3000 });
+  const handleClearCodigo = () => {
+    if (filters.codigo) {
+      queryClient.removeQueries({ queryKey: equipoKeys.search(filters.codigo.trim()), exact: true });
     }
-  }, [toast]);
+    setFilter('codigo', '');
+  };
 
-  const loadTipos = useCallback(async () => {
-    try {
-      const res = await apiCall("/tipo-equipo", { credentials: "include" });
-      const items = Array.isArray(res) ? res : res?.data ?? [];
-      setTipos(items.map((t: any) => ({ value: t.id, label: t.nombre })));
-    } catch (error: any) {
-      console.error("Error cargando tipos de equipo", error);
-      toast({ title: "Error cargando tipos", description: error?.message, status: "error", duration: 3000 });
-    }
-  }, [toast]);
-
-  const loadInstalaciones = useCallback(async () => {
-    try {
-      const res = await apiCall("/instalacion", { credentials: "include" });
-      const items = Array.isArray(res) ? res : res?.data ?? [];
-      setInstalaciones(items.map((i: any) => ({ value: i.id, label: i.nombre }))); 
-    } catch (error: any) {
-      console.error("Error cargando instalaciones", error);
-      toast({ title: "Error cargando instalaciones", description: error?.message, status: "error", duration: 3000 });
-    }
-  }, [toast]);
-
-  const columns: Column<any>[] = useMemo(
+  const categoriaFields: Field<CreateCategoriaEquipoPayload>[] = useMemo(
     () => [
-      { key: "codigoEquipo", label: "Código" },
-      { key: "nombreEquipo", label: "Tipo de Equipo" },
-      {
-        key: "nombreInstalacion",
-        label: "Instalación",
-        render: (item) => (
-          <Badge variant="info" borderRadius="full">
-            {item.nombreInstalacion}
-          </Badge>
-        ),
-      },
-      {
-        key: "nombreCampus",
-        label: "Campus",
-        render: (item) => (
-          <Badge variant="neutral" borderRadius="full">
-            {item.nombreCampus}
-          </Badge>
-        ),
-      },
-      {
-        key: "nombreCategoriaEquipo",
-        label: "Categoría",
-        render: (item) => (
-          <Badge variant="neutral" borderRadius="full">
-            {item.nombreCategoriaEquipo ?? "—"}
-          </Badge>
-        ),
-      },
-      {
-        key: "estadoEquipo",
-        label: "Estado",
-        render: (item) => (
-          <Badge variant={item.estadoEquipo ? "success" : "neutral"}>
-            {item.estadoEquipo ? "Activo" : "Inactivo"}
-          </Badge>
-        ),
-      },
-      {
-        key: "actions",
-        label: "Acciones",
-        render: (item) => (
-          <HStack spacing={2}>
-            <Tooltip label={item.estadoEquipo ? "Inhabilitar equipo" : "Habilitar equipo"}>
-              <IconButton
-                aria-label="Cambiar estado"
-                size="sm"
-                variant="ghost"
-                colorScheme={item.estadoEquipo ? "red" : "green"}
-                icon={<FiToggleLeft />}
-                onClick={async () => {
-                  try {
-                    await cambiarEstado(item.idEquipo, !item.estadoEquipo);
-                    await fetchAll();
-                    toast({
-                      title: `Equipo ${item.estadoEquipo ? "inhabilitado" : "habilitado"} correctamente`,
-                      status: "success",
-                      duration: 2000,
-                    });
-                  } catch (err: any) {
-                    toast({
-                      title: "Error al cambiar estado",
-                      description: err.message || "Error desconocido",
-                      status: "error",
-                      duration: 4000,
-                    });
-                  }
-                }}
-              />
-            </Tooltip>
-            <Tooltip label="Editar equipo">
-              <IconButton
-                aria-label="Editar equipo"
-                size="sm"
-                variant="ghost"
-                icon={<FiCpu />}
-                onClick={async () => {
-                  await Promise.all([loadTipos(), loadInstalaciones()]);
-                  setSelectedItem(item);
-                  modalEditEquipo.onOpen();
-                }}
-              />
-            </Tooltip>
-          </HStack>
-        ),
-      },
+      { name: 'nombre', label: 'Nombre', type: 'text', required: true },
+      { name: 'descripcion', label: 'Descripción', type: 'text' },
     ],
-    [cambiarEstado, fetchAll, loadInstalaciones, loadTipos, modalEditEquipo, toast]
+    []
   );
 
-  // ===============================
-  // 🧱 Campos formularios
-  // ===============================
+  const tipoFields: Field<TipoEquipoFormValues>[] = useMemo(
+    () => [
+      { name: 'nombre', label: 'Nombre', type: 'text', required: true },
+      { name: 'descripcion', label: 'Descripción', type: 'text' },
+      {
+        name: 'categoriaEquipo',
+        label: 'Categoría',
+        type: 'select',
+        required: true,
+        options: categoriaOptions,
+      },
+    ],
+    [categoriaOptions]
+  );
 
-  const fieldsCategoria: Field[] = [
-    { name: "nombre", label: "Nombre", type: "text", required: true },
-    { name: "descripcion", label: "Descripción", type: "text" },
-  ];
+  const equipoFields: Field<EquipoFormValues>[] = useMemo(
+    () => [
+      { name: 'codigo', label: 'Código', type: 'text', required: true },
+      { name: 'tipoEquipo', label: 'Tipo de Equipo', type: 'select', options: tipoOptions, required: true },
+      { name: 'instalacion', label: 'Instalación', type: 'select', options: instalacionOptions, required: true },
+    ],
+    [instalacionOptions, tipoOptions]
+  );
 
-  const fieldsTipo: Field[] = [
-    { name: "nombre", label: "Nombre", type: "text", required: true },
-    { name: "descripcion", label: "Descripción", type: "text" },
-    { name: "categoriaEquipo", label: "Categoría", type: "select", options: categorias, required: true },
-  ];
+  const equipoEditFields: Field<EquipoFormValues>[] = equipoFields;
 
-  // ⚙️ Crear equipo (sin nombre ni descripción)
-  const fieldsEquipo: Field[] = [
-    { name: "codigo", label: "Código", type: "text", required: true },
-    { name: "tipoEquipo", label: "Tipo de Equipo", type: "select", options: tipos, required: true },
-    { name: "instalacion", label: "Instalación", type: "select", options: instalaciones, required: true },
-  ];
-
-  // ⚙️ Editar equipo (sin nombre ni descripción)
-  const fieldsEditEquipo: Field[] = [
-    { name: "codigo", label: "Código", type: "text", required: true },
-    { name: "tipoEquipo", label: "Tipo de Equipo", type: "select", options: tipos, required: true },
-    { name: "instalacion", label: "Instalación", type: "select", options: instalaciones, required: true },
-  ];
-
-  // ===============================
-  // 📅 Abrir modales
-  // ===============================
-  const handleOpenTipo = async () => {
-    await loadCategorias();
-    modalTipo.onOpen();
+  const handleToggleEstado = (equipo: EquipoSummary) => {
+    toggleEstadoMutation.mutate({
+      idEquipo: equipo.idEquipo,
+      nextEstado: !equipo.estadoEquipo,
+      codigo: codigoBusqueda || undefined,
+    });
   };
 
-  const handleOpenEquipo = async () => {
-    await Promise.all([loadTipos(), loadInstalaciones()]);
-    modalEquipo.onOpen();
+  const handleOpenEdit = (equipo: EquipoSummary) => {
+    setSelectedEquipo(equipo);
+    editModal.onOpen();
   };
 
-  // ===============================
-  // 🧩 Render principal
-  // ===============================
+  const handleCloseEdit = () => {
+    setSelectedEquipo(null);
+    editModal.onClose();
+  };
+
   return (
     <Stack spacing={8}>
-      <Flex
-        direction={{ base: "column", md: "row" }}
-        align={{ base: "flex-start", md: "center" }}
-        justify="space-between"
-        gap={4}
-      >
-        <Stack spacing={1}>
-          <Heading size="lg" color="neutral.900">
-            Gestión de equipos
-          </Heading>
-          <Text fontSize="sm" color="neutral.500">
-            Controla el parque tecnológico con filtros rápidos y acciones de mantenimiento.
-          </Text>
-        </Stack>
-        <ButtonGroup size="sm" flexWrap="wrap" gap={2}>
-          <Button
-            leftIcon={<Icon as={FiRefreshCw} />}
-            variant="outline"
-        onClick={() => {
-          setCodigo("");
-          setStatusFilter("ALL");
-          setTipoFilter("Todos");
-          setInstalacionFilter("Todos");
-          setCategoriaFilter("Todos");
-          setPage(0);
-          void fetchAll();
+      <EquipoHeader
+        onRefresh={handleRefresh}
+        onOpenCategoria={categoriaModal.onOpen}
+        onOpenTipo={() => {
+          if (!categoriasQuery.data) {
+            categoriasQuery.refetch();
+          }
+          tipoModal.onOpen();
         }}
-        isLoading={loading}
-      >
-        Actualizar
-      </Button>
-          <Button leftIcon={<Icon as={FiLayers} />} onClick={modalCategoria.onOpen}>
-            Categoría
-          </Button>
-          <Button leftIcon={<Icon as={FiFilter} />} onClick={handleOpenTipo} variant="outline">
-            Tipo
-          </Button>
-          <Button
-            colorScheme="brand"
-            leftIcon={<Icon as={FiPlusCircle} />}
-            onClick={handleOpenEquipo}
-          >
-            Nuevo equipo
-          </Button>
-        </ButtonGroup>
-      </Flex>
+        onOpenEquipo={() => {
+          if (!tiposQuery.data) {
+            tiposQuery.refetch();
+          }
+          if (!instalacionesQuery.data) {
+            instalacionesQuery.refetch();
+          }
+          equipoModal.onOpen();
+        }}
+        isLoading={isLoading}
+      />
+
       <Stack
         spacing={4}
         borderWidth="1px"
@@ -382,327 +445,148 @@ const EquipoList: React.FC = () => {
         boxShadow="md"
         p={6}
       >
-        <Stack
-          direction={{ base: "column", md: "row" }}
-          spacing={4}
-          align={{ base: "stretch", md: "flex-end" }}
-        >
-          <InputGroup maxW={{ base: "100%", md: "320px" }}>
-            <InputLeftElement pointerEvents="none">
-              <Icon as={FiSearch} color="neutral.400" />
-            </InputLeftElement>
-          <Input
-            placeholder="Código de equipo"
-            value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && fetchByCodigo(codigo)}
-            />
-          </InputGroup>
-          <ButtonGroup size="sm">
-          <Button
-            colorScheme="brand"
-            leftIcon={<Icon as={FiSearch} />}
-            onClick={() => {
-              setPage(0);
-              fetchByCodigo(codigo);
-            }}
-            isLoading={loading}
-          >
-            Buscar
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setCodigo("");
-              setPage(0);
-              void fetchAll();
-            }}
-          >
-            Limpiar
-          </Button>
-        </ButtonGroup>
-        </Stack>
+        <EquipoFilters
+          codigo={filters.codigo}
+          onCodigoChange={(value) => setFilter('codigo', value)}
+          onSearchByCodigo={handleSearchByCodigo}
+          onClearCodigo={handleClearCodigo}
+          statusFilter={filters.status}
+          onStatusChange={(value) => setFilter('status', value)}
+          tipoFilter={filters.tipo}
+          onTipoChange={(value) => setFilter('tipo', value)}
+          instalacionFilter={filters.instalacion}
+          onInstalacionChange={(value) => setFilter('instalacion', value)}
+          categoriaFilter={filters.categoria}
+          onCategoriaChange={(value) => setFilter('categoria', value)}
+          tiposDisponibles={tiposDisponibles}
+          instalacionesDisponibles={instalacionesDisponibles}
+          categoriasDisponibles={categoriasDisponibles}
+          isSearching={searchQuery.isFetching}
+        />
 
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
-          <Stack spacing={2}>
-            <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
-              Estado
-            </Text>
-            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}>
-              <option value="ALL">Todos</option>
-              <option value="ACTIVE">Activos</option>
-              <option value="INACTIVE">Inactivos</option>
-            </Select>
-          </Stack>
-          <Stack spacing={2}>
-            <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
-              Tipo de equipo
-            </Text>
-            <Select value={tipoFilter} onChange={(e) => setTipoFilter(e.target.value)}>
-              <option value="Todos">Todos</option>
-              {tiposDisponibles.map((tipo) => (
-                <option key={tipo} value={tipo}>
-                  {tipo}
-                </option>
-              ))}
-            </Select>
-          </Stack>
-          <Stack spacing={2}>
-            <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
-              Instalación
-            </Text>
-            <Select value={instalacionFilter} onChange={(e) => setInstalacionFilter(e.target.value)}>
-              <option value="Todos">Todas</option>
-              {instalacionesDisponibles.map((inst) => (
-                <option key={inst} value={inst}>
-                  {inst}
-                </option>
-              ))}
-            </Select>
-          </Stack>
-          <Stack spacing={2}>
-            <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
-              Categoría
-            </Text>
-            <Select value={categoriaFilter} onChange={(e) => setCategoriaFilter(e.target.value)}>
-              <option value="Todos">Todas</option>
-              {categoriasDisponibles.map((categoria) => (
-                <option key={categoria} value={categoria}>
-                  {categoria}
-                </option>
-              ))}
-            </Select>
-          </Stack>
-        </SimpleGrid>
-
-        <Wrap spacing={3} pt={2}>
-          {codigo && (
-            <WrapItem>
-              <Tag borderRadius="full" variant="solid" colorScheme="brand">
-                <TagLabel>Buscar: {codigo}</TagLabel>
-                <TagCloseButton onClick={() => setCodigo("")} />
-              </Tag>
-            </WrapItem>
-          )}
-          {statusFilter !== "ALL" && (
-            <WrapItem>
-              <Tag borderRadius="full" variant="solid" colorScheme="teal">
-                <TagLabel>
-                  Estado: {statusFilter === "ACTIVE" ? "Activos" : "Inactivos"}
-                </TagLabel>
-                <TagCloseButton onClick={() => setStatusFilter("ALL")} />
-              </Tag>
-            </WrapItem>
-          )}
-          {tipoFilter !== "Todos" && (
-            <WrapItem>
-              <Tag borderRadius="full" variant="solid" colorScheme="teal">
-                <TagLabel>Tipo: {tipoFilter}</TagLabel>
-                <TagCloseButton onClick={() => setTipoFilter("Todos")} />
-              </Tag>
-            </WrapItem>
-          )}
-          {instalacionFilter !== "Todos" && (
-            <WrapItem>
-              <Tag borderRadius="full" variant="solid" colorScheme="teal">
-                <TagLabel>Instalación: {instalacionFilter}</TagLabel>
-                <TagCloseButton onClick={() => setInstalacionFilter("Todos")} />
-              </Tag>
-            </WrapItem>
-          )}
-          {categoriaFilter !== "Todos" && (
-            <WrapItem>
-              <Tag borderRadius="full" variant="solid" colorScheme="teal">
-                <TagLabel>Categoría: {categoriaFilter}</TagLabel>
-                <TagCloseButton onClick={() => setCategoriaFilter("Todos")} />
-              </Tag>
-            </WrapItem>
-          )}
-          <WrapItem>
-            <Badge variant="neutral">
-              Mostrando {paginatedData.length} de {filteredData.length} coincidencias
-            </Badge>
-          </WrapItem>
-          <WrapItem>
-            <Badge variant="neutral">Total: {totalEquipos}</Badge>
-          </WrapItem>
-          <WrapItem>
-            <Badge variant="neutral">Activos: {activos}</Badge>
-          </WrapItem>
-          <WrapItem>
-            <Badge variant="neutral">En mantenimiento: {enMantenimiento}</Badge>
-          </WrapItem>
-        </Wrap>
+        <EquipoTagSummary
+          codigo={filters.codigo}
+          statusFilter={filters.status}
+          tipoFilter={filters.tipo}
+          instalacionFilter={filters.instalacion}
+          categoriaFilter={filters.categoria}
+          totalVisible={totalItems}
+          totalEquipos={totalEquipos}
+          onClearCodigo={handleClearCodigo}
+          onClearStatus={() => setFilter('status', 'ALL')}
+          onClearTipo={() => setFilter('tipo', 'Todos')}
+          onClearInstalacion={() => setFilter('instalacion', 'Todos')}
+          onClearCategoria={() => setFilter('categoria', 'Todos')}
+        />
       </Stack>
 
-      <DataTable
-        data={paginatedData}
-        columns={columns}
-        keyExtractor={(e) => e.codigoEquipo}
-        emptyMessage="No hay equipos registrados"
-        loading={loading}
-      />
+      <EquipoStats total={totalEquipos} activos={activos} enMantenimiento={enMantenimiento} />
 
-      <Flex
-        mt={4}
-        align="center"
-        justify="space-between"
-        gap={4}
-        display={totalFiltered === 0 ? 'none' : 'flex'}
+      <Stack
+        spacing={4}
+        borderWidth="1px"
+        borderRadius="2xl"
+        borderColor="neutral.100"
+        bg="white"
+        boxShadow="md"
+        p={6}
       >
-        <HStack spacing={2}>
-          <Text fontSize="sm" color="gray.600">
-            Filas por página
-          </Text>
-          <Select
-            size="sm"
-            w="80px"
-            value={size}
-            onChange={(e) => {
-              const nextSize = Number(e.target.value);
-              setSize(nextSize);
-              setPage(0);
-            }}
-            isDisabled={loading}
-          >
-            {[10, 20, 50, 100].map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </Select>
-        </HStack>
+        <EquipoTable
+          data={paginatedData}
+          isLoading={isLoading}
+          error={equiposQuery.error ? (equiposQuery.error as Error).message : null}
+          onToggleEstado={handleToggleEstado}
+          onEdit={handleOpenEdit}
+        />
+        <Box>
+          <EquipoPagination
+            page={page}
+            pageSize={pageSize}
+            pageSizeOptions={pageSizeOptions}
+            totalItems={totalItems}
+            totalPages={totalPages}
+            onPageChange={goto}
+            onPageSizeChange={setPageSize}
+            isLoading={isLoading}
+          />
+        </Box>
+      </Stack>
 
-        <Spacer />
-
-        <HStack spacing={2}>
-          <Text fontSize="sm" color="gray.600">
-            {totalFiltered === 0
-              ? '0–0'
-              : `${page * size + 1}–${Math.min((page + 1) * size, totalFiltered)}`} de {totalFiltered}
-          </Text>
-          <IconButton
-            aria-label="Primera página"
-            size="sm"
-            variant="ghost"
-            onClick={() => goto(0)}
-            isDisabled={page === 0 || loading || totalFiltered === 0}
-            icon={<FiChevronsLeft />}
-          />
-          <IconButton
-            aria-label="Anterior"
-            size="sm"
-            variant="ghost"
-            onClick={() => goto(page - 1)}
-            isDisabled={page === 0 || loading || totalFiltered === 0}
-            icon={<FiChevronLeft />}
-          />
-          <Button size="sm" variant="outline" isDisabled>
-            {totalFiltered === 0 ? 0 : page + 1} / {totalFiltered === 0 ? 0 : totalPages}
-          </Button>
-          <IconButton
-            aria-label="Siguiente"
-            size="sm"
-            variant="ghost"
-            onClick={() => goto(page + 1)}
-            isDisabled={page >= totalPages - 1 || loading || totalFiltered === 0}
-            icon={<FiChevronRight />}
-          />
-          <IconButton
-            aria-label="Última página"
-            size="sm"
-            variant="ghost"
-            onClick={() => goto(totalPages - 1)}
-            isDisabled={page >= totalPages - 1 || loading || totalFiltered === 0}
-            icon={<FiChevronsRight />}
-          />
-        </HStack>
-      </Flex>
-
-      {/* Modal Crear Categoría */}
       <GenericModal
-        isOpen={modalCategoria.isOpen}
-        onClose={modalCategoria.onClose}
+        isOpen={categoriaModal.isOpen}
+        onClose={categoriaModal.onClose}
         title="Crear Categoría de Equipo"
-        fields={fieldsCategoria}
+        fields={categoriaFields}
         onSave={async (values) => {
-          await createCategoriaEquipo(values);
-          await loadCategorias();
-          modalCategoria.onClose();
+          await createCategoriaMutation.mutateAsync({
+            nombre: values.nombre ?? '',
+            descripcion: values.descripcion ?? '',
+          });
+          categoriaModal.onClose();
         }}
       />
 
-      {/* Modal Crear Tipo */}
       <GenericModal
-        isOpen={modalTipo.isOpen}
-        onClose={modalTipo.onClose}
+        isOpen={tipoModal.isOpen}
+        onClose={tipoModal.onClose}
         title="Crear Tipo de Equipo"
-        fields={fieldsTipo}
+        fields={tipoFields}
         onSave={async (values) => {
-          await createTipoEquipo({
-            nombre: values.nombre,
-            descripcion: values.descripcion,
+          await createTipoMutation.mutateAsync({
+            nombre: values.nombre ?? '',
+            descripcion: values.descripcion ?? '',
             categoriaEquipo: { id: Number(values.categoriaEquipo) },
           });
-          await loadTipos();
-          modalTipo.onClose();
+          tipoModal.onClose();
         }}
       />
 
-      {/* Modal Crear Equipo */}
       <GenericModal
-        isOpen={modalEquipo.isOpen}
-        onClose={modalEquipo.onClose}
+        isOpen={equipoModal.isOpen}
+        onClose={equipoModal.onClose}
         title="Crear Equipo"
-        fields={fieldsEquipo}
+        fields={equipoFields}
         onSave={async (values) => {
-          await createEquipo({
-            codigo: values.codigo,
+          await createEquipoMutation.mutateAsync({
+            codigo: values.codigo ?? '',
             tipoEquipo: { id: Number(values.tipoEquipo) },
             instalacion: { id: Number(values.instalacion) },
           });
-          modalEquipo.onClose();
+          equipoModal.onClose();
         }}
       />
 
-      {/* Modal Editar Equipo */}
       <GenericModal
-        key={`edit-equipo-${selectedItem?.idEquipo ?? "new"}`}
-        isOpen={modalEditEquipo.isOpen}
-        onClose={() => {
-          modalEditEquipo.onClose();
-          setSelectedItem(null);
-        }}
+        key={`edit-equipo-${selectedEquipo?.idEquipo ?? 'new'}`}
+        isOpen={editModal.isOpen}
+        onClose={handleCloseEdit}
         title="Editar Equipo"
-        fields={fieldsEditEquipo}
-        initialValues={{
-          codigo: selectedItem?.codigoEquipo ?? "",
-          tipoEquipo: tipos.find((t) => t.label === selectedItem?.nombreEquipo)?.value ?? "",
-          instalacion: instalaciones.find((i) => i.label === selectedItem?.nombreInstalacion)?.value ?? "",
-        }}
+        fields={equipoEditFields}
+        initialValues={
+          selectedEquipo
+            ? {
+                codigo: selectedEquipo.codigoEquipo,
+                tipoEquipo:
+                  tipoOptions.find((option) => option.label === selectedEquipo.nombreEquipo)?.value ??
+                  '',
+                instalacion:
+                  instalacionOptions.find(
+                    (option) => option.label === selectedEquipo.nombreInstalacion
+                  )?.value ?? '',
+              }
+            : undefined
+        }
         onSave={async (values) => {
-          try {
-            await apiCall(`/equipo/${selectedItem.idEquipo}`, {
-              method: "PUT",
-              body: JSON.stringify({
-                codigo: values.codigo,
-                tipoEquipo: { id: Number(values.tipoEquipo) },
-                instalacion: { id: Number(values.instalacion) },
-              }),
-              credentials: "include",
-            });
-            toast({ title: "Equipo actualizado", status: "success", duration: 2000 });
-            await fetchAll();
-            modalEditEquipo.onClose();
-            setSelectedItem(null);
-          } catch (err: any) {
-            toast({
-              title: "Error al actualizar equipo",
-              description: err.message,
-              status: "error",
-              duration: 4000,
-            });
-          }
+          if (!selectedEquipo) return;
+          await updateEquipoMutation.mutateAsync({
+            idEquipo: selectedEquipo.idEquipo,
+            payload: {
+              codigo: values.codigo ?? '',
+              tipoEquipo: { id: Number(values.tipoEquipo) },
+              instalacion: { id: Number(values.instalacion) },
+            },
+          });
+          handleCloseEdit();
         }}
       />
     </Stack>

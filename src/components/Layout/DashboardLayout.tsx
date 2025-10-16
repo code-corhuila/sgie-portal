@@ -44,11 +44,11 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { path: "/permisos", label: "Permisos", roles: ["ADMINISTRADOR", "OPERARIO"], icon: FiShield },
+  { path: "/permisos", label: "Permisos", roles: ["ADMINISTRADOR"], icon: FiShield },
   { path: "/persona", label: "Personas", roles: ["ADMINISTRADOR"], icon: FiUsers },
-  { path: "/ubicacion", label: "Ubicaciones", roles: ["ADMINISTRADOR", "OPERARIO"], icon: FiMapPin },
-  { path: "/equipo", label: "Equipos", roles: ["ADMINISTRADOR", "OPERARIO"], icon: FiCpu },
-  { path: "/reserva", label: "Reservas", roles: ["ADMINISTRADOR", "OPERARIO"], icon: FiCalendar },
+  { path: "/ubicacion", label: "Ubicaciones", roles: ["ADMINISTRADOR", "ADMINISTRATIVO"], icon: FiMapPin },
+  { path: "/equipo", label: "Equipos", roles: ["ADMINISTRADOR", "ADMINISTRATIVO"], icon: FiCpu },
+  { path: "/reserva", label: "Reservas", roles: ["ADMINISTRADOR", "ADMINISTRATIVO"], icon: FiCalendar },
 ];
 
 const DashboardLayout = () => {

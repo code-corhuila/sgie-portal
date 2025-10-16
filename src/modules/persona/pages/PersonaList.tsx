@@ -1,563 +1,398 @@
-// PersonasList.tsx
-import React, { useState, useMemo, useCallback, useEffect } from "react";
-import {
-  Badge,
-  Button,
-  ButtonGroup,
-  Flex,
-  Heading,
-  HStack,
-  Icon,
-  IconButton,
-  Input,
-  InputGroup,
-  InputLeftElement,
-  Select,
-  Stack,
-  Tag,
-  TagCloseButton,
-  TagLabel,
-  Text,
-  Tooltip,
-  Spacer,
-  useDisclosure,
-  useToast,
-  Wrap,
-  WrapItem,
-} from "@chakra-ui/react";
-import { DataTable, type Column } from "../../../components/UI/DataTable";
-import GenericModal, { type Field } from "../../../components/UI/GenericModal";
+import React, { useEffect, useMemo, useState } from 'react';
+import { Box, Stack, useDisclosure, useToast } from '@chakra-ui/react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import GenericModal, { type Field } from '../../../components/UI/GenericModal';
 import SearchableFormModal, {
   type SearchConfig,
   type SearchResultField,
-} from "../../../components/UI/SearchableFormModal";
-import { usePersonas } from "../hooks/usePersona";
-import { apiCall } from "../../../api/base";
-import {
-  FiEdit2,
-  FiLock,
-  FiRefreshCw,
-  FiSearch,
-  FiToggleLeft,
-  FiUserPlus,
-  FiChevronsLeft,
-  FiChevronLeft,
-  FiChevronRight,
-  FiChevronsRight,
-} from "react-icons/fi";
+} from '../../../components/UI/SearchableFormModal';
+import { useFilterState } from '../../../hooks/useFilterState';
+import { useTableManager } from '../../../hooks/useTableManager';
+import { PersonasApi } from '../../../api/persona';
+import { personaKeys } from '../queryKeys';
+import { PersonaHeader } from '../components/PersonaHeader';
+import { PersonaFilters } from '../components/PersonaFilters';
+import { PersonaTable } from '../components/PersonaTable';
+import { PersonaPagination } from '../components/PersonaPagination';
+import type {
+  CreatePersonaPayload,
+  CreateUsuarioPayload,
+  Persona,
+  Rol,
+  UpdatePersonaPayload,
+  UpdateUsuarioPayload,
+} from '../types';
 
-interface Rol {
-  id: number;
-  nombre: string;
+interface PersonaFormValues {
+  nombres: string;
+  apellidos: string;
+  tipoDocumento: string;
+  numeroIdentificacion: string;
+  telefonoMovil: string;
+  rol: string | number;
 }
 
-interface UsuarioForm {
+interface UsuarioFormValues {
   email: string;
   password: string;
 }
 
-const PersonasList: React.FC = () => {
+type EstadoFilter = 'Todos' | 'Activos' | 'Inactivos';
+
+const initialFilters = {
+  documento: '',
+  estado: 'Todos' as EstadoFilter,
+};
+
+const toOption = (rol: Rol) => ({ value: rol.id, label: rol.nombre });
+
+const PersonaList: React.FC = () => {
   const toast = useToast();
-  const {
-    data,
-    loading,
-    error,
-    fetchAll,
-    fetchPersonaByDocumento,
-    createPersona,
-    cambiarEstado,
-  } = usePersonas();
+  const queryClient = useQueryClient();
 
   const personaModal = useDisclosure();
   const usuarioModal = useDisclosure();
   const editPersonaModal = useDisclosure();
   const editUsuarioModal = useDisclosure();
 
-  const [roles, setRoles] = useState<Rol[]>([]);
-  const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [numeroDoc, setNumeroDoc] = useState("");
-  const [estadoFilter, setEstadoFilter] = useState<string>("Todos");
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
+  const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
 
-  const fetchRoles = useCallback(async () => {
-    try {
-      const res = await apiCall<{ data: Rol[] }>("/rol", {
-        credentials: "include",
-      });
-      setRoles(res.data);
-    } catch (err) {
-      console.error("Error cargando roles", err);
-    }
-  }, []);
+  const { filters, setFilter } = useFilterState(initialFilters);
+  const documentoBusqueda = filters.documento.trim();
 
-  const columns: Column<any>[] = useMemo(
-    () => [
-      { key: "idPersona", label: "ID" },
-      { key: "nombres", label: "Nombres" },
-      { key: "apellidos", label: "Apellidos" },
-      { key: "tipoDocumento", label: "Tipo Doc" },
-      { key: "numeroIdentificacion", label: "Documento" },
-      { key: "email", label: "Correo", render: (p) => p.email ?? "—" },
-      {
-        key: "rol",
-        label: "Rol",
-        render: (p) => (
-          <Badge variant="info" borderRadius="full">
-            {typeof p.rol === "string" ? p.rol : p.rol?.nombre ?? "—"}
-          </Badge>
-        ),
-      },
-      {
-        key: "estado",
-        label: "Estado",
-        render: (p) => (
-          <Badge variant={p.estado ? "success" : "neutral"}>
-            {p.estado ? "Activo" : "Inactivo"}
-          </Badge>
-        ),
-      },
-      {
-        key: "actions",
-        label: "Acciones",
-        render: (item) => (
-          <HStack spacing={2}>
-            <Tooltip label={item.estado ? "Inhabilitar persona" : "Habilitar persona"}>
-              <IconButton
-                aria-label="Cambiar estado"
-                size="sm"
-                variant="ghost"
-                colorScheme={item.estado ? "red" : "green"}
-                icon={<FiToggleLeft />}
-              onClick={async () => {
-                try {
-                  await cambiarEstado(item.idPersona); // 👈 Llama al hook
-                  await fetchAll(); // 👈 Refresca la tabla
-                  toast({
-                    title: `Persona ${item.estado ? "inhabilitada" : "habilitada"} correctamente`,
-                    status: "success",
-                    duration: 2000,
-                  });
-                } catch (err: any) {
-                  console.error("Error cambiando estado persona:", err);
-                  toast({
-                    title: "Error",
-                    description: err?.message ?? "No se pudo cambiar el estado",
-                    status: "error",
-                    duration: 4000,
-                  });
-                }
-              }}
-            />
-            </Tooltip>
-            <Tooltip label="Editar persona">
-              <IconButton
-                aria-label="Editar persona"
-                size="sm"
-                variant="ghost"
-                icon={<FiEdit2 />}
-              onClick={async () => {
-                await fetchRoles();
-                setSelectedItem(item);
-                editPersonaModal.onOpen();
-              }}
-            />
-            </Tooltip>
-            {item.idUsuario && (
-              <Tooltip label="Editar usuario">
-                <IconButton
-                  aria-label="Editar usuario"
-                  size="sm"
-                  variant="ghost"
-                  icon={<FiLock />}
-                onClick={() => {
-                  setSelectedItem(item);
-                  editUsuarioModal.onOpen();
-                }}
-                />
-              </Tooltip>
-            )}
-          </HStack>
-        ),
-      },
-    ],
-    [cambiarEstado, editPersonaModal, editUsuarioModal, fetchAll, fetchRoles, toast]
-  );
+  const personasQuery = useQuery<Persona[]>({
+    queryKey: personaKeys.all,
+    queryFn: PersonasApi.getAll,
+  });
 
-  // Campos para crear persona (sin valores iniciales)
-  const createPersonaFields: Field<any>[] = useMemo(
-    () => [
-      { name: "nombres", label: "Nombres", type: "text", required: true },
-      { name: "apellidos", label: "Apellidos", type: "text", required: true },
-      {
-        name: "tipoDocumento",
-        label: "Tipo Documento",
-        type: "text",
-        required: true,
-      },
-      {
-        name: "numeroIdentificacion",
-        label: "Número Documento",
-        type: "text",
-        required: true,
-      },
-      {
-        name: "telefonoMovil",
-        label: "Teléfono",
-        type: "text",
-        required: true,
-      },
-      {
-        name: "rol",
-        label: "Rol",
-        type: "select",
-        options: roles.map((r) => ({ value: r.id, label: r.nombre })),
-        required: true,
-      },
-    ],
-    [roles]
-  );
+  const personasBusquedaQuery = useQuery<Persona[]>({
+    queryKey: personaKeys.search(documentoBusqueda),
+    queryFn: () => PersonasApi.searchByDocumento(documentoBusqueda),
+    enabled: false,
+    staleTime: 60_000,
+  });
 
-  // Campos para editar persona (CON valores iniciales)
-  const editPersonaFields: Field<any>[] = useMemo(
-    () => [
-      {
-        name: "nombres",
-        label: "Nombres",
-        type: "text",
-        required: true,
-      },
-      {
-        name: "apellidos",
-        label: "Apellidos",
-        type: "text",
-        required: true,
-      },
-      {
-        name: "tipoDocumento",
-        label: "Tipo Documento",
-        type: "text",
-        required: true,
-      },
-      {
-        name: "numeroIdentificacion",
-        label: "Número Documento",
-        type: "text",
-        required: true,
-      },
-      {
-        name: "telefonoMovil",
-        label: "Teléfono",
-        type: "text",
-        required: true,
-      },
-      {
-        name: "rol",
-        label: "Rol",
-        type: "select",
-        options: roles.map((r) => ({ value: r.id, label: r.nombre })),
-        required: true,
-      },
-    ],
-    [roles]
-  );
+  const rolesQuery = useQuery<Rol[]>({
+    queryKey: personaKeys.roles,
+    queryFn: PersonasApi.getRoles,
+    enabled: personaModal.isOpen || editPersonaModal.isOpen,
+    staleTime: 300_000,
+  });
 
-  // Campos para editar usuario
-  const usuarioEditFields: Field<UsuarioForm>[] = [
-    {
-      name: "email",
-      label: "Email",
-      type: "email",
-      required: true,
-      placeholder: "usuario@ejemplo.com",
-    },
-    {
-      name: "password",
-      label: "Contraseña",
-      type: "password",
-      required: false,
-      placeholder: "Dejar vacío para mantener actual",
-    },
-  ];
+  const personasBase = personasQuery.data ?? [];
+  const personasBusqueda = personasBusquedaQuery.data ?? [];
+  const personas = documentoBusqueda ? personasBusqueda : personasBase;
 
-  // Campos para crear usuario
-  const usuarioCreateFields: Field<UsuarioForm>[] = [
-    {
-      name: "email",
-      label: "Email",
-      type: "email",
-      required: true,
-      placeholder: "usuario@ejemplo.com",
-    },
-    {
-      name: "password",
-      label: "Contraseña",
-      type: "password",
-      required: true,
-      placeholder: "Mínimo 8 caracteres",
-    },
-  ];
-
-  const searchResultFields: SearchResultField<any>[] = [
-    { key: "numeroIdentificacion", label: "Cédula" },
-    { key: "nombres", label: "Nombres" },
-    { key: "apellidos", label: "Apellidos" },
-    { key: "email", label: "Email" },
-  ];
-
-  const searchConfig: SearchConfig<any> = {
-    searchPlaceholder: "Ingresa número de cédula",
-    searchButtonText: "Buscar Persona",
-    onSearch: async (cedula: string) => {
-      try {
-        const response = await apiCall<any[]>(
-          `/persona/persona-usuario?numeroIdentificacion=${cedula}`,
-          { credentials: "include" }
-        );
-        return response && response.length > 0 ? response[0] : null;
-      } catch {
-        return null;
+  const filteredPersonas = useMemo(() => {
+    return personas.filter((persona) => {
+      if (filters.estado === 'Activos') {
+        return persona.estado;
       }
+      if (filters.estado === 'Inactivos') {
+        return !persona.estado;
+      }
+      return true;
+    });
+  }, [filters.estado, personas]);
+
+  const tableManager = useTableManager(filteredPersonas, { totalItems: filteredPersonas.length });
+  const {
+    page,
+    pageSize,
+    data: paginatedData,
+    totalItems,
+    totalPages,
+    pageSizeOptions,
+    goto,
+    setPageSize,
+  } = tableManager;
+
+  useEffect(() => {
+    goto(0);
+  }, [filters.estado, filters.documento, goto]);
+
+  const rolesOptions = useMemo(() => (rolesQuery.data ?? []).map(toOption), [rolesQuery.data]);
+
+  const toggleEstadoMutation = useMutation<
+    void,
+    Error,
+    { idPersona: number; estado: boolean },
+    { previous?: Persona[] }
+  >({
+    mutationFn: ({ idPersona, estado }) => PersonasApi.toggleEstadoUsuario(idPersona, estado),
+    onMutate: async ({ idPersona, estado }) => {
+      await queryClient.cancelQueries({ queryKey: personaKeys.all });
+      const previous = queryClient.getQueryData<Persona[]>(personaKeys.all);
+      if (previous) {
+        queryClient.setQueryData<Persona[]>(personaKeys.all, (prev = []) =>
+          prev.map((persona) =>
+            persona.idPersona === idPersona ? { ...persona, estado } : persona
+          )
+        );
+      }
+      return { previous };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(personaKeys.all, context.previous);
+      }
+      toast({
+        title: 'Error al cambiar estado',
+        description: error.message,
+        status: 'error',
+        duration: 4000,
+      });
+    },
+    onSuccess: (_data, { estado }) => {
+      toast({
+        title: `Persona ${estado ? 'habilitada' : 'inhabilitada'} correctamente`,
+        status: 'success',
+        duration: 2000,
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: personaKeys.all });
+      if (documentoBusqueda) {
+        queryClient.invalidateQueries({ queryKey: personaKeys.search(documentoBusqueda) });
+      }
+    },
+  });
+
+  const createPersonaMutation = useMutation<void, Error, CreatePersonaPayload>({
+    mutationFn: PersonasApi.createPersona,
+    onSuccess: () => {
+      toast({ title: 'Persona creada', status: 'success', duration: 2000 });
+      queryClient.invalidateQueries({ queryKey: personaKeys.all });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error al crear persona',
+        description: error.message,
+        status: 'error',
+        duration: 4000,
+      });
+    },
+  });
+
+  const updatePersonaMutation = useMutation<
+    void,
+    Error,
+    { idPersona: number; payload: UpdatePersonaPayload }
+  >({
+    mutationFn: ({ idPersona, payload }) => PersonasApi.updatePersona(idPersona, payload),
+    onSuccess: () => {
+      toast({ title: 'Persona actualizada', status: 'success', duration: 2000 });
+      queryClient.invalidateQueries({ queryKey: personaKeys.all });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error al actualizar persona',
+        description: error.message,
+        status: 'error',
+        duration: 4000,
+      });
+    },
+  });
+
+  const createUsuarioMutation = useMutation<void, Error, CreateUsuarioPayload>({
+    mutationFn: PersonasApi.createUsuario,
+    onSuccess: () => {
+      toast({ title: 'Usuario creado', status: 'success', duration: 2000 });
+      queryClient.invalidateQueries({ queryKey: personaKeys.all });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error al crear usuario',
+        description: error.message,
+        status: 'error',
+        duration: 4000,
+      });
+    },
+  });
+
+  const updateUsuarioMutation = useMutation<
+    void,
+    Error,
+    { idUsuario: number; payload: UpdateUsuarioPayload }
+  >({
+    mutationFn: ({ idUsuario, payload }) => PersonasApi.updateUsuario(idUsuario, payload),
+    onSuccess: () => {
+      toast({ title: 'Usuario actualizado', status: 'success', duration: 2000 });
+      queryClient.invalidateQueries({ queryKey: personaKeys.all });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error al actualizar usuario',
+        description: error.message,
+        status: 'error',
+        duration: 4000,
+      });
+    },
+  });
+
+  const personasDataLoading = personasQuery.isLoading || personasQuery.isFetching;
+  const personasSearchLoading = personasBusquedaQuery.isFetching;
+  const isLoading = documentoBusqueda ? personasSearchLoading : personasDataLoading;
+
+  useEffect(() => {
+    if (personasBusquedaQuery.error && documentoBusqueda) {
+      toast({
+        title: 'Error al buscar persona',
+        description: (personasBusquedaQuery.error as Error).message,
+        status: 'error',
+        duration: 4000,
+      });
+    }
+  }, [documentoBusqueda, personasBusquedaQuery.error, toast]);
+
+  const personaFields: Field<PersonaFormValues>[] = useMemo(
+    () => [
+      { name: 'nombres', label: 'Nombres', type: 'text', required: true },
+      { name: 'apellidos', label: 'Apellidos', type: 'text', required: true },
+      { name: 'tipoDocumento', label: 'Tipo Documento', type: 'text', required: true },
+      {
+        name: 'numeroIdentificacion',
+        label: 'Número Documento',
+        type: 'text',
+        required: true,
+      },
+      { name: 'telefonoMovil', label: 'Teléfono', type: 'text', required: true },
+      {
+        name: 'rol',
+        label: 'Rol',
+        type: 'select',
+        options: rolesOptions,
+        required: true,
+      },
+    ],
+    [rolesOptions]
+  );
+
+  const personaEditFields = personaFields;
+
+  const usuarioCreateFields: Field<UsuarioFormValues>[] = [
+    {
+      name: 'email',
+      label: 'Email',
+      type: 'email',
+      required: true,
+      placeholder: 'usuario@ejemplo.com',
+    },
+    {
+      name: 'password',
+      label: 'Contraseña',
+      type: 'password',
+      required: true,
+      placeholder: 'Mínimo 8 caracteres',
+    },
+  ];
+
+  const usuarioEditFields: Field<UsuarioFormValues>[] = [
+    {
+      name: 'email',
+      label: 'Email',
+      type: 'email',
+      required: true,
+      placeholder: 'usuario@ejemplo.com',
+    },
+    {
+      name: 'password',
+      label: 'Contraseña',
+      type: 'password',
+      required: false,
+      placeholder: 'Dejar vacío para mantener actual',
+    },
+  ];
+
+  const searchResultFields: SearchResultField<Persona>[] = [
+    { key: 'numeroIdentificacion', label: 'Cédula' },
+    { key: 'nombres', label: 'Nombres' },
+    { key: 'apellidos', label: 'Apellidos' },
+    { key: 'email', label: 'Email' },
+  ];
+
+  const searchConfig: SearchConfig<Persona> = {
+    searchPlaceholder: 'Ingresa número de cédula',
+    searchButtonText: 'Buscar Persona',
+    onSearch: async (cedula: string) => {
+      const result = await PersonasApi.searchByDocumento(cedula);
+      return result.length > 0 ? result[0] : null;
     },
     resultFields: searchResultFields,
-    idField: "idPersona",
-    emptyMessage: "No se encontró ninguna persona con esa cédula",
+    idField: 'idPersona',
+    emptyMessage: 'No se encontró ninguna persona con esa cédula',
   };
 
-  const handleSavePersona = async (values: any) => {
-    try {
-      await createPersona({
-        ...values,
-        rol: { id: Number(values.rol) },
-      });
-      personaModal.onClose();
-    } catch (err: any) {
-      toast({
-        title: "Error al crear persona",
-        description: err.message,
-        status: "error",
-        duration: 4000,
-      });
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: personaKeys.all });
+    if (documentoBusqueda) {
+      queryClient.invalidateQueries({ queryKey: personaKeys.search(documentoBusqueda) });
     }
   };
 
-  const handleEditPersona = async (values: any) => {
-    if (!selectedItem?.idPersona) return;
-
-    try {
-      // Construir el payload con TODOS los campos
-      const payload = {
-        nombres: values.nombres,
-        apellidos: values.apellidos,
-        tipoDocumento: values.tipoDocumento,
-        numeroIdentificacion: values.numeroIdentificacion,
-        telefonoMovil: values.telefonoMovil,
-        rol: { id: Number(values.rol) },
-      };
-
-      console.log("Enviando actualización persona:", payload);
-
-      await apiCall(`/persona/${selectedItem.idPersona}`, {
-        method: "PUT",
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-
+  const handleBuscarDocumento = () => {
+    if (!documentoBusqueda) {
       toast({
-        title: "Persona actualizada",
-        status: "success",
-        duration: 2000,
-      });
-
-      await fetchAll();
-      editPersonaModal.onClose();
-      setSelectedItem(null);
-    } catch (err: any) {
-      toast({
-        title: "Error al actualizar persona",
-        description: err.message,
-        status: "error",
-        duration: 4000,
-      });
-    }
-  };
-
-  const handleEditUsuario = async (values: any) => {
-    if (!selectedItem?.idUsuario) return;
-
-    try {
-      // Si no se ingresó contraseña, no la enviamos
-      const payload: any = {
-        email: values.email,
-        persona: { id: selectedItem.idPersona }, // 👈 AÑADIDO
-      };
-      if (values.password && values.password.trim() !== "") {
-        payload.password = values.password;
-      }
-
-      console.log("Enviando actualización usuario:", payload);
-
-      await apiCall(`/usuario/${selectedItem.idUsuario}`, {
-        method: "PUT",
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-
-      toast({
-        title: "Usuario actualizado",
-        status: "success",
-        duration: 2000,
-      });
-
-      await fetchAll();
-      editUsuarioModal.onClose();
-      setSelectedItem(null);
-    } catch (err: any) {
-      toast({
-        title: "Error al actualizar usuario",
-        description: err.message,
-        status: "error",
-        duration: 4000,
-      });
-    }
-  };
-
-  const handleSaveUsuario = async (
-    values: Partial<UsuarioForm>,
-    personaId: number | null
-  ) => {
-    if (!personaId) {
-      toast({
-        title: "Error",
-        description: "Debes seleccionar una persona primero",
-        status: "error",
+        title: 'Ingresa un documento',
+        description: 'Debes escribir un documento antes de buscar',
+        status: 'info',
         duration: 3000,
       });
       return;
     }
-
-    try {
-      await apiCall("/usuario", {
-        method: "POST",
-        body: JSON.stringify({
-          email: values.email,
-          password: values.password,
-          persona: { id: personaId },
-        }),
-        credentials: "include",
-      });
-
-      toast({
-        title: "Usuario creado",
-        status: "success",
-        duration: 2000,
-      });
-
-      await fetchAll();
-      usuarioModal.onClose();
-    } catch (err: any) {
-      toast({
-        title: "Error al crear usuario",
-        description: err.message,
-        status: "error",
-        duration: 4000,
-      });
-    }
+    personasBusquedaQuery.refetch();
   };
 
-  const handleCloseEditPersona = () => {
+  const handleLimpiarDocumento = () => {
+    if (filters.documento) {
+      queryClient.removeQueries({
+        queryKey: personaKeys.search(filters.documento.trim()),
+        exact: true,
+      });
+    }
+    setFilter('documento', '');
+  };
+
+  const handleToggleEstado = (persona: Persona) => {
+    toggleEstadoMutation.mutate({
+      idPersona: persona.idPersona,
+      estado: !persona.estado,
+    });
+  };
+
+  const handleEditPersona = (persona: Persona) => {
+    setSelectedPersona(persona);
+    editPersonaModal.onOpen();
+  };
+
+  const handleEditUsuario = (persona: Persona) => {
+    setSelectedPersona(persona);
+    editUsuarioModal.onOpen();
+  };
+
+  const closePersonaModal = () => {
+    setSelectedPersona(null);
     editPersonaModal.onClose();
-    setSelectedItem(null);
   };
 
-  const handleCloseEditUsuario = () => {
+  const closeUsuarioModal = () => {
+    setSelectedPersona(null);
     editUsuarioModal.onClose();
-    setSelectedItem(null);
   };
-
-  const filteredData = useMemo(() => {
-    if (!data) return [];
-    if (estadoFilter === "Todos") return data;
-    const shouldBeActive = estadoFilter === "Activos";
-    return data.filter((item) => Boolean(item.estado) === shouldBeActive);
-  }, [data, estadoFilter]);
-
-  const totalElements = filteredData.length;
-  const totalPages = totalElements === 0 ? 1 : Math.ceil(totalElements / size);
-
-  useEffect(() => {
-    setPage(0);
-  }, [estadoFilter, size, data?.length]);
-
-  useEffect(() => {
-    if (page >= totalPages) {
-      setPage(Math.max(totalPages - 1, 0));
-    }
-  }, [page, totalPages]);
-
-  const paginatedData = useMemo(() => {
-    if (totalElements === 0) return [];
-    const start = page * size;
-    return filteredData.slice(start, start + size);
-  }, [filteredData, page, size, totalElements]);
-
-  const goto = useCallback((target: number) => {
-    if (totalElements === 0) {
-      setPage(0);
-      return;
-    }
-    const next = Math.min(Math.max(target, 0), totalPages - 1);
-    setPage(next);
-  }, [totalElements, totalPages]);
 
   return (
     <Stack spacing={8}>
-      <Flex
-        direction={{ base: "column", md: "row" }}
-        align={{ base: "flex-start", md: "center" }}
-        justify="space-between"
-        gap={4}
-      >
-        <Stack spacing={1}>
-          <Heading size="lg" color="neutral.900">
-            Gestión de personas y usuarios
-          </Heading>
-          <Text fontSize="sm" color="neutral.500">
-            Crea personas, asigna usuarios y controla sus permisos desde un único panel.
-          </Text>
-        </Stack>
-        <ButtonGroup size="sm" flexWrap="wrap" gap={2}>
-          <Button
-            leftIcon={<Icon as={FiRefreshCw} />}
-            variant="outline"
-            onClick={() => {
-              setPage(0);
-              fetchAll();
-            }}
-            isLoading={loading}
-          >
-            Actualizar
-          </Button>
-          <Button
-            leftIcon={<Icon as={FiUserPlus} />}
-            colorScheme="brand"
-            onClick={async () => {
-              await fetchRoles();
-              setSelectedItem(null);
-              personaModal.onOpen();
-            }}
-          >
-            Crear persona
-          </Button>
-          <Button
-            leftIcon={<Icon as={FiLock} />}
-            variant="outline"
-            onClick={usuarioModal.onOpen}
-          >
-            Crear usuario
-          </Button>
-        </ButtonGroup>
-      </Flex>
+      <PersonaHeader
+        onRefresh={handleRefresh}
+        onOpenPersona={() => {
+          if (!rolesQuery.data) {
+            rolesQuery.refetch();
+          }
+          personaModal.onOpen();
+        }}
+        onOpenUsuario={usuarioModal.onOpen}
+        isLoading={isLoading}
+      />
 
       <Stack
         spacing={4}
@@ -568,231 +403,165 @@ const PersonasList: React.FC = () => {
         boxShadow="md"
         p={6}
       >
-        <Stack
-          direction={{ base: "column", md: "row" }}
-          spacing={4}
-          align={{ base: "stretch", md: "flex-end" }}
-        >
-          <InputGroup maxW={{ base: "100%", md: "320px" }}>
-            <InputLeftElement pointerEvents="none">
-              <Icon as={FiSearch} color="neutral.400" />
-            </InputLeftElement>
-            <Input
-              placeholder="Número de documento"
-              value={numeroDoc}
-              onChange={(e) => setNumeroDoc(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (setPage(0), fetchPersonaByDocumento(numeroDoc))}
-            />
-          </InputGroup>
-          <ButtonGroup size="sm">
-            <Button
-              colorScheme="brand"
-              onClick={() => {
-                setPage(0);
-                fetchPersonaByDocumento(numeroDoc);
-              }}
-              leftIcon={<Icon as={FiSearch} />}
-              isLoading={loading}
-            >
-              Buscar
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setNumeroDoc("");
-                setPage(0);
-                void fetchAll();
-              }}
-            >
-              Limpiar
-            </Button>
-          </ButtonGroup>
-        </Stack>
-
-        <Stack spacing={2} maxW={{ base: "100%", md: "240px" }}>
-          <Text fontSize="xs" fontWeight="semibold" color="neutral.500">
-            Estado
-          </Text>
-          <Select value={estadoFilter} onChange={(e) => setEstadoFilter(e.target.value)}>
-            <option value="Todos">Todos</option>
-            <option value="Activos">Activos</option>
-            <option value="Inactivos">Inactivos</option>
-          </Select>
-        </Stack>
-
-        <Wrap spacing={3}>
-          {numeroDoc && (
-            <WrapItem>
-              <Tag borderRadius="full" variant="solid" colorScheme="brand">
-                <TagLabel>Documento: {numeroDoc}</TagLabel>
-                <TagCloseButton onClick={() => setNumeroDoc("")} />
-              </Tag>
-            </WrapItem>
-          )}
-          <WrapItem>
-            <Badge variant="neutral">
-              Mostrando {paginatedData.length} de {filteredData.length} coincidencias
-            </Badge>
-          </WrapItem>
-          {estadoFilter !== "Todos" && (
-            <WrapItem>
-              <Tag borderRadius="full" variant="solid" colorScheme={estadoFilter === "Activos" ? "brand" : "teal"}>
-                <TagLabel>Estado: {estadoFilter}</TagLabel>
-                <TagCloseButton onClick={() => setEstadoFilter("Todos")} />
-              </Tag>
-            </WrapItem>
-          )}
-        </Wrap>
+        <PersonaFilters
+          documento={filters.documento}
+          onDocumentoChange={(value) => setFilter('documento', value)}
+          onBuscar={handleBuscarDocumento}
+          onLimpiar={handleLimpiarDocumento}
+          estadoFilter={filters.estado}
+          onEstadoChange={(value) => setFilter('estado', value)}
+          isSearching={personasBusquedaQuery.isFetching}
+        />
       </Stack>
 
-      <DataTable
-        data={paginatedData}
-        columns={columns}
-        loading={loading}
-        error={error}
-        keyExtractor={(p) => p?.idPersona?.toString() ?? `persona-${Math.random().toString(36).slice(2)}`}
-        emptyMessage="No hay personas registradas"
-      />
-
-      <Flex
-        mt={4}
-        align="center"
-        justify="space-between"
-        gap={4}
-        display={filteredData.length === 0 ? "none" : "flex"}
+      <Stack
+        spacing={4}
+        borderWidth="1px"
+        borderRadius="2xl"
+        borderColor="neutral.100"
+        bg="white"
+        boxShadow="md"
+        p={6}
       >
-        <HStack spacing={2}>
-          <Text fontSize="sm" color="gray.600">
-            Filas por página
-          </Text>
-          <Select
-            size="sm"
-            w="80px"
-            value={size}
-            onChange={(e) => {
-              const nextSize = Number(e.target.value);
-              setSize(nextSize);
-              setPage(0);
-            }}
-            isDisabled={loading}
-          >
-            {[10, 20, 50, 100].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </Select>
-        </HStack>
+        <PersonaTable
+          data={paginatedData}
+          isLoading={isLoading}
+          error={personasQuery.error ? (personasQuery.error as Error).message : null}
+          onToggleEstado={handleToggleEstado}
+          onEditPersona={handleEditPersona}
+          onEditUsuario={handleEditUsuario}
+        />
+        <Box>
+          <PersonaPagination
+            page={page}
+            pageSize={pageSize}
+            pageSizeOptions={pageSizeOptions}
+            totalItems={totalItems}
+            totalPages={totalPages}
+            onPageChange={goto}
+            onPageSizeChange={setPageSize}
+            isLoading={isLoading}
+          />
+        </Box>
+      </Stack>
 
-        <Spacer />
-
-        <HStack spacing={2}>
-          <Text fontSize="sm" color="gray.600">
-            {filteredData.length === 0
-              ? "0–0"
-              : `${page * size + 1}–${Math.min((page + 1) * size, filteredData.length)}`} de {filteredData.length}
-          </Text>
-          <IconButton
-            aria-label="Primera página"
-            size="sm"
-            variant="ghost"
-            onClick={() => goto(0)}
-            isDisabled={page === 0 || loading || filteredData.length === 0}
-            icon={<FiChevronsLeft />}
-          />
-          <IconButton
-            aria-label="Anterior"
-            size="sm"
-            variant="ghost"
-            onClick={() => goto(page - 1)}
-            isDisabled={page === 0 || loading || filteredData.length === 0}
-            icon={<FiChevronLeft />}
-          />
-          <Button size="sm" variant="outline" isDisabled>
-            {filteredData.length === 0 ? 0 : page + 1} / {filteredData.length === 0 ? 0 : totalPages}
-          </Button>
-          <IconButton
-            aria-label="Siguiente"
-            size="sm"
-            variant="ghost"
-            onClick={() => goto(page + 1)}
-            isDisabled={page >= totalPages - 1 || loading || filteredData.length === 0}
-            icon={<FiChevronRight />}
-          />
-          <IconButton
-            aria-label="Última página"
-            size="sm"
-            variant="ghost"
-            onClick={() => goto(totalPages - 1)}
-            isDisabled={page >= totalPages - 1 || loading || filteredData.length === 0}
-            icon={<FiChevronsRight />}
-          />
-        </HStack>
-      </Flex>
-
-      {/* Modal Crear Persona */}
       <GenericModal
         isOpen={personaModal.isOpen}
-        onClose={() => {
-          personaModal.onClose();
-          setSelectedItem(null);
-        }}
+        onClose={personaModal.onClose}
         title="Crear Persona"
-        fields={createPersonaFields}
-        onSave={handleSavePersona}
+        fields={personaFields}
+        onSave={async (values) => {
+          await createPersonaMutation.mutateAsync({
+            nombres: values.nombres ?? '',
+            apellidos: values.apellidos ?? '',
+            tipoDocumento: values.tipoDocumento ?? '',
+            numeroIdentificacion: values.numeroIdentificacion ?? '',
+            telefonoMovil: values.telefonoMovil ?? '',
+            rol: { id: Number(values.rol) },
+          });
+          personaModal.onClose();
+        }}
       />
 
-      {/* Modal Editar Persona */}
       <GenericModal
-        key={`edit-persona-${selectedItem?.idPersona ?? "new"}`}
+        key={`edit-persona-${selectedPersona?.idPersona ?? 'new'}`}
         isOpen={editPersonaModal.isOpen}
-        onClose={handleCloseEditPersona}
+        onClose={closePersonaModal}
         title="Editar Persona"
-        fields={editPersonaFields}
+        fields={personaEditFields}
         initialValues={
-          selectedItem
+          selectedPersona
             ? {
-                nombres: selectedItem.nombres,
-                apellidos: selectedItem.apellidos,
-                tipoDocumento: selectedItem.tipoDocumento,
-                numeroIdentificacion: selectedItem.numeroIdentificacion,
-                telefonoMovil: selectedItem.telefonoMovil,
-                rol: roles.find((r) => r.nombre === selectedItem.rol)?.id ?? "",
+                nombres: selectedPersona.nombres,
+                apellidos: selectedPersona.apellidos,
+                tipoDocumento: selectedPersona.tipoDocumento ?? '',
+                numeroIdentificacion: selectedPersona.numeroIdentificacion ?? '',
+                telefonoMovil: selectedPersona.telefonoMovil ?? '',
+                rol:
+                  rolesOptions.find(
+                    (option) =>
+                      option.label ===
+                      (typeof selectedPersona.rol === 'string'
+                        ? selectedPersona.rol
+                        : selectedPersona.rol?.nombre)
+                  )?.value ?? '',
               }
             : undefined
         }
-        onSave={handleEditPersona}
+        onSave={async (values) => {
+          if (!selectedPersona) return;
+          await updatePersonaMutation.mutateAsync({
+            idPersona: selectedPersona.idPersona,
+            payload: {
+              nombres: values.nombres ?? '',
+              apellidos: values.apellidos ?? '',
+              tipoDocumento: values.tipoDocumento ?? '',
+              numeroIdentificacion: values.numeroIdentificacion ?? '',
+              telefonoMovil: values.telefonoMovil ?? '',
+              rol: { id: Number(values.rol) },
+            },
+          });
+          closePersonaModal();
+        }}
       />
 
-      {/* Modal Editar Usuario */}
       <GenericModal
-        key={`edit-usuario-${selectedItem?.idUsuario ?? "new"}`}
+        key={`edit-usuario-${selectedPersona?.idUsuario ?? 'new'}`}
         isOpen={editUsuarioModal.isOpen}
-        onClose={handleCloseEditUsuario}
+        onClose={closeUsuarioModal}
         title="Editar Usuario"
         fields={usuarioEditFields}
         initialValues={
-          selectedItem
+          selectedPersona
             ? {
-                email: selectedItem.email ?? "",
-                password: "",
+                email: selectedPersona.email ?? '',
+                password: '',
               }
             : undefined
         }
-        onSave={handleEditUsuario}
+        onSave={async (values) => {
+          if (!selectedPersona?.idUsuario) return;
+          const payload: UpdateUsuarioPayload = {
+            email: values.email ?? '',
+            persona: { id: selectedPersona.idPersona },
+          };
+          if (values.password && values.password.trim() !== '') {
+            payload.password = values.password;
+          }
+          await updateUsuarioMutation.mutateAsync({
+            idUsuario: selectedPersona.idUsuario,
+            payload,
+          });
+          closeUsuarioModal();
+        }}
       />
 
-      {/* Modal Crear Usuario con Búsqueda */}
-      <SearchableFormModal<UsuarioForm, any>
+      <SearchableFormModal<UsuarioFormValues, Persona>
         isOpen={usuarioModal.isOpen}
         onClose={usuarioModal.onClose}
         title="Crear Usuario"
         formFields={usuarioCreateFields}
         searchConfig={searchConfig}
-        onSave={handleSaveUsuario}
+        onSave={async (values, personaId) => {
+          if (!personaId) {
+            toast({
+              title: 'Error',
+              description: 'Debes seleccionar una persona primero',
+              status: 'error',
+              duration: 3000,
+            });
+            return;
+          }
+          await createUsuarioMutation.mutateAsync({
+            email: values.email ?? '',
+            password: values.password ?? '',
+            persona: { id: personaId },
+          });
+          usuarioModal.onClose();
+        }}
       />
     </Stack>
   );
 };
 
-export default PersonasList;
+export default PersonaList;

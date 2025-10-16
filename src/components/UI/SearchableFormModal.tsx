@@ -32,6 +32,7 @@ import {
   Spinner,
 } from "@chakra-ui/react";
 import { FiInfo, FiSearch } from "react-icons/fi";
+import { MultiSelect } from './MultiSelect';
 
 export interface FieldOption {
   value: string | number;
@@ -343,7 +344,7 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
 
             {/* Sección de Formulario */}
             <Stack spacing={4}>
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+              <SimpleGrid minChildWidth="240px" spacing={4}>
                 {formFields.map((field) => (
                   <FormControl
                     key={String(field.name)}
@@ -363,44 +364,42 @@ const SearchableFormModal = <T extends Record<string, any>, S extends Record<str
                           const isMulti = field.type === "multiselect";
                           const currentValue = formValues[field.name];
                           return (
-                        <Select
-                          multiple={isMulti}
-                          value={
-                            isMulti
-                              ? Array.isArray(currentValue)
-                                ? currentValue.map(String)
+                        isMulti ? (
+                          <MultiSelect
+                            value={
+                              Array.isArray(currentValue)
+                                ? (currentValue as Array<string | number>)
                                 : []
-                              : (currentValue as string | number | undefined) ?? ""
-                          }
-                          onChange={(e) => {
-                            if (isMulti) {
-                              const selectedValues = Array.from(e.target.selectedOptions).map((option) => {
-                                const matched = optionList.find((opt) => String(opt.value) === option.value);
-                                return matched ? matched.value : option.value;
-                              });
-                              handleFormChange(field.name, selectedValues);
-                              return;
                             }
-                            const rawValue = e.target.value;
-                            const selectedOption = optionList?.find(
-                              (opt) => String(opt.value) === rawValue
-                            );
-                            handleFormChange(
-                              field.name,
-                              selectedOption ? selectedOption.value : rawValue
-                            );
-                          }}
-                          placeholder={field.placeholder || "Seleccionar"}
-                          isDisabled={field.disabled}
-                          size="md"
-                          variant="outline"
-                        >
-                          {optionList?.map((opt) => (
-                            <option key={`${String(opt.value)}`} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </Select>
+                            options={optionList}
+                            placeholder={field.placeholder}
+                            onChange={(selected) => handleFormChange(field.name, selected)}
+                          />
+                        ) : (
+                          <Select
+                            value={(currentValue as string | number | undefined) ?? ""}
+                            onChange={(e) => {
+                              const rawValue = e.target.value;
+                              const selectedOption = optionList?.find(
+                                (opt) => String(opt.value) === rawValue
+                              );
+                              handleFormChange(
+                                field.name,
+                                selectedOption ? selectedOption.value : rawValue
+                              );
+                            }}
+                            placeholder={field.placeholder || "Seleccionar"}
+                            isDisabled={field.disabled}
+                            size="md"
+                            variant="outline"
+                          >
+                            {optionList?.map((opt) => (
+                              <option key={`${String(opt.value)}`} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </Select>
+                        )
                           );
                         })()
                       ) : field.type === "textarea" ? (

@@ -549,6 +549,29 @@ const UbicacionList: React.FC = () => {
           >
             Actualizar
           </Button>
+                    <Button
+            leftIcon={<Icon as={FiMapPin} />}
+            onClick={async () => {
+              await getContinentes();
+              clearFrom("all");
+
+              const init: CampusFormValues = {
+                continenteId: "",
+                paisId: "",
+                departamentoId: "",
+                municipioId: "",
+                nombre: "",
+                descripcion: "",
+              };
+              setCreateCampusInitial(init);
+              prevCreateCampus.current = init;
+              setCreateCampusKey((k) => k + 1);
+
+              crearCampusModal.onOpen();
+            }}
+          >
+            Crear campus
+          </Button>
           <Button
             leftIcon={<Icon as={FiLayers} />}
             onClick={async () => {
@@ -576,29 +599,7 @@ const UbicacionList: React.FC = () => {
           >
             Crear instalación
           </Button>
-          <Button
-            leftIcon={<Icon as={FiMapPin} />}
-            onClick={async () => {
-              await getContinentes();
-              clearFrom("all");
 
-              const init: CampusFormValues = {
-                continenteId: "",
-                paisId: "",
-                departamentoId: "",
-                municipioId: "",
-                nombre: "",
-                descripcion: "",
-              };
-              setCreateCampusInitial(init);
-              prevCreateCampus.current = init;
-              setCreateCampusKey((k) => k + 1);
-
-              crearCampusModal.onOpen();
-            }}
-          >
-            Crear campus
-          </Button>
           <Button
             leftIcon={<Icon as={FiEdit2} />}
             variant="outline"

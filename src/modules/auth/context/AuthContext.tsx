@@ -1,5 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
+import { AuthApi } from "../../../api/auth";
+import { setupInterceptor } from "../../../utils/interceptor";
+import type { ApiError } from "../../../api/base";
 
 type AuthContextType = {
   role: string | null;
@@ -21,56 +24,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<number | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
+  const resetSession = useCallback(() => {
+    setRole(null);
+    setPermissions([]);
+    setEmail(null);
+    setUserId(null);
+  }, []);
+
   const validateSession = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8080/v1/api/usuario/me", {
-        method: "GET",
-        credentials: "include", // IMPORTANTE: incluir cookies
-      });
-      
-      if (!res.ok) {
-        setRole(null);
-        setPermissions([]);
-        setEmail(null);
-        setUserId(null);
-      } else {
-        const data = await res.json();
-        setRole(data.roles?.[0] || null);
-        setPermissions(data.permisos || []);
-        setEmail(data.email || null);
-        setUserId(data.idUsuario || null);
+      const session = await AuthApi.currentSession();
+      setRole(session.roles?.[0] ?? null);
+      setPermissions(session.permisos ?? []);
+      setEmail(session.email ?? null);
+      setUserId(session.idUsuario ?? null);
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError.status !== 401) {
+        console.error("Error validando sesión", error);
       }
-    } catch {
-      setRole(null);
-      setPermissions([]);
-      setEmail(null);
-      setUserId(null);
+      resetSession();
     } finally {
       setCheckingAuth(false);
     }
-  }, []);
+  }, [resetSession]);
 
   useEffect(() => {
     validateSession();
   }, [validateSession]);
 
+  useEffect(() => {
+    const unsubscribe = setupInterceptor(() => {
+      resetSession();
+    });
+    return unsubscribe;
+  }, [resetSession]);
+
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const res = await fetch("http://localhost:8080/v1/api/usuario/login", {
-        method: "POST",
-        credentials: "include", // IMPORTANTE: para recibir la cookie
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!res.ok) return false;
-
-      const data = await res.json();
-      // No guardamos el token, solo actualizamos el estado
-      setRole(data.roles?.[0] || null);
-      setPermissions(data.permisos || []);
-      setEmail(data.email || null);
-      setUserId(data.idUsuario || null);
+      const data = await AuthApi.login({ email, password });
+      setRole(data.roles?.[0] ?? null);
+      setPermissions(data.permisos ?? []);
+      setEmail(data.email ?? null);
+      setUserId(data.idUsuario ?? null);
       
       return true;
     } catch {
@@ -80,15 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch("http://localhost:8080/v1/api/usuario/logout", {
-        method: "POST",
-        credentials: "include", // IMPORTANTE: para limpiar la cookie
-      });
+      await AuthApi.logout();
     } finally {
-      setRole(null);
-      setPermissions([]);
-      setEmail(null);
-      setUserId(null);
+      resetSession();
     }
   };
 

@@ -1,341 +1,225 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@chakra-ui/react';
-import { apiCall, type ApiResponse } from '../../../api/base';
+import { ReservaApi } from '../../../api/reserva';
+import { reservaKeys } from '../queryKeys';
+import type {
+  CerrarReservaPayload,
+  CreateReservaPayload,
+  DetalleReservaEquipoPayload,
+  DetalleReservaInstalacionPayload,
+  EquipoCatalogo,
+  HoraDisponible,
+  MantenimientoEquipoPayload,
+  MantenimientoInstalacionPayload,
+  Paso1Values,
+  Paso2Values,
+  ReservaGeneral,
+  ReservaGrupo,
+  SimpleItem,
+  TipoReserva,
+  UpdateDetalleReservaEquipoPayload,
+  UpdateDetalleReservaInstalacionPayload,
+  UpdateMantenimientoPayload,
+  UpdateReservaCorePayload,
+} from '../types';
 
-export type ReservaGrupo =
-  | 'RESERVA_INSTALACION'
-  | 'RESERVA_EQUIPO'
-  | 'MANTENIMIENTO_INSTALACION'
-  | 'MANTENIMIENTO_EQUIPO';
-
-export interface TipoReserva {
-  id: number;
-  nombre: string;
-  requiereAprobacion?: boolean;
-}
-
-export interface HoraDisponibleDTO {
-  hora: string; // "HH:mm" o "HH:mm:ss"
-}
-
-/** Coincide con IReservaGeneralDTO del backend */
-export interface ReservaGeneral {
-  // Identificadores principales
-  idReserva: number;
-  idDetalleRerservaEquipo?: number | null;
-  idDetalleRerservaInstalacion?: number | null;
-  idMantenimientoEquipo?: number | null;
-  idMantenimientoInstalacion?: number | null;
-
-  // Datos de la reserva
-  tipoReserva: string;
-  nombreReserva: string;
-  descripcionReserva?: string | null;
-  fechaReserva: string;          // ISO (yyyy-MM-dd)
-  horaInicioReserva: string;     // "HH:mm[:ss]"
-  horaFinReserva: string;        // idem
-  idTipoReserva?: number | null;
-
-  // Persona asociada
-  idPersona: number;
-  nombrePersona: string;
-  numeroIdentificacion: string;
-
-  // Información adicional
-  nombreInstalacion?: string | null;
-  nombreEquipo?: string | null;
-
-  // Campos específicos de detalle de reserva
-  programaAcademico?: string | null;
-  numeroEstudiantes?: number | null;
-  idInstalacionDestino?: number | null;
-
-  // Campos específicos de mantenimiento
-  tipoMantenimiento?: string | null;
-  descripcionMantenimiento?: string | null;
-  idCategoriaMantenimiento?: number | null;
-  estadoMantenimiento?: string | null;
-
-  // Estados generales
-  estadoReserva: string | boolean;
-  estadoDetalle?: string | null;
-}
-
-/** Para selects */
-export interface SimpleItem { id: number; nombre: string; }
-
-/** Estructura temporal de equipos (hasta que funcione @JsonView) */
-export interface EquipoAPI {
-  id: number;
-  codigo: string;
-  instalacion: {
-    id: number;
-    nombre: string;
-  };
-  tipoEquipo: {
-    id: number;
-    nombre: string;
-  };
-}
-
-/** Valores del Paso 1 (reserva core + selección recurso/fecha/horas) */
-export interface Paso1Values {
-  tipoReservaId?: number;
-  tipoReservaNombre?: string; // para UX
-  nombreReserva?: string;
-  descripcionReserva?: string;
-  fechaReserva?: string; // yyyy-MM-dd
-  horaInicio?: string;   // HH:mm[:ss]
-  horaFin?: string;      // HH:mm[:ss]
-  idEquipo?: number;
-  idInstalacion?: number;
-}
-
-/** Valores del Paso 2 (dinámico según grupo) */
-export interface Paso2Values {
-  // Detalle instalación
-  programaAcademico?: string;
-  numeroEstudiantes?: number;
-  // Destino (para equipo)
-  idInstalacionDestino?: number;
-
-  // Mantenimientos
-  descripcionMantenimiento?: string;
-  // Estos NO se envían en creación; se usan al cerrar:
-  fechaProximaMantenimiento?: string; // yyyy-MM-dd (omitido en creación)
-  resultadoMantenimiento?: string;
-
-  // Categorías (requeridas en mantenimiento)
-  categoriaMantenimientoInstalacionId?: number;
-  categoriaMantenimientoEquipoId?: number;
-}
+const resolveGrupoFromNombre = (nombreTipo: string): ReservaGrupo => {
+  const lower = (nombreTipo || '').toLowerCase();
+  const isMantenimiento = lower.includes('manten');
+  const isEquipo = lower.includes('equipo');
+  const isInstalacion = lower.includes('instal');
+  if (isMantenimiento && isEquipo) return 'MANTENIMIENTO_EQUIPO';
+  if (isMantenimiento && isInstalacion) return 'MANTENIMIENTO_INSTALACION';
+  if (!isMantenimiento && isEquipo) return 'RESERVA_EQUIPO';
+  return 'RESERVA_INSTALACION';
+};
 
 export function userReserva() {
   const toast = useToast();
-
-  /** Tabla */
-  const [data, setData] = useState<ReservaGeneral[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
-  /** Catálogos */
-  const [tiposReserva, setTiposReserva] = useState<TipoReserva[]>([]);
-  const [equipos, setEquipos] = useState<EquipoAPI[]>([]);
-  const [instalaciones, setInstalaciones] = useState<SimpleItem[]>([]);
-  const [catMtoEquipo, setCatMtoEquipo] = useState<SimpleItem[]>([]);
-  const [catMtoInst, setCatMtoInst] = useState<SimpleItem[]>([]);
-
-  /** Disponibilidad */
+  const queryClient = useQueryClient();
+  const [currentDocumento, setCurrentDocumento] = useState<string | undefined>(undefined);
   const [horasDisponibles, setHorasDisponibles] = useState<string[]>([]);
 
-  const [selectedPersona, setSelectedPersona] = useState<any>(null);
+  const reservasQuery = useQuery<ReservaGeneral[]>({
+    queryKey: reservaKeys.list(currentDocumento),
+    queryFn: () => ReservaApi.getReservas(currentDocumento),
+  });
 
-  /** Helpers grupo según nombre */
-  const resolveGrupo = useCallback((nombreTipo: string): ReservaGrupo => {
-    const n = (nombreTipo || '').toLowerCase();
-    const isMantenimiento = n.includes('manten');
-    const isEquipo = n.includes('equipo');
-    const isInstalacion = n.includes('instal');
-    if (isMantenimiento && isEquipo) return 'MANTENIMIENTO_EQUIPO';
-    if (isMantenimiento && isInstalacion) return 'MANTENIMIENTO_INSTALACION';
-    if (!isMantenimiento && isEquipo) return 'RESERVA_EQUIPO';
-    return 'RESERVA_INSTALACION';
-  }, []);
+  const tiposReservaQuery = useQuery<TipoReserva[]>({
+    queryKey: reservaKeys.tipos,
+    queryFn: ReservaApi.getTiposReserva,
+    staleTime: 300_000,
+  });
 
-  /** Fetch tabla */
-  const fetchAll = useCallback(async (numeroIdentificacion?: string) => {
-    if (abortRef.current) abortRef.current.abort();
-    abortRef.current = new AbortController();
+  const equiposQuery = useQuery<EquipoCatalogo[]>({
+    queryKey: reservaKeys.equipos,
+    queryFn: ReservaApi.getEquipos,
+    staleTime: 300_000,
+  });
 
-    setLoading(true);
-    setError(null);
-    try {
-      const query = numeroIdentificacion
-        ? `?numeroIdentificacion=${encodeURIComponent(numeroIdentificacion)}`
-        : '';
-      const response = await apiCall<ApiResponse<ReservaGeneral[]>>(
-        `/reserva/reservas-mantenimientos${query}`,
-        { signal: abortRef.current.signal }
-      );
+  const instalacionesQuery = useQuery<SimpleItem[]>({
+    queryKey: reservaKeys.instalaciones,
+    queryFn: ReservaApi.getInstalaciones,
+    staleTime: 300_000,
+  });
 
-      const list = (response as any).data ?? (response as any);
-      setData(
-        (list ?? []).map((r: any, idx: number) => ({
-          ...r,
-          _key: `${r.nombreReserva}-${r.numeroIdentificacion}-${r.fechaReserva}-${r.horaInicioReserva}-${idx}`,
-        }))
-      );
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        const msg = err.message || 'Error al cargar reservas';
-        setError(msg);
-        toast({ title: 'Error', description: msg, status: 'error', duration: 4000, isClosable: true });
+  const catMtoEquipoQuery = useQuery<SimpleItem[]>({
+    queryKey: reservaKeys.categoriasEquipo,
+    queryFn: ReservaApi.getCategoriaMantenimientoEquipo,
+    staleTime: 300_000,
+  });
+
+  const catMtoInstQuery = useQuery<SimpleItem[]>({
+    queryKey: reservaKeys.categoriasInstalacion,
+    queryFn: ReservaApi.getCategoriaMantenimientoInstalacion,
+    staleTime: 300_000,
+  });
+
+  const data = reservasQuery.data ?? [];
+  const loading = reservasQuery.isLoading || reservasQuery.isFetching;
+  const error = reservasQuery.error ? (reservasQuery.error as Error).message : null;
+
+  const tipoReservaOptions = useMemo(
+    () => (tiposReservaQuery.data ?? []).map((tipo) => ({ value: tipo.id, label: tipo.nombre })),
+    [tiposReservaQuery.data]
+  );
+
+  const equipoOptions = useMemo(
+    () =>
+      (equiposQuery.data ?? [])
+        .filter((item) => item.tipoEquipo?.nombre)
+        .map((item) => ({
+          value: item.id,
+          label: `${item.tipoEquipo.nombre} (${item.codigo})`,
+        })),
+    [equiposQuery.data]
+  );
+
+  const instalacionOptions = useMemo(
+    () =>
+      (instalacionesQuery.data ?? [])
+        .filter((item) => item.nombre && item.nombre.trim() !== '')
+        .map((item) => ({ value: item.id, label: item.nombre })),
+    [instalacionesQuery.data]
+  );
+
+  const catMtoEquipoOptions = useMemo(
+    () => (catMtoEquipoQuery.data ?? []).map((item) => ({ value: item.id, label: item.nombre })),
+    [catMtoEquipoQuery.data]
+  );
+
+  const catMtoInstOptions = useMemo(
+    () => (catMtoInstQuery.data ?? []).map((item) => ({ value: item.id, label: item.nombre })),
+    [catMtoInstQuery.data]
+  );
+
+  const fetchAll = useCallback(
+    async (numeroIdentificacion?: string) => {
+      if (numeroIdentificacion === currentDocumento) {
+        await reservasQuery.refetch();
+      } else {
+        setCurrentDocumento(numeroIdentificacion);
       }
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+    },
+    [currentDocumento, reservasQuery]
+  );
 
-  /** Fetch catálogos (incluye categorías de mantenimiento) */
-  const ensureData = <T,>(resp: ApiResponse<T> | T): T =>
-  (resp as any)?.data ?? (resp as T);
-
-const fetchCatalogs = useCallback(async () => {
-  const results = await Promise.allSettled([
-    apiCall<ApiResponse<TipoReserva[]>>('/tipo-reserva'),
-    apiCall<ApiResponse<EquipoAPI[]>>('/equipo'),
-    apiCall<ApiResponse<SimpleItem[]>>('/instalacion'),
-    apiCall<ApiResponse<SimpleItem[]>>('/categoria-mantenimiento-equipo'),
-    apiCall<ApiResponse<SimpleItem[]>>('/categoria-mantenimiento-instalacion'),
-  ]);
-
-  // 0: tipos-reserva
-  if (results[0].status === 'fulfilled') {
-    const tipos = ensureData(results[0].value);
-    setTiposReserva(tipos as any);
-  } else {
-    // AUN si falla, mostramos toast, pero no bloqueamos lo demás
-    toast({
-      title: 'Catálogo: tipos de reserva',
-      description: (results[0] as PromiseRejectedResult).reason?.message ?? 'No se pudo cargar',
-      status: 'error',
-      duration: 4000,
-      isClosable: true,
-    });
-  }
-
-  // 1: equipos
-  if (results[1].status === 'fulfilled') {
-    setEquipos(ensureData(results[1].value) as any);
-  } else {
-    toast({
-      title: 'Catálogo: equipos',
-      description: (results[1] as PromiseRejectedResult).reason?.message ?? 'No se pudo cargar',
-      status: 'warning',
-    });
-  }
-
-  // 2: instalaciones
-  if (results[2].status === 'fulfilled') {
-    setInstalaciones(ensureData(results[2].value) as any);
-  } else {
-    toast({
-      title: 'Catálogo: instalaciones',
-      description: (results[2] as PromiseRejectedResult).reason?.message ?? 'No se pudo cargar',
-      status: 'warning',
-    });
-  }
-
-  // 3: categorías mto equipo
-  if (results[3].status === 'fulfilled') {
-    setCatMtoEquipo(ensureData(results[3].value) as any);
-  } else {
-    toast({
-      title: 'Catálogo: categorías mto equipo',
-      description: (results[3] as PromiseRejectedResult).reason?.message ?? 'No se pudo cargar',
-      status: 'info',
-    });
-  }
-
-  // 4: categorías mto instalación
-  if (results[4].status === 'fulfilled') {
-    setCatMtoInst(ensureData(results[4].value) as any);
-  } else {
-    toast({
-      title: 'Catálogo: categorías mto instalación',
-      description: (results[4] as PromiseRejectedResult).reason?.message ?? 'No se pudo cargar',
-      status: 'info',
-    });
-  }
-}, [toast]);
-
-  useEffect(() => {
-    void fetchAll();
-    void fetchCatalogs();
-    return () => abortRef.current?.abort();
-  }, [fetchAll, fetchCatalogs]);
-
-  /** Disponibilidad */
   const getHorasDisponiblesInstalacion = useCallback(
     async (fechaISO: string, idInstalacion: number, idDetalle?: number) => {
-      if (!fechaISO || !idInstalacion) return setHorasDisponibles([]);
-      const qs = new URLSearchParams({ fecha: fechaISO, idInstalacion: String(idInstalacion) });
-      if (idDetalle) qs.append('idDetalle', String(idDetalle));
-
-      const list = await apiCall<HoraDisponibleDTO[]>(
-        `/reserva/horas-disponibles-instalacion?${qs.toString()}`
-      );
-      setHorasDisponibles((list ?? []).map(h => h.hora));
+      if (!fechaISO || !idInstalacion) {
+        setHorasDisponibles([]);
+        return;
+      }
+      try {
+        const list = await ReservaApi.getHorasDisponiblesInstalacion({
+          fecha: fechaISO,
+          idInstalacion,
+          idDetalle,
+        });
+        setHorasDisponibles(list.map((item: HoraDisponible) => item.hora));
+      } catch (err) {
+        toast({
+          title: 'Error obteniendo horas disponibles',
+          description: (err as Error).message,
+          status: 'error',
+          duration: 4000,
+        });
+      }
     },
-    []
+    [toast]
   );
 
   const getHorasDisponiblesEquipo = useCallback(
     async (fechaISO: string, idEquipo: number, idDetalle?: number) => {
-      if (!fechaISO || !idEquipo) return setHorasDisponibles([]);
-      const qs = new URLSearchParams({ fecha: fechaISO, idEquipo: String(idEquipo) });
-      if (idDetalle) qs.append('idDetalle', String(idDetalle));
-
-      const list = await apiCall<HoraDisponibleDTO[]>(
-        `/reserva/horas-disponibles-equipo?${qs.toString()}`
-      );
-      setHorasDisponibles((list ?? []).map(h => h.hora));
+      if (!fechaISO || !idEquipo) {
+        setHorasDisponibles([]);
+        return;
+      }
+      try {
+        const list = await ReservaApi.getHorasDisponiblesEquipo({
+          fecha: fechaISO,
+          idEquipo,
+          idDetalle,
+        });
+        setHorasDisponibles(list.map((item: HoraDisponible) => item.hora));
+      } catch (err) {
+        toast({
+          title: 'Error obteniendo horas disponibles',
+          description: (err as Error).message,
+          status: 'error',
+          duration: 4000,
+        });
+      }
     },
-    []
+    [toast]
   );
 
-  /** Crear flujo completo */
+  const invalidateReservas = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: reservaKeys.list(currentDocumento) });
+  }, [currentDocumento, queryClient]);
+
   const createReservaFlow = useCallback(
     async (personaId: number, paso1: Paso1Values, paso2: Paso2Values) => {
-      // 1) Crear RESERVA core
-      const tipoSel = tiposReserva.find(t => t.id === paso1.tipoReservaId);
+      const tipoSel = tiposReservaQuery.data?.find((tipo) => tipo.id === paso1.tipoReservaId);
       if (!tipoSel) throw new Error('Tipo de reserva inválido');
 
-      const corePayload = {
-        fechaReserva: paso1.fechaReserva,
-        horaInicio: paso1.horaInicio,
-        horaFin: paso1.horaFin,
-        nombre: paso1.nombreReserva,
-        descripcion: paso1.descripcionReserva,
+      const corePayload: CreateReservaPayload = {
+        fechaReserva: paso1.fechaReserva ?? '',
+        horaInicio: paso1.horaInicio ?? '',
+        horaFin: paso1.horaFin ?? '',
+        nombre: paso1.nombreReserva ?? '',
+        descripcion: paso1.descripcionReserva ?? '',
         tipoReserva: { id: String(paso1.tipoReservaId) },
-        persona: { id: String(personaId) }, // 👈 requerido por tu backend
+        persona: { id: String(personaId) },
       };
 
-      const reservaCreada = await apiCall<any>('/reserva', {
-        method: 'POST',
-        body: JSON.stringify(corePayload),
-      });
-
-      const reservaId = (reservaCreada?.id as number) ?? (reservaCreada?.data?.id as number);
+      const reservaCreada = await ReservaApi.createReserva(corePayload);
+      const reservaId = reservaCreada.id;
       if (!reservaId) {
         throw new Error('No se pudo obtener el id de la reserva creada');
       }
 
-      // 2) Crear asociado según grupo
-      const grupo = resolveGrupo(tipoSel.nombre);
+      const grupo = resolveGrupoFromNombre(tipoSel.nombre);
 
       if (grupo === 'RESERVA_INSTALACION') {
         if (!paso1.idInstalacion) throw new Error('Debe seleccionar una instalación');
-        const payload = {
+        const payload: DetalleReservaInstalacionPayload = {
           programaAcademico: paso2.programaAcademico ?? '',
           numeroEstudiantes: paso2.numeroEstudiantes ?? 0,
-          entregaInstalacion: null, // 👈 oculto en creación
+          entregaInstalacion: null,
           reserva: { id: String(reservaId) },
           instalacion: { id: String(paso1.idInstalacion) },
         };
-        await apiCall('/detalle-reserva-instalacion', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
+        await ReservaApi.createDetalleInstalacion(payload);
       }
 
       if (grupo === 'RESERVA_EQUIPO') {
         if (!paso1.idEquipo) throw new Error('Debe seleccionar un equipo');
-        const payload = {
+        const payload: DetalleReservaEquipoPayload = {
           programaAcademico: paso2.programaAcademico ?? '',
           numeroEstudiantes: paso2.numeroEstudiantes ?? 0,
-          entregaEquipo: null, // 👈 oculto en creación
+          entregaEquipo: null,
           observacionesDevolucion: '',
           fechaDevolucionReal: '',
           reserva: { id: String(reservaId) },
@@ -344,71 +228,58 @@ const fetchCatalogs = useCallback(async () => {
             ? { instalacionDestino: { id: String(paso2.idInstalacionDestino) } }
             : {}),
         };
-        await apiCall('/detalle-reserva-equipo', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
+        await ReservaApi.createDetalleEquipo(payload);
       }
 
       if (grupo === 'MANTENIMIENTO_INSTALACION') {
         if (!paso1.idInstalacion) throw new Error('Debe seleccionar una instalación');
-        const payload: any = {
+        const payload: MantenimientoInstalacionPayload = {
           descripcion: paso2.descripcionMantenimiento ?? '',
-          // NO enviar fechaProximaMantenimiento ni resultadoMantenimiento en creación
           reserva: { id: String(reservaId) },
           instalacion: { id: String(paso1.idInstalacion) },
           ...(paso2.categoriaMantenimientoInstalacionId
             ? { categoriaMantenimientoInstalacion: { id: String(paso2.categoriaMantenimientoInstalacionId) } }
             : {}),
         };
-        await apiCall('/mantenimiento-instalacion', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
+        await ReservaApi.createMantenimientoInstalacion(payload);
       }
 
       if (grupo === 'MANTENIMIENTO_EQUIPO') {
         if (!paso1.idEquipo) throw new Error('Debe seleccionar un equipo');
-        const payload: any = {
+        const payload: MantenimientoEquipoPayload = {
           descripcion: paso2.descripcionMantenimiento ?? '',
-          // NO enviar fechaProximaMantenimiento ni resultadoMantenimiento en creación
           reserva: { id: String(reservaId) },
           equipo: { id: String(paso1.idEquipo) },
           ...(paso2.categoriaMantenimientoEquipoId
             ? { categoriaMantenimientoEquipo: { id: String(paso2.categoriaMantenimientoEquipoId) } }
             : {}),
         };
-        await apiCall('/mantenimiento-equipo', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
+        await ReservaApi.createMantenimientoEquipo(payload);
       }
+
+      invalidateReservas();
     },
-    [resolveGrupo, tiposReserva]
+    [invalidateReservas, tiposReservaQuery.data]
   );
 
-  /** Update (solo core por ahora) */
   const updateReservaCore = useCallback(
     async (idReserva: number, values: Partial<Paso1Values>) => {
-      const payload: any = {
+      const payload: UpdateReservaCorePayload = {
         nombre: values.nombreReserva,
         descripcion: values.descripcionReserva,
         fechaReserva: values.fechaReserva,
         horaInicio: values.horaInicio,
         horaFin: values.horaFin,
       };
-      await apiCall(`/reserva/${idReserva}`, {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-      });
+      await ReservaApi.updateReserva(idReserva, payload);
+      invalidateReservas();
     },
-    []
+    [invalidateReservas]
   );
 
-  /** Actualizar detalle de reserva instalación */
   const updateDetalleReservaInstalacion = useCallback(
     async (idDetalle: number, values: any) => {
-      const payload = {
+      const payload: UpdateDetalleReservaInstalacionPayload = {
         nombreReserva: values.nombreReserva,
         descripcionReserva: values.descripcionReserva,
         fechaReserva: values.fechaReserva,
@@ -418,18 +289,15 @@ const fetchCatalogs = useCallback(async () => {
         numeroEstudiantes: values.numeroEstudiantes,
         idInstalacion: values.idInstalacion,
       };
-      await apiCall(`/detalle-reserva-instalacion/${idDetalle}/actualizar-detalle-reserva`, {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-      });
+      await ReservaApi.updateDetalleInstalacion(idDetalle, payload);
+      invalidateReservas();
     },
-    []
+    [invalidateReservas]
   );
 
-  /** Actualizar detalle de reserva equipo */
   const updateDetalleReservaEquipo = useCallback(
     async (idDetalle: number, values: any) => {
-      const payload = {
+      const payload: UpdateDetalleReservaEquipoPayload = {
         nombreReserva: values.nombreReserva,
         descripcionReserva: values.descripcionReserva,
         fechaReserva: values.fechaReserva,
@@ -440,18 +308,15 @@ const fetchCatalogs = useCallback(async () => {
         idEquipo: values.idEquipo,
         idInstalacionDestino: values.idInstalacionDestino,
       };
-      await apiCall(`/detalle-reserva-equipo/${idDetalle}/actualizar-detalle-reserva-equipo`, {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-      });
+      await ReservaApi.updateDetalleEquipo(idDetalle, payload);
+      invalidateReservas();
     },
-    []
+    [invalidateReservas]
   );
 
-  /** Actualizar mantenimiento instalación */
   const updateMantenimientoInstalacion = useCallback(
     async (idMantenimiento: number, values: any) => {
-      const payload = {
+      const payload: UpdateMantenimientoPayload = {
         descripcion: values.descripcionMantenimiento,
         fechaProximaMantenimiento: values.fechaProximaMantenimiento,
         resultadoMantenimiento: values.resultadoMantenimiento,
@@ -461,18 +326,15 @@ const fetchCatalogs = useCallback(async () => {
         horaInicio: values.horaInicio,
         horaFin: values.horaFin,
       };
-      await apiCall(`/mantenimiento-instalacion/${idMantenimiento}/actualizar-mantenimiento-instalacion`, {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-      });
+      await ReservaApi.updateMantenimientoInstalacion(idMantenimiento, payload);
+      invalidateReservas();
     },
-    []
+    [invalidateReservas]
   );
 
-  /** Actualizar mantenimiento equipo */
   const updateMantenimientoEquipo = useCallback(
     async (idMantenimiento: number, values: any) => {
-      const payload = {
+      const payload: UpdateMantenimientoPayload = {
         descripcion: values.descripcionMantenimiento,
         fechaProximaMantenimiento: values.fechaProximaMantenimiento,
         resultadoMantenimiento: values.resultadoMantenimiento,
@@ -482,107 +344,51 @@ const fetchCatalogs = useCallback(async () => {
         horaInicio: values.horaInicio,
         horaFin: values.horaFin,
       };
-      await apiCall(`/mantenimiento-equipo/${idMantenimiento}/actualizar-mantenimiento-equipo`, {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-      });
+      await ReservaApi.updateMantenimientoEquipo(idMantenimiento, payload);
+      invalidateReservas();
     },
-    []
+    [invalidateReservas]
   );
 
-  /** Cerrar reserva según su tipo */
   const cerrarReserva = useCallback(
     async (idDetalle: number, tipoReserva: string, values: any) => {
-      const tipoReservaLower = tipoReserva.toLowerCase();
-      
-      if (tipoReservaLower.includes('instalacion') && !tipoReservaLower.includes('mantenimiento')) {
-        // Cerrar préstamo de instalación
-        await apiCall(`/detalle-reserva-instalacion/${idDetalle}/cerrar-detalle-reserva-instalacion`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            entregaInstalacion: values.entregaInstalacion
-          }),
-        });
-      } else if (tipoReservaLower.includes('equipo') && !tipoReservaLower.includes('mantenimiento')) {
-        // Cerrar préstamo de equipo
-        await apiCall(`/detalle-reserva-equipo/${idDetalle}/cerrar-detalle-reserva-equipo`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            entregaEquipo: values.entregaEquipo
-          }),
-        });
-      } else if (tipoReservaLower.includes('mantenimiento')) {
-        // Cerrar mantenimiento
-        if (tipoReservaLower.includes('instalacion')) {
-          await apiCall(`/mantenimiento-instalacion/${idDetalle}/cerrar-mantenimiento-instalacion`, {
-            method: 'PUT',
-            body: JSON.stringify({
-              fechaProximaMantenimiento: values.fechaProximaMantenimiento,
-              resultadoMantenimiento: values.resultadoMantenimiento
-            }),
-          });
-        } else {
-          await apiCall(`/mantenimiento-equipo/${idDetalle}/cerrar-mantenimiento-equipo`, {
-            method: 'PUT',
-            body: JSON.stringify({
-              fechaProximaMantenimiento: values.fechaProximaMantenimiento,
-              resultadoMantenimiento: values.resultadoMantenimiento
-            }),
-          });
-        }
-      }
-    },
-    []
-  );
+      const lower = tipoReserva.toLowerCase();
+      const payload: CerrarReservaPayload = {
+        entregaInstalacion: values.entregaInstalacion,
+        entregaEquipo: values.entregaEquipo,
+        fechaProximaMantenimiento: values.fechaProximaMantenimiento,
+        resultadoMantenimiento: values.resultadoMantenimiento,
+      };
 
-  /** Opciones para selects */
-  const tipoReservaOptions = useMemo(
-    () => tiposReserva.map(t => ({ value: t.id, label: t.nombre })),
-    [tiposReserva]
-  );
-  const equipoOptions = useMemo(
-    () => equipos
-      .filter(e => e.tipoEquipo?.nombre && e.tipoEquipo.nombre.trim() !== '')
-      .map(e => ({ 
-        value: e.id, 
-        label: `${e.tipoEquipo.nombre} (${e.codigo})`
-      })),
-    [equipos]
-  );
-  const instalacionOptions = useMemo(
-    () => instalaciones
-      .filter(i => i.nombre && i.nombre.trim() !== '') // Filtrar instalaciones sin nombre
-      .map(i => ({ value: i.id, label: i.nombre })),
-    [instalaciones]
-  );
-  const catMtoEquipoOptions = useMemo(
-    () => catMtoEquipo.map(c => ({ value: c.id, label: c.nombre })),
-    [catMtoEquipo]
-  );
-  const catMtoInstOptions = useMemo(
-    () => catMtoInst.map(c => ({ value: c.id, label: c.nombre })),
-    [catMtoInst]
+      if (lower.includes('instalacion') && !lower.includes('mantenimiento')) {
+        await ReservaApi.cerrarDetalleInstalacion(idDetalle, payload);
+      } else if (lower.includes('equipo') && !lower.includes('mantenimiento')) {
+        await ReservaApi.cerrarDetalleEquipo(idDetalle, payload);
+      } else if (lower.includes('mantenimiento') && lower.includes('instalacion')) {
+        await ReservaApi.cerrarMantenimientoInstalacion(idDetalle, payload);
+      } else if (lower.includes('mantenimiento') && lower.includes('equipo')) {
+        await ReservaApi.cerrarMantenimientoEquipo(idDetalle, payload);
+      }
+
+      invalidateReservas();
+    },
+    [invalidateReservas]
   );
 
   return {
-    // tabla
-    data, loading, error, fetchAll,
-
-    // catálogos
-    tiposReserva, tipoReservaOptions,
-    equipos, equipoOptions,
-    instalaciones, instalacionOptions,
-    catMtoEquipoOptions, catMtoInstOptions,
-
-    // disponibilidad
+    data,
+    loading,
+    error,
+    fetchAll,
+    tipoReservaOptions,
+    equipoOptions,
+    instalacionOptions,
+    catMtoEquipoOptions,
+    catMtoInstOptions,
     horasDisponibles,
     getHorasDisponiblesEquipo,
     getHorasDisponiblesInstalacion,
-
-    // helpers
-    resolveGrupo,
-
-    // acciones
+    resolveGrupo: resolveGrupoFromNombre,
     createReservaFlow,
     updateReservaCore,
     updateDetalleReservaInstalacion,
@@ -590,8 +396,5 @@ const fetchCatalogs = useCallback(async () => {
     updateMantenimientoInstalacion,
     updateMantenimientoEquipo,
     cerrarReserva,
-
-    // persona seleccionada
-    selectedPersona, setSelectedPersona,
-  };
+  } as const;
 }
