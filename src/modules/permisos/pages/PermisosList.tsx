@@ -140,6 +140,20 @@ const getIdFromValue = (
   return null;
 };
 
+const resolveIdFromItem = (
+  idCandidate: string | number | undefined,
+  fallback: any,
+  catalog: { id: number; nombre: string }[],
+): number | null => {
+  if (idCandidate !== undefined && idCandidate !== null) {
+    const numeric = Number(idCandidate);
+    if (!Number.isNaN(numeric)) {
+      return numeric;
+    }
+  }
+  return getIdFromValue(fallback, catalog);
+};
+
 const getEntityIdentifier = (
   value: Rol | Permiso | Entidad | string | undefined,
   fallback?: string,
@@ -910,13 +924,73 @@ const PermisosList: React.FC = () => {
             throw new Error("Debes seleccionar al menos un permiso válido");
           }
 
+          const uniquePermisosIds = Array.from(new Set(permisosIds));
+
+          const duplicatedPermisos = uniquePermisosIds.filter((permisoId) =>
+            data.some((item) => {
+              if (selectedItem && item.id === selectedItem.id) {
+                return false;
+              }
+              const existingRolId = resolveIdFromItem(
+                item.idRol,
+                item.rol,
+                rolesRaw,
+              );
+              const existingEntidadId = resolveIdFromItem(
+                item.idEntidad,
+                item.entidad,
+                entidadesRaw,
+              );
+              const existingPermisoId = resolveIdFromItem(
+                item.idPermiso,
+                item.permiso,
+                permisosRaw,
+              );
+              if (
+                existingRolId == null ||
+                existingEntidadId == null ||
+                existingPermisoId == null
+              ) {
+                return false;
+              }
+              return (
+                existingRolId === rolId &&
+                existingEntidadId === entidadId &&
+                existingPermisoId === permisoId
+              );
+            }),
+          );
+
+          if (duplicatedPermisos.length > 0) {
+            const duplicatedLabels = duplicatedPermisos
+              .map((permisoId) => {
+                const permisoInfo = permisosRaw.find(
+                  (permiso) => permiso.id === permisoId,
+                );
+                return permisoInfo ? toTitleCase(permisoInfo.nombre) : null;
+              })
+              .filter((label): label is string => Boolean(label))
+              .join(", ");
+
+            toast({
+              title: "Permiso ya asignado",
+              description:
+                duplicatedLabels.length > 0
+                  ? `El rol seleccionado ya tiene asignado ${duplicatedLabels} sobre esta entidad.`
+                  : "El rol seleccionado ya tiene asignado uno de los permisos elegidos sobre esta entidad.",
+              status: "warning",
+              duration: 4000,
+            });
+            return false;
+          }
+
           const basePayload = {
             rol: { id: rolId },
             entidad: { id: entidadId },
           } satisfies Omit<CreatePermisoRolEntidadPayload, "permiso">;
 
           if (selectedItem) {
-            const [firstPermiso, ...extraPermisos] = permisosIds;
+            const [firstPermiso, ...extraPermisos] = uniquePermisosIds;
 
             await updatePermisoMutation.mutateAsync({
               id: selectedItem.id,
@@ -938,7 +1012,7 @@ const PermisosList: React.FC = () => {
             }
           } else {
             await Promise.all(
-              permisosIds.map((permisoId) =>
+              uniquePermisosIds.map((permisoId) =>
                 createPermisoMutation.mutateAsync({
                   ...basePayload,
                   permiso: { id: permisoId },

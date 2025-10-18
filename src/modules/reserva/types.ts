@@ -94,6 +94,8 @@ export interface UpdateReservaCorePayload {
   fechaReserva?: string;
   horaInicio?: string;
   horaFin?: string;
+  tipoReserva?: { id: string };
+  persona?: { id: string };
 }
 
 export interface UpdateDetalleReservaInstalacionPayload {

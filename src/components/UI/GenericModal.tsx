@@ -1,5 +1,5 @@
 // src/components/UI/GenericModal.tsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Modal,
   ModalOverlay,
@@ -18,12 +18,17 @@ import {
   SimpleGrid,
   Stack,
   FormHelperText,
+  FormErrorMessage,
   Text,
   Flex,
   HStack,
   Box,
 } from "@chakra-ui/react";
 import { MultiSelect } from "./MultiSelect";
+import {
+  useNormalizedInput,
+  type NormalizationSettings,
+} from "../../hooks/useNormalizedInput";
 
 export interface FieldOption {
   value: string | number;
@@ -50,12 +55,20 @@ export interface Field<T = any> {
   disabled?: boolean;
   placeholder?: string;
   optionsEndpoint?: string;
+  normalize?: boolean;
+  normalization?: NormalizationSettings;
+  validate?: (
+    value: T[keyof T],
+    values: Partial<T>,
+  ) => string | null | undefined;
+  format?: (value: string, values: Partial<T>) => string;
+  helperText?: string;
 }
 
 interface GenericModalProps<T = any> {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (values: Partial<T>) => Promise<void>;
+  onSave: (values: Partial<T>) => Promise<void | boolean>;
   title: string;
   fields: Field<T>[];
   initialValues?: Partial<T>;
@@ -78,7 +91,17 @@ const GenericModal = <T extends Record<string, any>>({
 }: GenericModalProps<T>) => {
   const toast = useToast();
   const [values, setValues] = useState<Partial<T>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const { normalize } = useNormalizedInput();
+
+  const fieldMap = useMemo(() => {
+    const map = new Map<keyof T, Field<T>>();
+    fields.forEach((field) => {
+      map.set(field.name, field);
+    });
+    return map;
+  }, [fields]);
 
   const defaultValues = useMemo(() => {
     const init: Partial<T> = {};
@@ -94,40 +117,191 @@ const GenericModal = <T extends Record<string, any>>({
   useEffect(() => {
     if (isOpen) {
       setValues(defaultValues);
+      setErrors({});
     }
   }, [isOpen, defaultValues]);
-  /*
-  const handleChange = (name: keyof T, value: any) =>
-    setValues((prev) => ({ ...prev, [name]: value}
-      
-    ));
-*/
-  const handleChange = (name: keyof T, value: any) => {
-    setValues((prev) => {
-      const next = { ...prev, [name]: value };
-      onValuesChange?.(next);
-      return next;
-    });
-  };
 
-  const isFormValid = useMemo(
-    () =>
-      fields.every((f) => {
-        if (!f.required) return true;
-        const currentValue = values[f.name];
-        if (f.type === "multiselect") {
-          if (Array.isArray(currentValue)) {
-            return currentValue.length > 0;
-          }
-          return false;
+  const shouldNormalizeField = useCallback(
+    (field: Field<T>) => field.normalize ?? field.type === "text",
+    [],
+  );
+
+  const isValueEmpty = useCallback((value: any) => {
+    if (value === undefined || value === null) return true;
+    if (typeof value === "string") return value.trim() === "";
+    if (Array.isArray(value)) return value.length === 0;
+    return false;
+  }, []);
+
+  const validateField = useCallback(
+    (field: Field<T>, currentValues: Partial<T>) => {
+      const rawValue = currentValues[field.name];
+      let valueForValidation: unknown = rawValue;
+
+      if (typeof rawValue === "string") {
+        if (shouldNormalizeField(field)) {
+          valueForValidation = normalize(
+            rawValue,
+            "submit",
+            field.normalization,
+          );
+        } else {
+          valueForValidation = rawValue.trim();
         }
-        return (currentValue ?? "") !== "";
-      }),
-    [fields, values],
+      }
+
+      if (field.required && isValueEmpty(valueForValidation)) {
+        return "Este campo es obligatorio";
+      }
+
+      if (field.validate) {
+        const validationResult = field.validate(
+          valueForValidation as T[keyof T],
+          {
+            ...currentValues,
+            [field.name]: valueForValidation as T[keyof T],
+          },
+        );
+        if (
+          typeof validationResult === "string" &&
+          validationResult.trim().length > 0
+        ) {
+          return validationResult;
+        }
+      }
+
+      return null;
+    },
+    [isValueEmpty, normalize, shouldNormalizeField],
+  );
+
+  const updateFieldError = useCallback((fieldName: keyof T, error: string | null) => {
+    const key = String(fieldName);
+    setErrors((prevErrors) => {
+      if (!error) {
+        if (prevErrors[key]) {
+          const { [key]: _removed, ...rest } = prevErrors;
+          return rest;
+        }
+        return prevErrors;
+      }
+      return { ...prevErrors, [key]: error };
+    });
+  }, []);
+
+  const handleChange = useCallback(
+    (name: keyof T, value: any) => {
+      setValues((prev) => {
+        const field = fieldMap.get(name);
+        const nextValues = { ...prev };
+
+        let nextValue = value;
+        if (field) {
+          if (typeof value === "string" && field.format) {
+            nextValue = field.format(value, prev);
+          }
+          if (
+            typeof nextValue === "string" &&
+            shouldNormalizeField(field)
+          ) {
+            nextValue = normalize(
+              nextValue,
+              "change",
+              field.normalization,
+            );
+          }
+        }
+
+        nextValues[name] = nextValue;
+
+        if (field) {
+          const error = validateField(field, nextValues);
+          updateFieldError(name, error);
+        }
+
+        onValuesChange?.(nextValues);
+        return nextValues;
+      });
+    },
+    [
+      fieldMap,
+      normalize,
+      onValuesChange,
+      shouldNormalizeField,
+      updateFieldError,
+      validateField,
+    ],
+  );
+
+  const normalizeValues = useCallback(
+    (currentValues: Partial<T>, mode: "change" | "submit") => {
+      const next: Partial<T> = { ...currentValues };
+      fields.forEach((field) => {
+        const currentValue = next[field.name];
+        if (typeof currentValue !== "string") {
+          return;
+        }
+
+        if (shouldNormalizeField(field)) {
+          next[field.name] = normalize(
+            currentValue,
+            mode,
+            field.normalization,
+          ) as T[keyof T];
+        } else if (mode === "submit") {
+          next[field.name] = currentValue.trim() as T[keyof T];
+        }
+      });
+      return next;
+    },
+    [fields, normalize, shouldNormalizeField],
+  );
+
+  const normalizedValuesForSubmit = useMemo(
+    () => normalizeValues(values, "submit"),
+    [normalizeValues, values],
+  );
+
+  const hasEmptyRequired = useMemo(
+    () =>
+      fields.some(
+        (field) =>
+          field.required &&
+          isValueEmpty(normalizedValuesForSubmit[field.name]),
+      ),
+    [fields, isValueEmpty, normalizedValuesForSubmit],
+  );
+
+  const hasErrors = useMemo(
+    () => Object.keys(errors).length > 0,
+    [errors],
+  );
+
+  const isFormValid = !hasEmptyRequired && !hasErrors;
+
+  const validateAll = useCallback(
+    (currentValues: Partial<T>) => {
+      let formIsValid = true;
+      const collectedErrors: Record<string, string> = {};
+
+      fields.forEach((field) => {
+        const error = validateField(field, currentValues);
+        if (error) {
+          formIsValid = false;
+          collectedErrors[String(field.name)] = error;
+        }
+      });
+
+      setErrors(collectedErrors);
+      return formIsValid;
+    },
+    [fields, validateField],
   );
 
   const handleSave = async () => {
-    if (!isFormValid) {
+    const normalized = normalizeValues(values, "submit");
+    if (!validateAll(normalized)) {
+      setValues(normalized);
       toast({
         title: "Campos requeridos",
         description: "Por favor completa todos los campos obligatorios",
@@ -136,9 +310,13 @@ const GenericModal = <T extends Record<string, any>>({
       });
       return;
     }
+    setValues(normalized);
     setIsSaving(true);
     try {
-      await onSave(values);
+      const result = await onSave(normalized);
+      if (result === false) {
+        return;
+      }
       toast({
         title: "Guardado correctamente",
         status: "success",
@@ -162,6 +340,7 @@ const GenericModal = <T extends Record<string, any>>({
   const handleClose = () => {
     if (!isSaving) {
       setValues({});
+      setErrors({});
       onClose();
     }
   };
@@ -186,20 +365,31 @@ const GenericModal = <T extends Record<string, any>>({
                   ? field.options(values)
                   : (field.options ?? []);
 
-              const helperText = field.placeholder;
+              const helperText = field.helperText ?? field.placeholder;
+              const fieldKey = String(field.name);
+              const errorMessage = errors[fieldKey];
+
+              const currentValue = values[field.name];
+              const displayValue =
+                typeof currentValue === "string"
+                  ? currentValue
+                  : currentValue ?? (field.type === "multiselect" ? [] : "");
 
               return (
                 <FormControl
                   key={`${String(field.name)}-${index}`}
                   isRequired={field.required}
                   isDisabled={field.disabled}
+                  isInvalid={Boolean(errorMessage)}
                 >
                   <Stack spacing={2}>
                     <FormLabel mb={0}>{field.label}</FormLabel>
 
                     {field.type === "select" ? (
                       <Select
-                        value={values[field.name] ?? ""}
+                        value={
+                          (displayValue as string | number | undefined) ?? ""
+                        }
                         onChange={(e) => {
                           const rawValue = e.target.value;
                           const selected = resolvedOptions.find(
@@ -253,7 +443,7 @@ const GenericModal = <T extends Record<string, any>>({
                     ) : (
                       <Input
                         type={field.type}
-                        value={values[field.name] ?? ""}
+                        value={(displayValue as string) ?? ""}
                         onChange={(e) =>
                           handleChange(field.name, e.target.value)
                         }
@@ -262,6 +452,9 @@ const GenericModal = <T extends Record<string, any>>({
                         size="md"
                         variant="outline"
                       />
+                    )}
+                    {errorMessage && (
+                      <FormErrorMessage>{errorMessage}</FormErrorMessage>
                     )}
                     {helperText && (
                       <FormHelperText color="neutral.500" mt={0}>

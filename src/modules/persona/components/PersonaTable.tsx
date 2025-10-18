@@ -13,7 +13,6 @@ interface PersonaTableProps {
 }
 
 const columns: Column<Persona>[] = [
-  { key: "idPersona", label: "ID" },
   { key: "nombres", label: "Nombres" },
   { key: "apellidos", label: "Apellidos" },
   { key: "tipoDocumento", label: "Tipo Doc" },

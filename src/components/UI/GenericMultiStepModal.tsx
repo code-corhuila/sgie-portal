@@ -24,15 +24,17 @@ import {
   Stack,
   SimpleGrid,
   FormHelperText,
+  FormErrorMessage,
   Badge,
   Spinner,
   Text,
   Box,
   Skeleton,
 } from "@chakra-ui/react";
-import { useState, useEffect, useRef, type ReactNode } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { type Field, type FieldOption } from "../UI/GenericModal";
 import { MultiSelect } from "./MultiSelect";
+import { useNormalizedInput } from "../../hooks/useNormalizedInput";
 
 function isDifferent(a: any, b: any) {
   return JSON.stringify(a) !== JSON.stringify(b);
@@ -103,10 +105,14 @@ const GenericMultiStepModal = ({
   onSubmit,
 }: GenericMultiStepModalProps) => {
   const toast = useToast();
+  const { normalize } = useNormalizedInput();
   const [tabIndex, setTabIndex] = useState(0);
   const [formValues, setFormValues] = useState<
     Record<number, Record<string, any>>
   >({});
+  const [errors, setErrors] = useState<Record<number, Record<string, string>>>(
+    {},
+  );
   const [isSaving, setIsSaving] = useState(false);
   const onStepValuesChangeRef = useRef(onStepValuesChange);
   const wasOpenRef = useRef(false);
@@ -128,6 +134,7 @@ const GenericMultiStepModal = ({
         {} as Record<number, Record<string, any>>,
       );
       setFormValues(initial);
+      setErrors({});
       setTabIndex(0);
     }
     wasOpenRef.current = isOpen;
@@ -138,22 +145,173 @@ const GenericMultiStepModal = ({
     onStepValuesChangeRef.current = onStepValuesChange;
   }, [onStepValuesChange]);
 
+  const shouldNormalizeField = useCallback(
+    (field: Field<any>) => field.normalize ?? field.type === "text",
+    [],
+  );
+
+  const isValueEmpty = useCallback((value: any) => {
+    if (value === undefined || value === null) return true;
+    if (typeof value === "string") return value.trim() === "";
+    if (Array.isArray(value)) return value.length === 0;
+    return false;
+  }, []);
+
+  const validateField = useCallback(
+    (field: Field<any>, stepValues: Record<string, any>) => {
+      const key = String(field.name);
+      const rawValue = stepValues[key];
+      let valueForValidation = rawValue;
+
+      if (typeof rawValue === "string") {
+        if (shouldNormalizeField(field)) {
+          valueForValidation = normalize(
+            rawValue,
+            "submit",
+            field.normalization,
+          );
+        } else {
+          valueForValidation = rawValue.trim();
+        }
+      }
+
+      if (field.required && isValueEmpty(valueForValidation)) {
+        return "Este campo es obligatorio";
+      }
+
+      if (field.validate) {
+        const validationResult = field.validate(valueForValidation, {
+          ...stepValues,
+          [key]: valueForValidation,
+        });
+        if (
+          typeof validationResult === "string" &&
+          validationResult.trim().length > 0
+        ) {
+          return validationResult;
+        }
+      }
+
+      return null;
+    },
+    [isValueEmpty, normalize, shouldNormalizeField],
+  );
+
+  const updateFieldError = useCallback(
+    (stepIndex: number, fieldKey: string, error: string | null) => {
+      setErrors((prevErrors) => {
+        const stepErrors = prevErrors[stepIndex] ?? {};
+        if (!error) {
+          if (!stepErrors[fieldKey]) {
+            return prevErrors;
+          }
+          const { [fieldKey]: _removed, ...restStepErrors } = stepErrors;
+          if (Object.keys(restStepErrors).length === 0) {
+            const { [stepIndex]: _omit, ...rest } = prevErrors;
+            return rest;
+          }
+          return { ...prevErrors, [stepIndex]: restStepErrors };
+        }
+        return {
+          ...prevErrors,
+          [stepIndex]: { ...stepErrors, [fieldKey]: error },
+        };
+      });
+    },
+    [],
+  );
+
+  const normalizeStepValues = useCallback(
+    (
+      fields: Field<any>[],
+      values: Record<string, any>,
+      mode: "change" | "submit",
+    ) => {
+      const nextValues: Record<string, any> = { ...values };
+      fields.forEach((field) => {
+        const key = String(field.name);
+        const currentValue = nextValues[key];
+        if (typeof currentValue !== "string") {
+          return;
+        }
+
+        if (shouldNormalizeField(field)) {
+          nextValues[key] = normalize(
+            currentValue,
+            mode,
+            field.normalization,
+          );
+        } else if (mode === "submit") {
+          nextValues[key] = currentValue.trim();
+        }
+      });
+      return nextValues;
+    },
+    [normalize, shouldNormalizeField],
+  );
+
+  const validateAllSteps = useCallback(
+    (values: Record<number, Record<string, any>>) => {
+      let formIsValid = true;
+      const collectedErrors: Record<number, Record<string, string>> = {};
+
+      steps.forEach((step, index) => {
+        const stepValues = values[index] || {};
+        const stepErrors: Record<string, string> = {};
+
+        step.fields.forEach((field) => {
+          const error = validateField(field, stepValues);
+          if (error) {
+            formIsValid = false;
+            stepErrors[String(field.name)] = error;
+          }
+        });
+
+        if (Object.keys(stepErrors).length > 0) {
+          collectedErrors[index] = stepErrors;
+        }
+      });
+
+      setErrors(collectedErrors);
+      return formIsValid;
+    },
+    [steps, validateField],
+  );
+
   // Notifica cambios hacia arriba y guarda localmente
-  const handleChange = (stepIndex: number, name: string, value: any) => {
+  const handleChange = (
+    stepIndex: number,
+    field: Field<any>,
+    value: any,
+  ) => {
     setFormValues((prev) => {
+      const previousStepValues = prev[stepIndex] || {};
+      const key = String(field.name);
+
+      let nextValue = value;
+      if (typeof value === "string" && field.format) {
+        nextValue = field.format(value, previousStepValues);
+      }
+      if (typeof nextValue === "string" && shouldNormalizeField(field)) {
+        nextValue = normalize(nextValue, "change", field.normalization);
+      }
+
       const nextStepValues = {
-        ...(prev[stepIndex] || {}),
-        [name]: value,
+        ...previousStepValues,
+        [key]: nextValue,
       };
+
       const next = {
         ...prev,
         [stepIndex]: nextStepValues,
       };
 
-      // Notificar cambio de forma segura usando la referencia
+      const error = validateField(field, nextStepValues);
+      updateFieldError(stepIndex, key, error);
+
       if (onStepValuesChangeRef.current) {
         setTimeout(() => {
-          onStepValuesChangeRef.current!(stepIndex, nextStepValues);
+          onStepValuesChangeRef.current?.(stepIndex, nextStepValues);
         }, 0);
       }
 
@@ -162,11 +320,36 @@ const GenericMultiStepModal = ({
   };
 
   const handleSave = async () => {
+    const normalizedAllValues = steps.reduce(
+      (acc, step, index) => {
+        const currentStepValues = formValues[index] || {};
+        acc[index] = normalizeStepValues(
+          step.fields,
+          currentStepValues,
+          "submit",
+        );
+        return acc;
+      },
+      {} as Record<number, Record<string, any>>,
+    );
+
+    if (!validateAllSteps(normalizedAllValues)) {
+      setFormValues(normalizedAllValues);
+      toast({
+        title: "Campos requeridos",
+        description: "Por favor completa todos los campos obligatorios",
+        status: "warning",
+        duration: 3000,
+      });
+      return;
+    }
+
+    setFormValues(normalizedAllValues);
     setIsSaving(true);
     try {
       // 1) Ejecutar onSave por cada paso que cambió
       for (let i = 0; i < steps.length; i++) {
-        const currentValues = formValues[i];
+        const currentValues = normalizedAllValues[i];
         const initialValues = steps[i].initialValues;
         if (isDifferent(currentValues, initialValues)) {
           await steps[i].onSave(currentValues);
@@ -175,7 +358,7 @@ const GenericMultiStepModal = ({
 
       // 2) Ejecutar onSubmit global si existe (para disparar el POST final)
       if (onSubmit) {
-        await onSubmit(formValues);
+        await onSubmit(normalizedAllValues);
       }
 
       toast({
@@ -186,6 +369,7 @@ const GenericMultiStepModal = ({
       });
 
       onClose();
+      setErrors({});
     } catch (error: any) {
       toast({
         title: "Error al guardar",
@@ -199,8 +383,16 @@ const GenericMultiStepModal = ({
     }
   };
 
+  const handleModalClose = () => {
+    if (!isSaving) {
+      setErrors({});
+      onClose();
+    }
+  };
+
   const renderFields = (stepIndex: number, fields: Field<any>[]) => {
     const values = formValues[stepIndex] || {};
+    const stepErrors = errors[stepIndex] || {};
 
     return (
       <SimpleGrid minChildWidth="240px" spacing={4} w="100%">
@@ -210,19 +402,25 @@ const GenericMultiStepModal = ({
             typeof field.options === "function"
               ? field.options(values)
               : (field.options ?? []);
+          const helperText = field.helperText ?? field.placeholder;
+          const errorMessage = stepErrors[key];
+          const currentValue = values[key];
 
           return (
             <FormControl
               key={key}
               isRequired={field.required}
               isDisabled={field.disabled}
+              isInvalid={Boolean(errorMessage)}
             >
               <Stack spacing={2}>
                 <FormLabel mb={0}>{field.label}</FormLabel>
 
                 {field.type === "select" ? (
                   <Select
-                    value={values[key] ?? ""}
+                    value={
+                      (currentValue as string | number | undefined) ?? ""
+                    }
                     onChange={(e) => {
                       const raw = e.target.value;
                       const selected = options.find(
@@ -230,7 +428,7 @@ const GenericMultiStepModal = ({
                       );
                       handleChange(
                         stepIndex,
-                        key,
+                        field,
                         selected ? selected.value : raw,
                       );
                     }}
@@ -250,21 +448,23 @@ const GenericMultiStepModal = ({
                 ) : field.type === "multiselect" ? (
                   <MultiSelect
                     value={
-                      Array.isArray(values[key])
-                        ? (values[key] as Array<string | number>)
+                      Array.isArray(currentValue)
+                        ? (currentValue as Array<string | number>)
                         : []
                     }
                     options={options}
                     placeholder={field.placeholder}
                     onChange={(selected) =>
-                      handleChange(stepIndex, key, selected)
+                      handleChange(stepIndex, field, selected)
                     }
                   />
                 ) : field.type === "textarea" ? (
                   <Textarea
-                    value={values[key] ?? ""}
+                    value={
+                      typeof currentValue === "string" ? currentValue : ""
+                    }
                     onChange={(e) =>
-                      handleChange(stepIndex, key, e.target.value)
+                      handleChange(stepIndex, field, e.target.value)
                     }
                     placeholder={field.placeholder}
                     isDisabled={field.disabled}
@@ -275,9 +475,13 @@ const GenericMultiStepModal = ({
                 ) : (
                   <Input
                     type={field.type as React.HTMLInputTypeAttribute}
-                    value={values[key] ?? ""}
+                    value={
+                      typeof currentValue === "number"
+                        ? currentValue
+                        : (currentValue as string) ?? ""
+                    }
                     onChange={(e) =>
-                      handleChange(stepIndex, key, e.target.value)
+                      handleChange(stepIndex, field, e.target.value)
                     }
                     placeholder={field.placeholder}
                     isDisabled={field.disabled}
@@ -286,9 +490,13 @@ const GenericMultiStepModal = ({
                   />
                 )}
 
-                {field.placeholder && (
+                {errorMessage && (
+                  <FormErrorMessage>{errorMessage}</FormErrorMessage>
+                )}
+
+                {helperText && (
                   <FormHelperText color="neutral.500" mt={0}>
-                    {field.placeholder}
+                    {helperText}
                   </FormHelperText>
                 )}
               </Stack>
@@ -302,7 +510,7 @@ const GenericMultiStepModal = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleModalClose}
       size="xl"
       closeOnOverlayClick={!isSaving} // No cerrar por overlay si está guardando
     >
@@ -401,7 +609,11 @@ const GenericMultiStepModal = ({
             )}
 
             <HStack spacing={3}>
-              <Button variant="ghost" onClick={onClose} isDisabled={isSaving}>
+              <Button
+                variant="ghost"
+                onClick={handleModalClose}
+                isDisabled={isSaving}
+              >
                 {cancelButtonText}
               </Button>
               <Button

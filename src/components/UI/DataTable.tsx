@@ -194,8 +194,9 @@ export const DataTable = memo(
         boxShadow="md"
         borderWidth="1px"
         borderColor="neutral.100"
-        overflow="hidden"
         overflowX="auto"
+        overflowY="auto"
+        maxH="60vh"
         w="full"
       >
         <Table variant="simple" size="sm">
@@ -226,8 +227,8 @@ export const DataTable = memo(
                   {columns.map((col, index) => (
                     <Td
                       key={`${safeKey}-${getColumnKey(col.key)}-${index}`}
-                      px={4}
-                      py={3}
+                      px={3}
+                      py={2}
                     >
                       {col.render
                         ? col.render(item)

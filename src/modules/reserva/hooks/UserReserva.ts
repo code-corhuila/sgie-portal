@@ -293,7 +293,11 @@ export function userReserva() {
   );
 
   const updateReservaCore = useCallback(
-    async (idReserva: number, values: Partial<Paso1Values>) => {
+    async (
+      idReserva: number,
+      values: Partial<Paso1Values>,
+      personaId?: number | null,
+    ) => {
       const payload: UpdateReservaCorePayload = {
         nombre: values.nombreReserva,
         descripcion: values.descripcionReserva,
@@ -301,6 +305,12 @@ export function userReserva() {
         horaInicio: values.horaInicio,
         horaFin: values.horaFin,
       };
+      if (values.tipoReservaId) {
+        payload.tipoReserva = { id: String(values.tipoReservaId) };
+      }
+      if (personaId) {
+        payload.persona = { id: String(personaId) };
+      }
       await ReservaApi.updateReserva(idReserva, payload);
       invalidateReservas();
     },

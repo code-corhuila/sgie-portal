@@ -513,6 +513,51 @@ const ReservaList: React.FC = () => {
     tipoReservaOptions,
   ]);
 
+  const numeroEstudiantesField = useMemo<Field<any>>(
+    () => ({
+      name: "numeroEstudiantes",
+      label: "Número de Estudiantes",
+      type: "text",
+      required: true,
+      helperText: "Ingresa solo números mayores a cero",
+      normalize: false,
+      format: (value: string) =>
+        typeof value === "string" ? value.replace(/\D/g, "") : value,
+      validate: (value) => {
+        const raw =
+          typeof value === "string"
+            ? value
+            : value != null
+              ? String(value)
+              : "";
+        if (!raw) {
+          return "Ingresa el número de estudiantes";
+        }
+        if (!/^\d+$/.test(raw)) {
+          return "Solo se permiten números";
+        }
+        if (Number(raw) <= 0) {
+          return "Debe ser mayor que cero";
+        }
+        return null;
+      },
+    }),
+    [],
+  );
+
+  const parseNumeroEstudiantesValue = useCallback(
+    (value: any): number | undefined => {
+      if (value === undefined || value === null || value === "") {
+        return undefined;
+      }
+      const str = typeof value === "string" ? value : String(value ?? "");
+      const digits = str.replace(/\D/g, "");
+      if (!digits) return undefined;
+      return Number(digits);
+    },
+    [],
+  );
+
   /** Campos paso 2 (según grupo) */
   const step2Fields: Field<any>[] = useMemo<Field<any>[]>(() => {
     const tipoSel = tipoReservaOptions.find(
@@ -530,12 +575,7 @@ const ReservaList: React.FC = () => {
           type: "text",
           required: true,
         },
-        {
-          name: "numeroEstudiantes",
-          label: "Número de Estudiantes",
-          type: "number",
-          required: true,
-        },
+        { ...numeroEstudiantesField },
       ];
     }
     if (grupo === "RESERVA_EQUIPO") {
@@ -546,12 +586,7 @@ const ReservaList: React.FC = () => {
           type: "text",
           required: true,
         },
-        {
-          name: "numeroEstudiantes",
-          label: "Número de Estudiantes",
-          type: "number",
-          required: true,
-        },
+        { ...numeroEstudiantesField },
         {
           name: "idInstalacionDestino",
           label: "Instalación Destino",
@@ -598,6 +633,7 @@ const ReservaList: React.FC = () => {
     catMtoInstOptions,
     instalacionOptions,
     paso1.tipoReservaId,
+    numeroEstudiantesField,
     resolveGrupo,
     tipoReservaOptions,
   ]);
@@ -619,12 +655,7 @@ const ReservaList: React.FC = () => {
           type: "text",
           required: true,
         },
-        {
-          name: "numeroEstudiantes",
-          label: "Número de Estudiantes",
-          type: "number",
-          required: true,
-        },
+        { ...numeroEstudiantesField },
       ];
     }
     if (grupo === "RESERVA_EQUIPO") {
@@ -635,12 +666,7 @@ const ReservaList: React.FC = () => {
           type: "text",
           required: true,
         },
-        {
-          name: "numeroEstudiantes",
-          label: "Número de Estudiantes",
-          type: "number",
-          required: true,
-        },
+        { ...numeroEstudiantesField },
         {
           name: "idInstalacionDestino",
           label: "Instalación Destino",
@@ -687,6 +713,7 @@ const ReservaList: React.FC = () => {
     catMtoInstOptions,
     instalacionOptions,
     editingReservaPaso1.tipoReservaId,
+    numeroEstudiantesField,
     resolveGrupo,
     tipoReservaOptions,
   ]);
@@ -694,7 +721,6 @@ const ReservaList: React.FC = () => {
   /** Acciones para Tabla */
   const columns: Column<ReservaGeneral>[] = useMemo(
     () => [
-      { key: "idReserva", label: "ID" },
       {
         key: "tipoReserva",
         label: "Tipo",
@@ -716,42 +742,83 @@ const ReservaList: React.FC = () => {
         render: (r) => r.nombreInstalacion ?? r.nombreEquipo ?? "—",
       },
       {
+        key: "estadoGeneral",
+        label: "Estado",
+        render: (r) => {
+          const estado = String(r.estadoReserva).toLowerCase() === "false";
+          return (
+            <Badge variant={estado ? "neutral" : "success"}>
+              {estado ? "Cerrada" : "Activa"}
+            </Badge>
+          );
+        },
+      },
+      {
         key: "actions",
         label: "Acciones",
         render: (r) => (
           <HStack spacing={2}>
-            <Tooltip label="Editar reserva">
-              <IconButton
-                aria-label="Editar reserva"
-                size="sm"
-                variant="ghost"
-                icon={<FiEdit2 />}
-                onClick={async () => {
-                  setSelectedRow(r);
-                  await precargarDatosEdicion(r);
-                  editarReservaModal.onOpen();
-                }}
-              />
-            </Tooltip>
+            {(() => {
+              const estadoReservaCerrado =
+                String(r.estadoReserva).toLowerCase() === "false";
+              const estadoDetalleCerrado =
+                String(r.estadoDetalle ?? "").toLowerCase() === "false";
+              const disableEditar =
+                estadoReservaCerrado || estadoDetalleCerrado;
+              const tooltipLabelEditar = disableEditar
+                ? "La reserva está cerrada y no se puede editar"
+                : "Editar reserva";
+              return (
+                <Tooltip label={tooltipLabelEditar}>
+                  <IconButton
+                    aria-label="Editar reserva"
+                    size="sm"
+                    variant="ghost"
+                    icon={<FiEdit2 />}
+                    isDisabled={disableEditar}
+                    onClick={async () => {
+                      if (disableEditar) return;
+                      setSelectedRow(r);
+                      await precargarDatosEdicion(r);
+                      editarReservaModal.onOpen();
+                    }}
+                  />
+                </Tooltip>
+              );
+            })()}
 
-            <Tooltip label="Cerrar reserva">
-              <IconButton
-                aria-label="Cerrar reserva"
-                size="sm"
-                variant="ghost"
-                colorScheme="red"
-                icon={<FiCheckCircle />}
-                onClick={() => {
-                  setSelectedRow(r);
-                  setClosingReserva({
-                    idReserva: r.idReserva,
-                    tipoReserva: r.tipoReserva,
-                    values: {},
-                  });
-                  cerrarReservaModal.onOpen();
-                }}
-              />
-            </Tooltip>
+            {(() => {
+              const estadoReservaCerrado =
+                String(r.estadoReserva).toLowerCase() === "false";
+              const estadoDetalleCerrado =
+                String(r.estadoDetalle ?? "").toLowerCase() === "false";
+              const disableCerrar = estadoReservaCerrado || estadoDetalleCerrado;
+              const tooltipLabel = disableCerrar
+                ? "La reserva ya fue cerrada"
+                : "Cerrar reserva";
+              return (
+                <Tooltip label={tooltipLabel}>
+                  <IconButton
+                    aria-label="Cerrar reserva"
+                    size="sm"
+                    variant="ghost"
+                    colorScheme="red"
+                    icon={<FiCheckCircle />}
+                    isDisabled={disableCerrar}
+                    onClick={() => {
+                      if (disableCerrar) return;
+                      setSelectedRow(r);
+                      setClosingReserva({
+                        idReserva: r.idReserva,
+                        tipoReserva: r.tipoReserva,
+                        values: {},
+                      });
+                      cerrarReservaModal.onOpen();
+                    }}
+                  />
+                </Tooltip>
+              );
+            })()}
           </HStack>
         ),
       },
@@ -996,6 +1063,10 @@ const ReservaList: React.FC = () => {
       try {
         const paso1Values = allValues[0] as Paso1Values;
         const paso2Values = allValues[1] as Paso2Values;
+        const mergedPaso1: Paso1Values = {
+          ...paso1Values,
+          ...editingReservaPaso1,
+        };
 
         // Validar persona seleccionada
         if (!editingSelectedPersonaId) {
@@ -1008,7 +1079,11 @@ const ReservaList: React.FC = () => {
         }
 
         // Actualizar reserva core
-        await updateReservaCore(selectedRow.idReserva, paso1Values);
+        await updateReservaCore(
+          selectedRow.idReserva,
+          mergedPaso1,
+          editingSelectedPersonaId,
+        );
 
         // Actualizar asociado según el tipo
         const tipoReserva = selectedRow.tipoReserva.toLowerCase();
@@ -1039,7 +1114,7 @@ const ReservaList: React.FC = () => {
             !tipoReserva.includes("mantenimiento")
           ) {
             await updateDetalleReservaInstalacion(idAsociado, {
-              ...paso1Values,
+              ...mergedPaso1,
               ...paso2Values,
             });
           } else if (
@@ -1047,7 +1122,7 @@ const ReservaList: React.FC = () => {
             !tipoReserva.includes("mantenimiento")
           ) {
             await updateDetalleReservaEquipo(idAsociado, {
-              ...paso1Values,
+              ...mergedPaso1,
               ...paso2Values,
             });
           } else if (tipoReserva.includes("mantenimiento")) {
@@ -1102,7 +1177,7 @@ const ReservaList: React.FC = () => {
         !closingReserva?.tipoReserva ||
         !selectedRow
       )
-        return;
+        return false;
 
       try {
         const tipoReserva = closingReserva.tipoReserva.toLowerCase();
@@ -1134,7 +1209,7 @@ const ReservaList: React.FC = () => {
               "No se pudo determinar el ID del detalle o mantenimiento",
             status: "warning",
           });
-          return;
+          return false;
         }
 
         await cerrarReserva(idDetalle, closingReserva.tipoReserva, values);
@@ -1152,6 +1227,7 @@ const ReservaList: React.FC = () => {
           description: error?.message || "Ocurrió un error inesperado",
           status: "error",
         });
+        return false;
       }
     },
     [
@@ -1429,9 +1505,17 @@ const ReservaList: React.FC = () => {
             fields: step2Fields,
             initialValues: paso2,
             onSave: async (values) => {
+              const nextValues: Paso2Values = {
+                ...(values as Paso2Values),
+              };
+              if (Object.prototype.hasOwnProperty.call(values, "numeroEstudiantes")) {
+                nextValues.numeroEstudiantes = parseNumeroEstudiantesValue(
+                  (values as Record<string, any>).numeroEstudiantes,
+                );
+              }
               setPaso2((prev: Paso2Values) => ({
                 ...prev,
-                ...(values as Paso2Values),
+                ...nextValues,
               }));
             },
           },
@@ -1439,9 +1523,17 @@ const ReservaList: React.FC = () => {
         onStepValuesChange={useCallback(
           (idx: number, values: Record<string, any>) => {
             if (idx === 0) setPaso1(values as Paso1Values);
-            if (idx === 1) setPaso2(values as Paso2Values);
+            if (idx === 1) {
+              const next: Paso2Values = { ...(values as Paso2Values) };
+              if (Object.prototype.hasOwnProperty.call(values, "numeroEstudiantes")) {
+                next.numeroEstudiantes = parseNumeroEstudiantesValue(
+                  values.numeroEstudiantes,
+                );
+              }
+              setPaso2(next);
+            }
           },
-          [],
+          [parseNumeroEstudiantesValue],
         )}
         renderStepSummary={() => (
           <HStack spacing={2}>
@@ -1711,9 +1803,17 @@ const ReservaList: React.FC = () => {
             fields: editReservaStep2Fields,
             initialValues: editingReservaPaso2,
             onSave: async (values) => {
+              const nextValues: Paso2Values = {
+                ...(values as Paso2Values),
+              };
+              if (Object.prototype.hasOwnProperty.call(values, "numeroEstudiantes")) {
+                nextValues.numeroEstudiantes = parseNumeroEstudiantesValue(
+                  (values as Record<string, any>).numeroEstudiantes,
+                );
+              }
               setEditingReservaPaso2((prev: Paso2Values) => ({
                 ...prev,
-                ...(values as Paso2Values),
+                ...nextValues,
               }));
             },
           },
@@ -1778,13 +1878,22 @@ const ReservaList: React.FC = () => {
                 }, 100);
               }
             }
-            if (idx === 1) setEditingReservaPaso2(values as Paso2Values);
+            if (idx === 1) {
+              const next: Paso2Values = { ...(values as Paso2Values) };
+              if (Object.prototype.hasOwnProperty.call(values, "numeroEstudiantes")) {
+                next.numeroEstudiantes = parseNumeroEstudiantesValue(
+                  values.numeroEstudiantes,
+                );
+              }
+              setEditingReservaPaso2(next);
+            }
           },
           [
             editingReservaPaso1,
             limpiarDatosAlCambiarTipo,
             selectedRow,
             handleConsultarDisponibilidadEdicion,
+            parseNumeroEstudiantesValue,
           ],
         )}
         renderStepSummary={() => (

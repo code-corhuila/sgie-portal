@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Stack, useDisclosure, useToast } from "@chakra-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import GenericModal, { type Field } from "../../../components/UI/GenericModal";
@@ -12,6 +12,7 @@ import { EquipoTagSummary } from "../components/EquipoTagSummary";
 import { EquipoStats } from "../components/EquipoStats";
 import { EquipoTable } from "../components/EquipoTable";
 import { EquipoPagination } from "../components/EquipoPagination";
+import { useNormalizedInput } from "../../../hooks/useNormalizedInput";
 import type {
   CategoriaEquipo,
   CreateCategoriaEquipoPayload,
@@ -98,6 +99,14 @@ const EquipoList: React.FC = () => {
     staleTime: 300_000,
   });
 
+  const { normalize } = useNormalizedInput();
+
+  const normalizeTextValue = useCallback(
+    (value: string | null | undefined) =>
+      (normalize(value ?? "", "submit") as string),
+    [normalize],
+  );
+
   const equiposBase = useMemo(
     () => equiposQuery.data ?? [],
     [equiposQuery.data],
@@ -142,6 +151,129 @@ const EquipoList: React.FC = () => {
         ),
       ),
     [equiposBase],
+  );
+
+  const categoriaNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    (categoriasQuery.data ?? []).forEach((categoria) => {
+      if (categoria.nombre) {
+        map.set(categoria.id, normalizeTextValue(categoria.nombre));
+      }
+    });
+    return map;
+  }, [categoriasQuery.data, normalizeTextValue]);
+
+  const categoriaNameSet = useMemo(
+    () =>
+      new Set(
+        Array.from(categoriaNameById.values()).filter(
+          (nombre) => nombre && nombre.trim() !== "",
+        ),
+      ),
+    [categoriaNameById],
+  );
+
+  const tipoNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    (tiposQuery.data ?? []).forEach((tipo) => {
+      if (tipo.nombre) {
+        map.set(tipo.id, normalizeTextValue(tipo.nombre));
+      }
+    });
+    return map;
+  }, [normalizeTextValue, tiposQuery.data]);
+
+  const tipoNameSet = useMemo(
+    () =>
+      new Set(
+        Array.from(tipoNameById.values()).filter(
+          (nombre) => nombre && nombre.trim() !== "",
+        ),
+      ),
+    [tipoNameById],
+  );
+
+  const equipoCodigoById = useMemo(() => {
+    const map = new Map<number, string>();
+    equiposBase.forEach((equipo) => {
+      if (equipo.codigoEquipo) {
+        map.set(equipo.idEquipo, normalizeTextValue(equipo.codigoEquipo));
+      }
+    });
+    return map;
+  }, [equiposBase, normalizeTextValue]);
+
+  const equipoCodigoSet = useMemo(
+    () =>
+      new Set(
+        Array.from(equipoCodigoById.values()).filter(
+          (codigo) => codigo && codigo.trim() !== "",
+        ),
+      ),
+    [equipoCodigoById],
+  );
+
+  const validateCategoriaNombre = useCallback(
+    (value: unknown, ignoreId?: number | null) => {
+      const raw = typeof value === "string" ? value : "";
+      const normalized = normalizeTextValue(raw);
+      if (!normalized) {
+        return "El nombre es obligatorio";
+      }
+      if (ignoreId != null) {
+        const current = categoriaNameById.get(ignoreId);
+        if (current === normalized) {
+          return null;
+        }
+      }
+      if (categoriaNameSet.has(normalized)) {
+        return "Ya existe una categoría con este nombre";
+      }
+      return null;
+    },
+    [categoriaNameById, categoriaNameSet, normalizeTextValue],
+  );
+
+  const validateTipoNombre = useCallback(
+    (value: unknown, ignoreId?: number | null) => {
+      const raw = typeof value === "string" ? value : "";
+      const normalized = normalizeTextValue(raw);
+      if (!normalized) {
+        return "El nombre es obligatorio";
+      }
+      if (ignoreId != null) {
+        const current = tipoNameById.get(ignoreId);
+        if (current === normalized) {
+          return null;
+        }
+      }
+      if (tipoNameSet.has(normalized)) {
+        return "Ya existe un tipo de equipo con este nombre";
+      }
+      return null;
+    },
+    [normalizeTextValue, tipoNameById, tipoNameSet],
+  );
+
+  const validateEquipoCodigo = useCallback(
+    (value: unknown, ignoreId?: number | null) => {
+      const raw = typeof value === "string" ? value : "";
+      const normalized = normalizeTextValue(raw);
+      if (!normalized) {
+        return "El código es obligatorio";
+      }
+      if (ignoreId != null) {
+        const current = equipoCodigoById.get(ignoreId);
+        if (current === normalized) {
+          return null;
+        }
+      }
+      if (equipoCodigoSet.has(normalized)) {
+        return "Ya existe un equipo con este código";
+      }
+      return null;
+    },
+    [equipoCodigoById, equipoCodigoSet, normalizeTextValue],
   );
 
   const filteredEquipos = useMemo(() => {
@@ -430,16 +562,40 @@ const EquipoList: React.FC = () => {
 
   const categoriaFields: Field<CreateCategoriaEquipoPayload>[] = useMemo(
     () => [
-      { name: "nombre", label: "Nombre", type: "text", required: true },
-      { name: "descripcion", label: "Descripción", type: "text" },
+      {
+        name: "nombre",
+        label: "Nombre",
+        type: "text",
+        required: true,
+        helperText: "Debe ser único dentro de las categorías registradas",
+        validate: (value) => validateCategoriaNombre(value),
+      },
+      {
+        name: "descripcion",
+        label: "Descripción",
+        type: "textarea",
+        required: false,
+      },
     ],
-    [],
+    [validateCategoriaNombre],
   );
 
   const tipoFields: Field<TipoEquipoFormValues>[] = useMemo(
     () => [
-      { name: "nombre", label: "Nombre", type: "text", required: true },
-      { name: "descripcion", label: "Descripción", type: "text" },
+      {
+        name: "nombre",
+        label: "Nombre",
+        type: "text",
+        required: true,
+        helperText: "Debe ser único dentro de los tipos de equipo",
+        validate: (value) => validateTipoNombre(value),
+      },
+      {
+        name: "descripcion",
+        label: "Descripción",
+        type: "textarea",
+        required: false,
+      },
       {
         name: "categoriaEquipo",
         label: "Categoría",
@@ -448,12 +604,19 @@ const EquipoList: React.FC = () => {
         options: categoriaOptions,
       },
     ],
-    [categoriaOptions],
+    [categoriaOptions, validateTipoNombre],
   );
 
   const equipoFields: Field<EquipoFormValues>[] = useMemo(
     () => [
-      { name: "codigo", label: "Código", type: "text", required: true },
+      {
+        name: "codigo",
+        label: "Código",
+        type: "text",
+        required: true,
+        helperText: "Debe ser único dentro de los equipos registrados",
+        validate: (value) => validateEquipoCodigo(value),
+      },
       {
         name: "tipoEquipo",
         label: "Tipo de Equipo",
@@ -469,10 +632,42 @@ const EquipoList: React.FC = () => {
         required: true,
       },
     ],
-    [instalacionOptions, tipoOptions],
+    [instalacionOptions, tipoOptions, validateEquipoCodigo],
   );
 
-  const equipoEditFields: Field<EquipoFormValues>[] = equipoFields;
+  const equipoFieldsForEdit: Field<EquipoFormValues>[] = useMemo(
+    () => [
+      {
+        name: "codigo",
+        label: "Código",
+        type: "text",
+        required: true,
+        helperText: "Debe ser único dentro de los equipos registrados",
+        validate: (value) =>
+          validateEquipoCodigo(value, selectedEquipo?.idEquipo ?? null),
+      },
+      {
+        name: "tipoEquipo",
+        label: "Tipo de Equipo",
+        type: "select",
+        options: tipoOptions,
+        required: true,
+      },
+      {
+        name: "instalacion",
+        label: "Instalación",
+        type: "select",
+        options: instalacionOptions,
+        required: true,
+      },
+    ],
+    [
+      instalacionOptions,
+      selectedEquipo?.idEquipo,
+      tipoOptions,
+      validateEquipoCodigo,
+    ],
+  );
 
   const handleToggleEstado = (equipo: EquipoSummary) => {
     toggleEstadoMutation.mutate({
@@ -603,8 +798,19 @@ const EquipoList: React.FC = () => {
         title="Crear Categoría de Equipo"
         fields={categoriaFields}
         onSave={async (values) => {
+          const rawNombre = values.nombre ?? "";
+          const validationError = validateCategoriaNombre(rawNombre);
+          if (validationError) {
+            toast({
+              title: "Validación de categoría",
+              description: validationError,
+              status: "error",
+              duration: 3000,
+            });
+            return false;
+          }
           await createCategoriaMutation.mutateAsync({
-            nombre: values.nombre ?? "",
+            nombre: normalizeTextValue(rawNombre),
             descripcion: values.descripcion ?? "",
           });
           categoriaModal.onClose();
@@ -617,8 +823,19 @@ const EquipoList: React.FC = () => {
         title="Crear Tipo de Equipo"
         fields={tipoFields}
         onSave={async (values) => {
+          const rawNombre = values.nombre ?? "";
+          const validationError = validateTipoNombre(rawNombre);
+          if (validationError) {
+            toast({
+              title: "Validación de tipo de equipo",
+              description: validationError,
+              status: "error",
+              duration: 3000,
+            });
+            return false;
+          }
           await createTipoMutation.mutateAsync({
-            nombre: values.nombre ?? "",
+            nombre: normalizeTextValue(rawNombre),
             descripcion: values.descripcion ?? "",
             categoriaEquipo: { id: Number(values.categoriaEquipo) },
           });
@@ -632,8 +849,19 @@ const EquipoList: React.FC = () => {
         title="Crear Equipo"
         fields={equipoFields}
         onSave={async (values) => {
+          const rawCodigo = values.codigo ?? "";
+          const validationError = validateEquipoCodigo(rawCodigo);
+          if (validationError) {
+            toast({
+              title: "Validación de equipo",
+              description: validationError,
+              status: "error",
+              duration: 3000,
+            });
+            return false;
+          }
           await createEquipoMutation.mutateAsync({
-            codigo: values.codigo ?? "",
+            codigo: normalizeTextValue(rawCodigo),
             tipoEquipo: { id: Number(values.tipoEquipo) },
             instalacion: { id: Number(values.instalacion) },
           });
@@ -646,7 +874,7 @@ const EquipoList: React.FC = () => {
         isOpen={editModal.isOpen}
         onClose={handleCloseEdit}
         title="Editar Equipo"
-        fields={equipoEditFields}
+        fields={equipoFieldsForEdit}
         initialValues={
           selectedEquipo
             ? {
@@ -664,11 +892,25 @@ const EquipoList: React.FC = () => {
             : undefined
         }
         onSave={async (values) => {
-          if (!selectedEquipo) return;
+          if (!selectedEquipo) return false;
+          const rawCodigo = values.codigo ?? "";
+          const validationError = validateEquipoCodigo(
+            rawCodigo,
+            selectedEquipo.idEquipo,
+          );
+          if (validationError) {
+            toast({
+              title: "Validación de equipo",
+              description: validationError,
+              status: "error",
+              duration: 3000,
+            });
+            return false;
+          }
           await updateEquipoMutation.mutateAsync({
             idEquipo: selectedEquipo.idEquipo,
             payload: {
-              codigo: values.codigo ?? "",
+              codigo: normalizeTextValue(rawCodigo),
               tipoEquipo: { id: Number(values.tipoEquipo) },
               instalacion: { id: Number(values.instalacion) },
             },

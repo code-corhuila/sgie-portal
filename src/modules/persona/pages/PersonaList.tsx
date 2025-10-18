@@ -1,7 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Stack, useDisclosure, useToast } from "@chakra-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import GenericModal, { type Field } from "../../../components/UI/GenericModal";
+import GenericModal, {
+  type Field,
+  type FieldOption,
+} from "../../../components/UI/GenericModal";
 import SearchableFormModal, {
   type SearchConfig,
   type SearchResultField,
@@ -45,6 +48,22 @@ const initialFilters = {
 };
 
 const toOption = (rol: Rol) => ({ value: rol.id, label: rol.nombre });
+
+const DOCUMENTO_OPTIONS: FieldOption[] = [
+  { value: "CÉDULA DE CIUDADANÍA", label: "CÉDULA DE CIUDADANÍA" },
+  { value: "PASAPORTE", label: "PASAPORTE" },
+  { value: "TARJETA DE IDENTIDAD", label: "TARJETA DE IDENTIDAD" },
+  { value: "REGISTRO CIVIL", label: "REGISTRO CIVIL" },
+  { value: "CÉDULA DE EXTRANJERÍA", label: "CÉDULA DE EXTRANJERÍA" },
+];
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+const PASSWORD_RULE_REGEX = /^(?=.*[A-Z])(?=.*[^A-Za-z0-9]).+$/;
+
+const sanitizeDigits = (value: string, maxLength?: number) => {
+  const digits = value.replace(/\D/g, "");
+  return typeof maxLength === "number" ? digits.slice(0, maxLength) : digits;
+};
 
 const PersonaList: React.FC = () => {
   const toast = useToast();
@@ -266,14 +285,43 @@ const PersonaList: React.FC = () => {
     }
   }, [documentoBusqueda, personasBusquedaQuery.error, toast]);
 
-  const personaFields: Field<PersonaFormValues>[] = useMemo(
-    () => [
+  const documentExists = useCallback(
+    (documentValue: string, ignorePersonaId?: number | null) => {
+      const normalized = sanitizeDigits(documentValue);
+      if (!normalized) return false;
+      return personasBase.some(
+        (persona) =>
+          sanitizeDigits(persona.numeroIdentificacion ?? "") === normalized &&
+          persona.idPersona !== ignorePersonaId,
+      );
+    },
+    [personasBase],
+  );
+
+  const emailExists = useCallback(
+    (emailValue: string, ignorePersonaId?: number | null) => {
+      const normalized = emailValue.trim().toLowerCase();
+      if (!normalized) return false;
+      return personasBase.some((persona) => {
+        if (!persona.email) return false;
+        return (
+          persona.email.trim().toLowerCase() === normalized &&
+          persona.idPersona !== ignorePersonaId
+        );
+      });
+    },
+    [personasBase],
+  );
+
+  const buildPersonaFields = useCallback(
+    (ignorePersonaId?: number | null): Field<PersonaFormValues>[] => [
       { name: "nombres", label: "Nombres", type: "text", required: true },
       { name: "apellidos", label: "Apellidos", type: "text", required: true },
       {
         name: "tipoDocumento",
         label: "Tipo Documento",
-        type: "text",
+        type: "select",
+        options: DOCUMENTO_OPTIONS,
         required: true,
       },
       {
@@ -281,12 +329,45 @@ const PersonaList: React.FC = () => {
         label: "Número Documento",
         type: "text",
         required: true,
+        helperText: "Solo números, máximo 10 dígitos",
+        format: (value) => sanitizeDigits(value, 10),
+        validate: (value) => {
+          const numero = typeof value === "string" ? value : "";
+          if (!numero) {
+            return "El número de documento es obligatorio";
+          }
+          if (numero.length < 1) {
+            return "Debe tener al menos 1 dígito";
+          }
+          if (numero.length > 10) {
+            return "Debe tener máximo 10 dígitos";
+          }
+          if (!/^\d+$/.test(numero)) {
+            return "Solo se permiten números";
+          }
+          if (documentExists(numero, ignorePersonaId ?? null)) {
+            return "Ya existe una persona con este número de documento";
+          }
+          return null;
+        },
       },
       {
         name: "telefonoMovil",
         label: "Teléfono",
         type: "text",
         required: true,
+        helperText: "Debe tener exactamente 10 dígitos",
+        format: (value) => sanitizeDigits(value, 10),
+        validate: (value) => {
+          const telefono = typeof value === "string" ? value : "";
+          if (!telefono) {
+            return "El teléfono es obligatorio";
+          }
+          if (telefono.length !== 10) {
+            return "El teléfono debe tener exactamente 10 dígitos";
+          }
+          return null;
+        },
       },
       {
         name: "rol",
@@ -296,44 +377,111 @@ const PersonaList: React.FC = () => {
         required: true,
       },
     ],
-    [rolesOptions],
+    [documentExists, rolesOptions],
   );
 
-  const personaEditFields = personaFields;
+  const personaCreateFields = useMemo(
+    () => buildPersonaFields(null),
+    [buildPersonaFields],
+  );
 
-  const usuarioCreateFields: Field<UsuarioFormValues>[] = [
-    {
-      name: "email",
-      label: "Email",
-      type: "email",
-      required: true,
-      placeholder: "usuario@ejemplo.com",
-    },
-    {
-      name: "password",
-      label: "Contraseña",
-      type: "password",
-      required: true,
-      placeholder: "Mínimo 8 caracteres",
-    },
-  ];
+  const personaEditFields = useMemo(
+    () => buildPersonaFields(selectedPersona?.idPersona ?? null),
+    [buildPersonaFields, selectedPersona?.idPersona],
+  );
 
-  const usuarioEditFields: Field<UsuarioFormValues>[] = [
-    {
-      name: "email",
-      label: "Email",
-      type: "email",
-      required: true,
-      placeholder: "usuario@ejemplo.com",
-    },
-    {
-      name: "password",
-      label: "Contraseña",
-      type: "password",
-      required: false,
-      placeholder: "Dejar vacío para mantener actual",
-    },
-  ];
+  const usuarioCreateFields = useMemo<Field<UsuarioFormValues>[]>(
+    () => [
+      {
+        name: "email",
+        label: "Email",
+        type: "email",
+        required: true,
+        placeholder: "usuario@ejemplo.com",
+        normalize: true,
+        normalization: { toUpperCase: false },
+        validate: (value) => {
+          const email = typeof value === "string" ? value : "";
+          if (!email) {
+            return "El email es obligatorio";
+          }
+          if (!EMAIL_REGEX.test(email)) {
+            return "Ingresa un email válido";
+          }
+          if (emailExists(email)) {
+            return "Ya existe un usuario con este correo";
+          }
+          return null;
+        },
+      },
+      {
+        name: "password",
+        label: "Contraseña",
+        type: "password",
+        required: true,
+        placeholder: "Debe incluir mayúscula y caracter especial",
+        helperText: "Incluye al menos una mayúscula y un caracter especial",
+        validate: (value) => {
+          const password = typeof value === "string" ? value : "";
+          if (!password) {
+            return "La contraseña es obligatoria";
+          }
+          if (!PASSWORD_RULE_REGEX.test(password)) {
+            return "Incluye al menos una mayúscula y un caracter especial";
+          }
+          return null;
+        },
+      },
+    ],
+    [emailExists],
+  );
+
+  const usuarioEditFields = useMemo<Field<UsuarioFormValues>[]>(
+    () => [
+      {
+        name: "email",
+        label: "Email",
+        type: "email",
+        required: true,
+        placeholder: "usuario@ejemplo.com",
+        normalize: true,
+        normalization: { toUpperCase: false },
+        validate: (value) => {
+          const email = typeof value === "string" ? value : "";
+          if (!email) {
+            return "El email es obligatorio";
+          }
+          if (!EMAIL_REGEX.test(email)) {
+            return "Ingresa un email válido";
+          }
+          if (emailExists(email, selectedPersona?.idPersona ?? null)) {
+            return "Ya existe un usuario con este correo";
+          }
+          return null;
+        },
+      },
+      {
+        name: "password",
+        label: "Contraseña",
+        type: "password",
+        required: false,
+        placeholder: "Dejar vacío para mantener actual",
+        helperText:
+          "Si actualizas la contraseña debe incluir mayúscula y caracter especial",
+        validate: (value) => {
+          const password = typeof value === "string" ? value : "";
+          if (!password) {
+            return null;
+          }
+          if (!PASSWORD_RULE_REGEX.test(password)) {
+            return "Incluye al menos una mayúscula y un caracter especial";
+          }
+          return null;
+        },
+      },
+    ],
+    [emailExists, selectedPersona?.idPersona],
+  );
 
   const searchResultFields: SearchResultField<Persona>[] = [
     { key: "numeroIdentificacion", label: "Cédula" },
@@ -484,14 +632,22 @@ const PersonaList: React.FC = () => {
         isOpen={personaModal.isOpen}
         onClose={personaModal.onClose}
         title="Crear Persona"
-        fields={personaFields}
+        fields={personaCreateFields}
         onSave={async (values) => {
+          const numeroIdentificacion = sanitizeDigits(
+            values.numeroIdentificacion ?? "",
+            10,
+          );
+          const telefonoMovil = sanitizeDigits(
+            values.telefonoMovil ?? "",
+            10,
+          );
           await createPersonaMutation.mutateAsync({
             nombres: values.nombres ?? "",
             apellidos: values.apellidos ?? "",
-            tipoDocumento: values.tipoDocumento ?? "",
-            numeroIdentificacion: values.numeroIdentificacion ?? "",
-            telefonoMovil: values.telefonoMovil ?? "",
+            tipoDocumento: (values.tipoDocumento ?? "").toString(),
+            numeroIdentificacion,
+            telefonoMovil,
             rol: { id: Number(values.rol) },
           });
           personaModal.onClose();
@@ -509,10 +665,17 @@ const PersonaList: React.FC = () => {
             ? {
                 nombres: selectedPersona.nombres,
                 apellidos: selectedPersona.apellidos,
-                tipoDocumento: selectedPersona.tipoDocumento ?? "",
-                numeroIdentificacion:
+                tipoDocumento: selectedPersona.tipoDocumento
+                  ? selectedPersona.tipoDocumento.toUpperCase()
+                  : "",
+                numeroIdentificacion: sanitizeDigits(
                   selectedPersona.numeroIdentificacion ?? "",
-                telefonoMovil: selectedPersona.telefonoMovil ?? "",
+                  10,
+                ),
+                telefonoMovil: sanitizeDigits(
+                  selectedPersona.telefonoMovil ?? "",
+                  10,
+                ),
                 rol:
                   rolesOptions.find(
                     (option) =>
@@ -525,15 +688,23 @@ const PersonaList: React.FC = () => {
             : undefined
         }
         onSave={async (values) => {
-          if (!selectedPersona) return;
+          if (!selectedPersona) return false;
+          const numeroIdentificacion = sanitizeDigits(
+            values.numeroIdentificacion ?? "",
+            10,
+          );
+          const telefonoMovil = sanitizeDigits(
+            values.telefonoMovil ?? "",
+            10,
+          );
           await updatePersonaMutation.mutateAsync({
             idPersona: selectedPersona.idPersona,
             payload: {
               nombres: values.nombres ?? "",
               apellidos: values.apellidos ?? "",
-              tipoDocumento: values.tipoDocumento ?? "",
-              numeroIdentificacion: values.numeroIdentificacion ?? "",
-              telefonoMovil: values.telefonoMovil ?? "",
+              tipoDocumento: (values.tipoDocumento ?? "").toString(),
+              numeroIdentificacion,
+              telefonoMovil,
               rol: { id: Number(values.rol) },
             },
           });
@@ -556,13 +727,23 @@ const PersonaList: React.FC = () => {
             : undefined
         }
         onSave={async (values) => {
-          if (!selectedPersona?.idUsuario) return;
+          if (!selectedPersona?.idUsuario) return false;
+          const email = (values.email ?? "").trim();
+          if (emailExists(email, selectedPersona.idPersona)) {
+            toast({
+              title: "Email duplicado",
+              description: "Ya existe un usuario registrado con este correo",
+              status: "error",
+              duration: 3000,
+            });
+            return false;
+          }
           const payload: UpdateUsuarioPayload = {
-            email: values.email ?? "",
+            email,
             persona: { id: selectedPersona.idPersona },
           };
           if (values.password && values.password.trim() !== "") {
-            payload.password = values.password;
+            payload.password = values.password.trim();
           }
           await updateUsuarioMutation.mutateAsync({
             idUsuario: selectedPersona.idUsuario,
@@ -588,9 +769,19 @@ const PersonaList: React.FC = () => {
             });
             return;
           }
+          const email = (values.email ?? "").trim();
+          if (emailExists(email, personaId)) {
+            toast({
+              title: "Email duplicado",
+              description: "Ya existe un usuario registrado con este correo",
+              status: "error",
+              duration: 3000,
+            });
+            return;
+          }
           await createUsuarioMutation.mutateAsync({
-            email: values.email ?? "",
-            password: values.password ?? "",
+            email,
+            password: (values.password ?? "").trim(),
             persona: { id: personaId },
           });
           usuarioModal.onClose();

@@ -148,7 +148,7 @@ const DashboardLayout = () => {
       <Box
         display={{ base: "none", md: "flex" }}
         flexDir="column"
-        w={collapsed ? "92px" : "268px"}
+        w={collapsed ? "110px" : "235px"}
         bgGradient="linear(to-b, brand.700, navy.800)"
         color="white"
         transition="width 0.2s ease"
@@ -323,7 +323,6 @@ const DashboardLayout = () => {
               </Text>
             </Stack>
           </HStack>
-
           <HStack spacing={3}>
             <Button
               leftIcon={<FiHelpCircle />}
@@ -333,20 +332,6 @@ const DashboardLayout = () => {
             >
               Ayuda
             </Button>
-            <HStack
-              spacing={2}
-              px={3}
-              py={2}
-              borderWidth="1px"
-              borderColor="neutral.100"
-              borderRadius="full"
-              bg="neutral.50"
-            >
-              <Avatar size="xs" name={role ?? "Usuario"} />
-              <Text fontSize="sm" color="neutral.700">
-                {role ?? "Usuario"}
-              </Text>
-            </HStack>
           </HStack>
         </Flex>
 

@@ -40,6 +40,7 @@ import {
 } from "react-icons/fi";
 import { DataTable, type Column } from "../../../components/UI/DataTable";
 import GenericModal, { type Field } from "../../../components/UI/GenericModal";
+import { useNormalizedInput } from "../../../hooks/useNormalizedInput";
 import { useUbicacion, type InstalacionCampusRow } from "../hooks/useUbicacion";
 
 /** Valores del formulario.
@@ -56,6 +57,10 @@ type CampusFormValues = {
 type InstalacionFormValues = CampusFormValues & {
   campusId?: number | string;
   categoriaInstalacionId?: number | string;
+};
+
+type CampusEditFormValues = CampusFormValues & {
+  campusId?: number | string;
 };
 
 // type CategoriaInstalacionFormValues = {
@@ -89,7 +94,6 @@ const UbicacionList: React.FC = () => {
     fetchCampusByMunicipio,
 
     // preload para edición
-    preloadCascadeForCampus,
     preloadCascadeForInstalacion,
     categoriaInstalacion,
     fetchCategoriaInstalacion,
@@ -147,22 +151,163 @@ const UbicacionList: React.FC = () => {
 
   // ----- Editar: initialValues y key para remount controlado -----
   const [editCampusInitialValues, setEditCampusInitialValues] = useState<
-    CampusFormValues | undefined
+    CampusEditFormValues | undefined
   >(undefined);
   const [editInstalacionInitialValues, setEditInstalacionInitialValues] =
     useState<InstalacionFormValues | undefined>(undefined);
   const [editCampusKey, setEditCampusKey] = useState(0);
   const [editInstalacionKey, setEditInstalacionKey] = useState(0);
+  const [editingCampusId, setEditingCampusId] = useState<number | null>(null);
 
   // ----- Refs para detectar cambios reales (prev → next) en onValuesChange -----
   const prevCreateCampus = useRef<CampusFormValues>({});
-  const prevEditCampus = useRef<CampusFormValues>({});
+  const prevEditCampus = useRef<CampusEditFormValues>({});
   const prevCreateInst = useRef<InstalacionFormValues>({});
   const prevEditInst = useRef<InstalacionFormValues>({});
 
+  const { normalize } = useNormalizedInput();
+
+  const normalizeTextValue = useCallback(
+    (value: string | null | undefined) =>
+      (normalize(value ?? "", "submit") as string),
+    [normalize],
+  );
+
+  const campusNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    (rows ?? []).forEach((row) => {
+      if (row.idCampus != null && row.nombreCampus) {
+        map.set(row.idCampus, normalizeTextValue(row.nombreCampus));
+      }
+    });
+    return map;
+  }, [rows, normalizeTextValue]);
+
+  const campusNameSet = useMemo(() => {
+    const set = new Set<string>();
+    campusNameById.forEach((name) => {
+      if (name) set.add(name);
+    });
+    return set;
+  }, [campusNameById]);
+
+  const instalacionNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    (rows ?? []).forEach((row) => {
+      if (row.idInstalacion != null && row.nombreInstalacion) {
+        map.set(row.idInstalacion, normalizeTextValue(row.nombreInstalacion));
+      }
+    });
+    return map;
+  }, [rows, normalizeTextValue]);
+
+  const instalacionNameSet = useMemo(() => {
+    const set = new Set<string>();
+    instalacionNameById.forEach((name) => {
+      if (name) set.add(name);
+    });
+    return set;
+  }, [instalacionNameById]);
+
+  const categoriaNameSet = useMemo(() => {
+    const set = new Set<string>();
+    categoriaInstalacion.forEach((categoria) => {
+      if (categoria.nombre) {
+        set.add(normalizeTextValue(categoria.nombre));
+      }
+    });
+    (rows ?? []).forEach((row) => {
+      if (row.nombreCategoriaInstalacion) {
+        set.add(normalizeTextValue(row.nombreCategoriaInstalacion));
+      }
+    });
+    return set;
+  }, [categoriaInstalacion, rows, normalizeTextValue]);
+
+  const isCampusNameDuplicate = useCallback(
+    (name: string, ignoreCampusId?: number | null) => {
+      const normalized = normalizeTextValue(name);
+      if (!normalized) return false;
+      if (ignoreCampusId != null) {
+        const current = campusNameById.get(ignoreCampusId);
+        if (current === normalized) {
+          return false;
+        }
+      }
+      return campusNameSet.has(normalized);
+    },
+    [campusNameById, campusNameSet, normalizeTextValue],
+  );
+
+  const isInstalacionNameDuplicate = useCallback(
+    (name: string, ignoreInstalacionId?: number | null) => {
+      const normalized = normalizeTextValue(name);
+      if (!normalized) return false;
+      if (ignoreInstalacionId != null) {
+        const current = instalacionNameById.get(ignoreInstalacionId);
+        if (current === normalized) {
+          return false;
+        }
+      }
+      return instalacionNameSet.has(normalized);
+    },
+    [instalacionNameById, instalacionNameSet, normalizeTextValue],
+  );
+
+  const isCategoriaNameDuplicate = useCallback(
+    (name: string) => {
+      const normalized = normalizeTextValue(name);
+      if (!normalized) return false;
+      return categoriaNameSet.has(normalized);
+    },
+    [categoriaNameSet, normalizeTextValue],
+  );
+
+  const validateCampusName = useCallback(
+    (value: unknown, ignoreCampusId?: number | null) => {
+      const nombre = typeof value === "string" ? value : "";
+      if (!nombre) {
+        return "El nombre es obligatorio";
+      }
+      if (isCampusNameDuplicate(nombre, ignoreCampusId)) {
+        return "Ya existe un campus con este nombre";
+      }
+      return null;
+    },
+    [isCampusNameDuplicate],
+  );
+
+  const validateInstalacionName = useCallback(
+    (value: unknown, ignoreInstalacionId?: number | null) => {
+      const nombre = typeof value === "string" ? value : "";
+      if (!nombre) {
+        return "El nombre es obligatorio";
+      }
+      if (isInstalacionNameDuplicate(nombre, ignoreInstalacionId)) {
+        return "Ya existe una instalación con este nombre";
+      }
+      return null;
+    },
+    [isInstalacionNameDuplicate],
+  );
+
+  const validateCategoriaName = useCallback(
+    (value: unknown) => {
+      const nombre = typeof value === "string" ? value : "";
+      if (!nombre) {
+        return "El nombre es obligatorio";
+      }
+      if (isCategoriaNameDuplicate(nombre)) {
+        return "Ya existe una categoría con este nombre";
+      }
+      return null;
+    },
+    [isCategoriaNameDuplicate],
+  );
+
   // ===== Campos base (1er nivel: continentes) =====
-  const campusFields = useMemo<Field<any>[]>(
-    () => [
+  const buildCampusFields = useCallback(
+    (ignoreCampusId?: number | null): Field<any>[] => [
       {
         name: "continenteId",
         label: "Continente",
@@ -194,8 +339,14 @@ const UbicacionList: React.FC = () => {
         options: [],
         required: true,
       },
-      //{ name: "categoriaInstalacionId", label: "Categoria Instalacion", type: "select", options: [], required: true },
-      { name: "nombre", label: "Nombre", type: "text", required: true },
+      {
+        name: "nombre",
+        label: "Nombre",
+        type: "text",
+        required: true,
+        helperText: "Debe ser único dentro de los campus registrados",
+        validate: (value) => validateCampusName(value, ignoreCampusId),
+      },
       {
         name: "descripcion",
         label: "Descripción",
@@ -203,11 +354,21 @@ const UbicacionList: React.FC = () => {
         required: false,
       },
     ],
-    [continentes],
+    [continentes, validateCampusName],
   );
 
-  const instalacionFields = useMemo<Field<any>[]>(
-    () => [
+  const campusFields = useMemo<Field<any>[]>(
+    () => buildCampusFields(null),
+    [buildCampusFields],
+  );
+
+  const campusFieldsForEdit = useMemo<Field<any>[]>(
+    () => buildCampusFields(editingCampusId),
+    [buildCampusFields, editingCampusId],
+  );
+
+  const buildInstalacionFields = useCallback(
+    (ignoreInstalacionId?: number | null): Field<any>[] => [
       {
         name: "continenteId",
         label: "Continente",
@@ -257,7 +418,14 @@ const UbicacionList: React.FC = () => {
         required: true,
         placeholder: "Selecciona una categoría",
       },
-      { name: "nombre", label: "Nombre", type: "text", required: true },
+      {
+        name: "nombre",
+        label: "Nombre",
+        type: "text",
+        required: true,
+        helperText: "Debe ser único dentro de las instalaciones registradas",
+        validate: (value) => validateInstalacionName(value, ignoreInstalacionId),
+      },
       {
         name: "descripcion",
         label: "Descripción",
@@ -265,7 +433,37 @@ const UbicacionList: React.FC = () => {
         required: false,
       },
     ],
-    [continentes, categoriaInstalacion],
+    [categoriaInstalacion, continentes, validateInstalacionName],
+  );
+
+  const instalacionFields = useMemo<Field<any>[]>(
+    () => buildInstalacionFields(null),
+    [buildInstalacionFields],
+  );
+
+  const instalacionFieldsForEdit = useMemo<Field<any>[]>(
+    () => buildInstalacionFields(selectedRow?.idInstalacion ?? null),
+    [buildInstalacionFields, selectedRow?.idInstalacion],
+  );
+
+  const categoriaFields = useMemo<Field<any>[]>(
+    () => [
+      {
+        name: "nombre",
+        label: "Nombre",
+        type: "text",
+        required: true,
+        helperText: "Debe ser único dentro de las categorías registradas",
+        validate: (value) => validateCategoriaName(value),
+      },
+      {
+        name: "descripcion",
+        label: "Descripción",
+        type: "textarea",
+        required: false,
+      },
+    ],
+    [validateCategoriaName],
   );
 
   useEffect(() => {
@@ -406,18 +604,38 @@ const UbicacionList: React.FC = () => {
     [totalPages, totalRows],
   );
 
-  const categoriaFields = useMemo<Field<any>[]>(
-    () => [
-      { name: "nombre", label: "Nombre", type: "text", required: true },
-      {
-        name: "descripcion",
-        label: "Descripción",
-        type: "textarea",
-        required: false,
-      },
-    ],
-    [],
-  );
+  const editCampusFields = useMemo(() => {
+    const campusSelectField: Field<any> = {
+      name: "campusId",
+      label: "Campus",
+      type: "select",
+      options: () =>
+        campusCascada.map((campus) => ({
+          value: campus.id,
+          label: campus.nombre,
+        })),
+      required: campusCascada.length > 0,
+      disabled: campusCascada.length === 0,
+      placeholder:
+        campusCascada.length === 0
+          ? "Selecciona municipio para listar campus"
+          : "Selecciona un campus",
+    };
+    const nombreField: Field<any> = {
+      ...campusFieldsForEdit[4],
+      disabled: editingCampusId == null,
+      required: editingCampusId != null,
+    };
+    const descripcionField: Field<any> = {
+      ...campusFieldsForEdit[5],
+      disabled: editingCampusId == null,
+    };
+    return {
+      campusSelectField,
+      nombreField,
+      descripcionField,
+    };
+  }, [campusCascada, campusFieldsForEdit, editingCampusId]);
 
   // ===== Tabla =====
   const columns: Column<InstalacionCampusRow>[] = useMemo(
@@ -443,44 +661,6 @@ const UbicacionList: React.FC = () => {
         label: "Acciones",
         render: (r) => (
           <HStack spacing={2} justify="flex-start">
-            <Tooltip label="Editar campus">
-              <IconButton
-                aria-label="Editar campus"
-                size="sm"
-                variant="ghost"
-                icon={<FiEdit2 />}
-                onClick={async () => {
-                  try {
-                    setSelectedRow(r);
-                    // Cargar continentes (lazy) + precargar cascada
-                    await getContinentes();
-                    await preloadCascadeForCampus(r);
-
-                    // Initial values de edición
-                    const init: CampusFormValues = {
-                      continenteId: r.idContinente,
-                      paisId: r.idPais,
-                      departamentoId: r.idDepartamento,
-                      municipioId: r.idMunicipio,
-                      nombre: r.nombreCampus,
-                      descripcion: r.descripcionCampus,
-                    };
-                    setEditCampusInitialValues(init);
-                    prevEditCampus.current = init;
-                    setEditCampusKey((k) => k + 1);
-
-                    editarCampusModal.onOpen();
-                  } catch (err: any) {
-                    toast({
-                      title: "Error preparando edición",
-                      description: err?.message ?? "Error",
-                      status: "error",
-                    });
-                  }
-                }}
-              />
-            </Tooltip>
-
             <Tooltip label="Editar instalación">
               <IconButton
                 aria-label="Editar instalación"
@@ -566,14 +746,11 @@ const UbicacionList: React.FC = () => {
     ],
     [
       toast,
-      getContinentes,
-      preloadCascadeForCampus,
       preloadCascadeForInstalacion,
       cambiarEstadoInstalacion,
       fetchInstalacionesCampus,
       filtroInstalacion,
       filtroCampus,
-      editarCampusModal,
       editarInstalacionModal,
       fetchCategoriaInstalacion,
     ],
@@ -584,8 +761,18 @@ const UbicacionList: React.FC = () => {
     try {
       const municipioId = String(values.municipioId);
       if (!municipioId) throw new Error("Debes seleccionar un municipio");
+      const validationError = validateCampusName(values.nombre);
+      if (validationError) {
+        toast({
+          title: "Validación de nombre",
+          description: validationError,
+          status: "error",
+          duration: 3000,
+        });
+        return false;
+      }
       await createCampus({
-        nombre: values.nombre,
+        nombre: normalizeTextValue(values.nombre ?? ""),
         descripcion: values.descripcion,
         municipioId,
       });
@@ -598,6 +785,7 @@ const UbicacionList: React.FC = () => {
         status: "error",
         duration: 4000,
       });
+      return false;
     }
   };
 
@@ -608,9 +796,19 @@ const UbicacionList: React.FC = () => {
       if (!campusId) throw new Error("Debes seleccionar un campus");
       if (!categoriaInstalacionId)
         throw new Error("Debes seleccionar una categoria de instalación");
+      const validationError = validateInstalacionName(values.nombre);
+      if (validationError) {
+        toast({
+          title: "Validación de nombre",
+          description: validationError,
+          status: "error",
+          duration: 3000,
+        });
+        return false;
+      }
 
       await createInstalacion({
-        nombre: values.nombre,
+        nombre: normalizeTextValue(values.nombre ?? ""),
         descripcion: values.descripcion,
         campusId,
         categoriaInstalacionId,
@@ -624,14 +822,25 @@ const UbicacionList: React.FC = () => {
         status: "error",
         duration: 4000,
       });
+      return false;
     }
   };
 
   const handleSaveCategoriaInstalacion = async (values: any) => {
     try {
       if (!values.nombre) throw new Error("El nombre es requerido");
+      const validationError = validateCategoriaName(values.nombre);
+      if (validationError) {
+        toast({
+          title: "Validación de nombre",
+          description: validationError,
+          status: "error",
+          duration: 3000,
+        });
+        return false;
+      }
       await createCategoriaInstalacion({
-        nombre: values.nombre,
+        nombre: normalizeTextValue(values.nombre ?? ""),
         descripcion: values.descripcion,
       });
       crearCategoriaModal.onClose();
@@ -642,32 +851,49 @@ const UbicacionList: React.FC = () => {
         status: "error",
         duration: 4000,
       });
+      return false;
     }
   };
 
   // ===== Handlers Editar =====
   const handleEditCampus = async (values: any) => {
     try {
-      if (!selectedRow?.idCampus) {
+      const rawCampusId =
+        values.campusId !== undefined && values.campusId !== ""
+          ? Number(values.campusId)
+          : editingCampusId;
+      if (!rawCampusId || Number.isNaN(rawCampusId)) {
         toast({
-          title: "Falta idCampus",
-          description: "No se encontró el id de campus a actualizar",
+          title: "Selecciona un campus",
+          description: "Debes elegir un campus antes de guardar los cambios",
           status: "warning",
           duration: 3000,
         });
-        return;
+        return false;
       }
       const municipioId = Number(values.municipioId);
       if (!municipioId) throw new Error("Debes seleccionar un municipio");
-      await updateCampus(selectedRow.idCampus, {
-        nombre: values.nombre,
+      const validationError = validateCampusName(values.nombre, rawCampusId);
+      if (validationError) {
+        toast({
+          title: "Validación de nombre",
+          description: validationError,
+          status: "error",
+          duration: 3000,
+        });
+        return false;
+      }
+      await updateCampus(rawCampusId, {
+        nombre: normalizeTextValue(values.nombre ?? ""),
         descripcion: values.descripcion,
         municipioId,
       });
       editarCampusModal.onClose();
       await fetchInstalacionesCampus(filtroInstalacion, filtroCampus);
+      setEditingCampusId(null);
       setSelectedRow(null);
       setEditCampusInitialValues(undefined);
+      prevEditCampus.current = {};
     } catch (err: any) {
       toast({
         title: "Error al actualizar campus",
@@ -675,6 +901,7 @@ const UbicacionList: React.FC = () => {
         status: "error",
         duration: 4000,
       });
+      return false;
     }
   };
 
@@ -687,15 +914,28 @@ const UbicacionList: React.FC = () => {
           status: "warning",
           duration: 3000,
         });
-        return;
+        return false;
       }
       const campusId = String(values.campusId);
       const categoriaInstalacionId = String(values.categoriaInstalacionId);
       if (!campusId) throw new Error("Debes seleccionar un campus");
       if (!categoriaInstalacionId)
         throw new Error("Debes seleccionar una categoria de instalación");
+      const validationError = validateInstalacionName(
+        values.nombre,
+        selectedRow.idInstalacion,
+      );
+      if (validationError) {
+        toast({
+          title: "Validación de nombre",
+          description: validationError,
+          status: "error",
+          duration: 3000,
+        });
+        return false;
+      }
       await updateInstalacion(selectedRow.idInstalacion, {
-        nombre: values.nombre,
+        nombre: normalizeTextValue(values.nombre ?? ""),
         descripcion: values.descripcion,
         campusId,
         categoriaInstalacionId,
@@ -711,16 +951,18 @@ const UbicacionList: React.FC = () => {
         status: "error",
         duration: 4000,
       });
+      return false;
     }
   };
 
   // ===== initialValues base derivados de selectedRow (por si se usan cuando no hay overrides) =====
-  const initialCampusValues: CampusFormValues | undefined = selectedRow
+  const initialCampusValues: CampusEditFormValues | undefined = selectedRow
     ? {
         continenteId: selectedRow.idContinente,
         paisId: selectedRow.idPais,
         departamentoId: selectedRow.idDepartamento,
         municipioId: selectedRow.idMunicipio,
+        campusId: selectedRow.idCampus,
         nombre: selectedRow.nombreCampus,
         descripcion: selectedRow.descripcionCampus,
       }
@@ -823,6 +1065,41 @@ const UbicacionList: React.FC = () => {
             onClick={() => crearCategoriaModal.onOpen()}
           >
             Nueva categoría
+          </Button>
+          <Button
+            leftIcon={<Icon as={FiEdit2} />}
+            variant="outline"
+            onClick={async () => {
+              try {
+                await getContinentes();
+              } catch (err: any) {
+                toast({
+                  title: "Error cargando continentes",
+                  description: err?.message ?? "No fue posible cargar los datos",
+                  status: "error",
+                  duration: 4000,
+                });
+                return;
+              }
+              clearFrom("all");
+              const emptyValues: CampusEditFormValues = {
+                continenteId: "",
+                paisId: "",
+                departamentoId: "",
+                municipioId: "",
+                campusId: "",
+                nombre: "",
+                descripcion: "",
+              };
+              setEditCampusInitialValues(emptyValues);
+              prevEditCampus.current = emptyValues;
+              setEditingCampusId(null);
+              setEditCampusKey((k) => k + 1);
+              setSelectedRow(null);
+              editarCampusModal.onOpen();
+            }}
+          >
+            Editar campus
           </Button>
         </ButtonGroup>
       </Flex>
@@ -1288,17 +1565,19 @@ const UbicacionList: React.FC = () => {
           editarCampusModal.onClose();
           setSelectedRow(null);
           setEditCampusInitialValues(undefined);
+          setEditingCampusId(null);
+          prevEditCampus.current = {};
         }}
         title="Editar Campus"
         fields={[
-          { ...campusFields[0] },
+          { ...campusFieldsForEdit[0] },
           {
-            ...campusFields[1],
+            ...campusFieldsForEdit[1],
             options: () =>
               paisesCascada.map((p) => ({ value: p.id, label: p.nombre })),
           },
           {
-            ...campusFields[2],
+            ...campusFieldsForEdit[2],
             options: () =>
               departamentosCascada.map((d) => ({
                 value: d.id,
@@ -1306,53 +1585,120 @@ const UbicacionList: React.FC = () => {
               })),
           },
           {
-            ...campusFields[3],
+            ...campusFieldsForEdit[3],
             options: () =>
               municipiosCascada.map((m) => ({ value: m.id, label: m.nombre })),
           },
-          campusFields[4],
-          campusFields[5],
+          editCampusFields.campusSelectField,
+          editCampusFields.nombreField,
+          editCampusFields.descripcionField,
         ]}
         initialValues={editCampusInitialValues ?? initialCampusValues}
         onValuesChange={(next) => {
+          const nextValues = next as CampusEditFormValues;
           const prev = prevEditCampus.current;
 
-          if (next.continenteId !== prev?.continenteId) {
-            const newCont = Number(next.continenteId);
+          const normalize = (value: number | string | undefined) => {
+            const n = Number(value);
+            return Number.isNaN(n) ? undefined : n;
+          };
+
+          if (nextValues.continenteId !== prev?.continenteId) {
+            const newCont = normalize(nextValues.continenteId);
             clearFrom("continente");
-            setEditCampusInitialValues((p) => ({
-              ...(p ?? initialCampusValues),
-              continenteId: newCont,
+            const init: CampusEditFormValues = {
+              continenteId: nextValues.continenteId ?? "",
               paisId: "",
               departamentoId: "",
               municipioId: "",
-            }));
+              campusId: "",
+              nombre: "",
+              descripcion: "",
+            };
+            setEditingCampusId(null);
+            setEditCampusInitialValues(init);
+            prevEditCampus.current = init;
             setEditCampusKey((k) => k + 1);
             if (newCont) void fetchPaisesByContinente(newCont);
-          } else if (next.paisId !== prev?.paisId) {
-            const newPais = Number(next.paisId);
-            clearFrom("pais");
-            setEditCampusInitialValues((p) => ({
-              ...(p ?? initialCampusValues),
-              paisId: newPais,
-              departamentoId: "",
-              municipioId: "",
-            }));
-            setEditCampusKey((k) => k + 1);
-            if (newPais) void fetchDepartamentosByPais(newPais);
-          } else if (next.departamentoId !== prev?.departamentoId) {
-            const newDep = Number(next.departamentoId);
-            clearFrom("departamento");
-            setEditCampusInitialValues((p) => ({
-              ...(p ?? initialCampusValues),
-              departamentoId: newDep,
-              municipioId: "",
-            }));
-            setEditCampusKey((k) => k + 1);
-            if (newDep) void fetchMunicipiosByDepartamento(newDep);
+            return;
           }
 
-          prevEditCampus.current = next as CampusFormValues;
+          if (nextValues.paisId !== prev?.paisId) {
+            const newPais = normalize(nextValues.paisId);
+            clearFrom("pais");
+            const init: CampusEditFormValues = {
+              ...nextValues,
+              paisId: nextValues.paisId ?? "",
+              departamentoId: "",
+              municipioId: "",
+              campusId: "",
+              nombre: "",
+              descripcion: "",
+            };
+            setEditingCampusId(null);
+            setEditCampusInitialValues(init);
+            prevEditCampus.current = init;
+            setEditCampusKey((k) => k + 1);
+            if (newPais) void fetchDepartamentosByPais(newPais);
+            return;
+          }
+
+          if (nextValues.departamentoId !== prev?.departamentoId) {
+            const newDep = normalize(nextValues.departamentoId);
+            clearFrom("departamento");
+            const init: CampusEditFormValues = {
+              ...nextValues,
+              departamentoId: nextValues.departamentoId ?? "",
+              municipioId: "",
+              campusId: "",
+              nombre: "",
+              descripcion: "",
+            };
+            setEditingCampusId(null);
+            setEditCampusInitialValues(init);
+            prevEditCampus.current = init;
+            setEditCampusKey((k) => k + 1);
+            if (newDep) void fetchMunicipiosByDepartamento(newDep);
+            return;
+          }
+
+          if (nextValues.municipioId !== prev?.municipioId) {
+            const newMun = normalize(nextValues.municipioId);
+            clearFrom("municipio");
+            const init: CampusEditFormValues = {
+              ...nextValues,
+              municipioId: nextValues.municipioId ?? "",
+              campusId: "",
+              nombre: "",
+              descripcion: "",
+            };
+            setEditingCampusId(null);
+            setEditCampusInitialValues(init);
+            prevEditCampus.current = init;
+            setEditCampusKey((k) => k + 1);
+            if (newMun) void fetchCampusByMunicipio(newMun);
+            return;
+          }
+
+          if (nextValues.campusId !== prev?.campusId) {
+            const campusId = normalize(nextValues.campusId);
+            const campusInfo = campusCascada.find(
+              (campus) => campus.id === campusId,
+            );
+            const init: CampusEditFormValues = {
+              ...nextValues,
+              campusId: campusId ?? "",
+              nombre: campusInfo?.nombre ?? "",
+              descripcion: campusInfo?.descripcion ?? "",
+            };
+            setEditingCampusId(campusId ?? null);
+            setEditCampusInitialValues(init);
+            prevEditCampus.current = init;
+            setEditCampusKey((k) => k + 1);
+            return;
+          }
+
+          prevEditCampus.current = nextValues;
         }}
         onSave={handleEditCampus}
       />
@@ -1477,14 +1823,14 @@ const UbicacionList: React.FC = () => {
         }}
         title="Editar Instalación"
         fields={[
-          { ...instalacionFields[0] },
+          { ...instalacionFieldsForEdit[0] },
           {
-            ...instalacionFields[1],
+            ...instalacionFieldsForEdit[1],
             options: () =>
               paisesCascada.map((p) => ({ value: p.id, label: p.nombre })),
           },
           {
-            ...instalacionFields[2],
+            ...instalacionFieldsForEdit[2],
             options: () =>
               departamentosCascada.map((d) => ({
                 value: d.id,
@@ -1492,25 +1838,25 @@ const UbicacionList: React.FC = () => {
               })),
           },
           {
-            ...instalacionFields[3],
+            ...instalacionFieldsForEdit[3],
             options: () =>
               municipiosCascada.map((m) => ({ value: m.id, label: m.nombre })),
           },
           {
-            ...instalacionFields[4],
+            ...instalacionFieldsForEdit[4],
             options: () =>
               campusCascada.map((c) => ({ value: c.id, label: c.nombre })),
           },
           {
-            ...instalacionFields[5],
+            ...instalacionFieldsForEdit[5],
             options: () =>
               categoriaInstalacion.map((ci) => ({
                 value: ci.id,
                 label: ci.nombre,
               })),
           },
-          instalacionFields[6],
-          instalacionFields[7],
+          instalacionFieldsForEdit[6],
+          instalacionFieldsForEdit[7],
         ]}
         initialValues={editInstalacionInitialValues ?? initialInstalacionValues}
         onValuesChange={(next) => {
