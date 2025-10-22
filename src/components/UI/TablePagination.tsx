@@ -6,32 +6,37 @@ import {
   FiChevronsRight,
 } from "react-icons/fi";
 
-interface PersonaPaginationProps {
+export interface TablePaginationProps {
   page: number;
   pageSize: number;
-  pageSizeOptions: number[];
   totalItems: number;
   totalPages: number;
+  pageSizeOptions: number[];
+  isLoading?: boolean;
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
-  isLoading: boolean;
+  label?: string;
 }
 
-export function PersonaPagination({
+export const TablePagination = ({
   page,
   pageSize,
-  pageSizeOptions,
   totalItems,
   totalPages,
+  pageSizeOptions,
+  isLoading = false,
   onPageChange,
   onPageSizeChange,
-  isLoading,
-}: PersonaPaginationProps) {
+  label = "Filas por página",
+}: TablePaginationProps) => {
+  const from = totalItems === 0 ? 0 : page * pageSize + 1;
+  const to = totalItems === 0 ? 0 : Math.min((page + 1) * pageSize, totalItems);
+
   return (
-    <HStack spacing={4} justify="space-between">
+    <HStack spacing={4} justify="space-between" w="full">
       <HStack spacing={2}>
-        <Text fontSize="sm" color="gray.600">
-          Filas por página
+        <Text fontSize="sm" color="neutral.600">
+          {label}
         </Text>
         <Select
           value={pageSize}
@@ -49,11 +54,8 @@ export function PersonaPagination({
       </HStack>
 
       <HStack spacing={2}>
-        <Text fontSize="sm" color="gray.600">
-          {totalItems === 0
-            ? "0–0"
-            : `${page * pageSize + 1}–${Math.min((page + 1) * pageSize, totalItems)}`}{" "}
-          de {totalItems}
+        <Text fontSize="sm" color="neutral.600">
+          {from}–{to} de {totalItems}
         </Text>
         <IconButton
           aria-label="Primera página"
@@ -72,8 +74,7 @@ export function PersonaPagination({
           icon={<FiChevronLeft />}
         />
         <Button size="sm" variant="outline" isDisabled>
-          {totalItems === 0 ? 0 : page + 1} /{" "}
-          {totalItems === 0 ? 0 : totalPages}
+          {totalItems === 0 ? 0 : page + 1} / {totalItems === 0 ? 0 : totalPages}
         </Button>
         <IconButton
           aria-label="Siguiente"
@@ -94,4 +95,6 @@ export function PersonaPagination({
       </HStack>
     </HStack>
   );
-}
+};
+
+export default TablePagination;

@@ -210,6 +210,7 @@ const SearchableFormModal = <
       if (!error) {
         if (prevErrors[key]) {
           const { [key]: _removed, ...rest } = prevErrors;
+          void _removed;
           return rest;
         }
         return prevErrors;
@@ -399,12 +400,6 @@ const SearchableFormModal = <
     setIsSaving(true);
     try {
       await onSave(normalized, capturedId);
-      toast({
-        title: "Guardado correctamente",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
       onClose();
     } catch (error: any) {
       toast({

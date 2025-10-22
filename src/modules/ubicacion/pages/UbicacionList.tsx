@@ -24,7 +24,6 @@ import {
   Wrap,
   WrapItem,
   Badge,
-  Spacer,
 } from "@chakra-ui/react";
 import {
   FiEdit2,
@@ -33,12 +32,9 @@ import {
   FiRefreshCw,
   FiSearch,
   FiToggleRight,
-  FiChevronsLeft,
-  FiChevronLeft,
-  FiChevronRight,
-  FiChevronsRight,
 } from "react-icons/fi";
 import { DataTable, type Column } from "../../../components/UI/DataTable";
+import TablePagination from "../../../components/UI/TablePagination";
 import GenericModal, { type Field } from "../../../components/UI/GenericModal";
 import { useNormalizedInput } from "../../../hooks/useNormalizedInput";
 import { useUbicacion, type InstalacionCampusRow } from "../hooks/useUbicacion";
@@ -746,6 +742,7 @@ const UbicacionList: React.FC = () => {
     ],
     [
       toast,
+      getContinentes,
       preloadCascadeForInstalacion,
       cambiarEstadoInstalacion,
       fetchInstalacionesCampus,
@@ -1397,87 +1394,21 @@ const UbicacionList: React.FC = () => {
         emptyMessage="No hay registros de instalaciones/campus"
       />
 
-      <Flex
-        mt={4}
-        align="center"
-        justify="space-between"
-        gap={4}
-        display={filteredRows.length === 0 ? "none" : "flex"}
-      >
-        <HStack spacing={2}>
-          <Text fontSize="sm" color="gray.600">
-            Filas por página
-          </Text>
-          <Select
-            size="sm"
-            w="80px"
-            value={size}
-            onChange={(e) => {
-              const nextSize = Number(e.target.value);
-              setSize(nextSize);
-              setPage(0);
-            }}
-            isDisabled={loading}
-          >
-            {[10, 20, 50, 100].map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </Select>
-        </HStack>
-
-        <Spacer />
-
-        <HStack spacing={2}>
-          <Text fontSize="sm" color="gray.600">
-            {filteredRows.length === 0
-              ? "0–0"
-              : `${page * size + 1}–${Math.min((page + 1) * size, filteredRows.length)}`}{" "}
-            de {filteredRows.length}
-          </Text>
-          <IconButton
-            aria-label="Primera página"
-            size="sm"
-            variant="ghost"
-            onClick={() => goto(0)}
-            isDisabled={page === 0 || loading || filteredRows.length === 0}
-            icon={<FiChevronsLeft />}
-          />
-          <IconButton
-            aria-label="Anterior"
-            size="sm"
-            variant="ghost"
-            onClick={() => goto(page - 1)}
-            isDisabled={page === 0 || loading || filteredRows.length === 0}
-            icon={<FiChevronLeft />}
-          />
-          <Button size="sm" variant="outline" isDisabled>
-            {filteredRows.length === 0 ? 0 : page + 1} /{" "}
-            {filteredRows.length === 0 ? 0 : totalPages}
-          </Button>
-          <IconButton
-            aria-label="Siguiente"
-            size="sm"
-            variant="ghost"
-            onClick={() => goto(page + 1)}
-            isDisabled={
-              page >= totalPages - 1 || loading || filteredRows.length === 0
-            }
-            icon={<FiChevronRight />}
-          />
-          <IconButton
-            aria-label="Última página"
-            size="sm"
-            variant="ghost"
-            onClick={() => goto(totalPages - 1)}
-            isDisabled={
-              page >= totalPages - 1 || loading || filteredRows.length === 0
-            }
-            icon={<FiChevronsRight />}
-          />
-        </HStack>
-      </Flex>
+      {filteredRows.length > 0 && (
+        <TablePagination
+          page={page}
+          pageSize={size}
+          pageSizeOptions={[10, 20, 50, 100]}
+          totalItems={filteredRows.length}
+          totalPages={totalPages}
+          onPageChange={goto}
+          onPageSizeChange={(nextSize) => {
+            setSize(nextSize);
+            setPage(0);
+          }}
+          isLoading={loading}
+        />
+      )}
 
       {/* Modal: Crear Campus */}
       <GenericModal

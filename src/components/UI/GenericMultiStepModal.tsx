@@ -206,8 +206,10 @@ const GenericMultiStepModal = ({
             return prevErrors;
           }
           const { [fieldKey]: _removed, ...restStepErrors } = stepErrors;
+          void _removed;
           if (Object.keys(restStepErrors).length === 0) {
             const { [stepIndex]: _omit, ...rest } = prevErrors;
+            void _omit;
             return rest;
           }
           return { ...prevErrors, [stepIndex]: restStepErrors };

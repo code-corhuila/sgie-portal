@@ -23,7 +23,6 @@ import {
   ModalHeader,
   ModalOverlay,
   Select,
-  Spacer,
   Stack,
   Text,
   Tooltip,
@@ -32,34 +31,23 @@ import {
   FormControl,
   FormLabel,
 } from "@chakra-ui/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import GenericModal, {
   type Field,
   type FieldOption,
 } from "../../../components/UI/GenericModal";
 import { DataTable, type Column } from "../../../components/UI/DataTable";
-import { PermisosApi } from "../../../api/permisos";
-import { permisosKeys } from "../queryKeys";
+import TablePagination from "../../../components/UI/TablePagination";
+import { usePermisosManagement } from "../hooks/usePermisosManagement";
 import type {
   CreatePermisoRolEntidadPayload,
   Entidad,
   Permiso,
   PermisoRolEntidad,
   Rol,
-  UpdatePermisoRolEntidadPayload,
 } from "../types";
 import { useFilterState } from "../../../hooks/useFilterState";
 import { useTableManager } from "../../../hooks/useTableManager";
-import {
-  FiEdit2,
-  FiPlusCircle,
-  FiRefreshCw,
-  FiToggleLeft,
-  FiChevronsLeft,
-  FiChevronLeft,
-  FiChevronRight,
-  FiChevronsRight,
-} from "react-icons/fi";
+import { FiEdit2, FiPlusCircle, FiRefreshCw, FiToggleLeft } from "react-icons/fi";
 
 interface PermisoFormValues {
   rol: string | number | undefined;
@@ -193,7 +181,6 @@ const buildPermisoRowKey = (item: PermisoRolEntidad): string => {
 
 const PermisosList: React.FC = () => {
   const toast = useToast();
-  const queryClient = useQueryClient();
 
   const rolModal = useDisclosure();
   const permisoModal = useDisclosure();
@@ -218,33 +205,22 @@ const PermisosList: React.FC = () => {
     entidad: "Todas",
   });
 
-  const permisosQuery = useQuery<PermisoRolEntidad[]>({
-    queryKey: permisosKeys.all,
-    queryFn: PermisosApi.getAll,
-  });
+  const {
+    data: asignaciones,
+    asignacionesQuery,
+    rolesQuery,
+    permisosQuery: permisosCatalogQuery,
+    entidadesQuery,
+    toggleEstado,
+    updateAsignacion,
+    createAsignacion,
+    createRol,
+    updateRol,
+    updateRolPending,
+    invalidateAsignaciones,
+  } = usePermisosManagement();
 
-  const rolesQuery = useQuery<Rol[]>({
-    queryKey: permisosKeys.roles,
-    queryFn: PermisosApi.getRoles,
-    staleTime: 300_000,
-  });
-
-  const permisosCatalogQuery = useQuery<Permiso[]>({
-    queryKey: permisosKeys.permisos,
-    queryFn: PermisosApi.getPermisos,
-    staleTime: 300_000,
-  });
-
-  const entidadesQuery = useQuery<Entidad[]>({
-    queryKey: permisosKeys.entidades,
-    queryFn: PermisosApi.getEntidades,
-    staleTime: 300_000,
-  });
-
-  const data = useMemo(
-    () => permisosQuery.data ?? [],
-    [permisosQuery.data],
-  );
+  const data = useMemo(() => asignaciones, [asignaciones]);
 
   useEffect(() => {
     if (
@@ -317,138 +293,6 @@ const PermisosList: React.FC = () => {
       })),
     [data],
   );
-
-  const toggleEstadoMutation = useMutation<
-    void,
-    Error,
-    { id: number; nextState: boolean },
-    { previous?: PermisoRolEntidad[] }
-  >({
-    mutationFn: ({ id, nextState }) => PermisosApi.toggleEstado(id, nextState),
-    onMutate: async ({ id, nextState }) => {
-      await queryClient.cancelQueries({ queryKey: permisosKeys.all });
-      const previous = queryClient.getQueryData<PermisoRolEntidad[]>(
-        permisosKeys.all,
-      );
-      if (previous) {
-        queryClient.setQueryData<PermisoRolEntidad[]>(
-          permisosKeys.all,
-          (prev = []) =>
-            prev.map((item) =>
-              item.id === id ? { ...item, estado: nextState } : item,
-            ),
-        );
-      }
-      return { previous };
-    },
-    onError: (error, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(permisosKeys.all, context.previous);
-      }
-      toast({
-        title: "Error al cambiar estado",
-        description: error.message,
-        status: "error",
-        duration: 4000,
-      });
-    },
-    onSuccess: (_data, { nextState }) => {
-      toast({
-        title: `Asignación ${nextState ? "habilitada" : "inhabilitada"} correctamente`,
-        status: "success",
-        duration: 2000,
-      });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: permisosKeys.all });
-    },
-  });
-
-  const updatePermisoMutation = useMutation<
-    void,
-    Error,
-    { id: number; payload: UpdatePermisoRolEntidadPayload }
-  >({
-    mutationFn: ({ id, payload }) => PermisosApi.update(id, payload),
-    onSuccess: () => {
-      toast({
-        title: "Permiso actualizado",
-        status: "success",
-        duration: 2000,
-      });
-      queryClient.invalidateQueries({ queryKey: permisosKeys.all });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error al actualizar permiso",
-        description: error.message,
-        status: "error",
-        duration: 4000,
-      });
-    },
-  });
-
-  const createPermisoMutation = useMutation<
-    void,
-    Error,
-    CreatePermisoRolEntidadPayload
-  >({
-    mutationFn: (payload) => PermisosApi.create(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: permisosKeys.all });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error al asignar permiso",
-        description: error.message,
-        status: "error",
-        duration: 4000,
-      });
-    },
-  });
-
-  const createRolMutation = useMutation<
-    void,
-    Error,
-    { nombre: string; descripcion?: string }
-  >({
-    mutationFn: (payload) => PermisosApi.createRol(payload),
-    onSuccess: () => {
-      toast({ title: "Rol creado", status: "success", duration: 2000 });
-      queryClient.invalidateQueries({ queryKey: permisosKeys.roles });
-      queryClient.invalidateQueries({ queryKey: permisosKeys.all });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error al crear rol",
-        description: error.message,
-        status: "error",
-        duration: 4000,
-      });
-    },
-  });
-
-  const updateRolMutation = useMutation<
-    void,
-    Error,
-    { id: number; nombre: string; descripcion?: string }
-  >({
-    mutationFn: ({ id, nombre, descripcion }) =>
-      PermisosApi.updateRol(id, { nombre, descripcion }),
-    onSuccess: () => {
-      toast({ title: "Rol actualizado", status: "success", duration: 2000 });
-      queryClient.invalidateQueries({ queryKey: permisosKeys.roles });
-      queryClient.invalidateQueries({ queryKey: permisosKeys.all });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error al actualizar rol",
-        description: error.message,
-        status: "error",
-        duration: 4000,
-      });
-    },
-  });
 
   const rolOptions = useMemo(
     () => (rolesQuery.data ?? []).map((rol) => toOption(rol)),
@@ -557,7 +401,8 @@ const PermisosList: React.FC = () => {
     editarRolModal.onClose();
   };
 
-  const isLoading = permisosQuery.isLoading || permisosQuery.isFetching;
+  const isLoading =
+    asignacionesQuery.isLoading || asignacionesQuery.isFetching;
 
   return (
     <Stack spacing={8}>
@@ -579,7 +424,7 @@ const PermisosList: React.FC = () => {
           <Button
             leftIcon={<Icon as={FiRefreshCw} />}
             variant="outline"
-            onClick={() => permisosQuery.refetch()}
+            onClick={() => asignacionesQuery.refetch()}
             isLoading={isLoading}
           >
             Actualizar
@@ -794,84 +639,24 @@ const PermisosList: React.FC = () => {
           data={paginatedData}
           loading={isLoading}
           error={
-            permisosQuery.error ? (permisosQuery.error as Error).message : null
+            asignacionesQuery.error
+              ? (asignacionesQuery.error as Error).message
+              : null
           }
           keyExtractor={buildPermisoRowKey}
           emptyMessage="No hay asignaciones registradas"
         />
 
-        <Flex direction={{ base: "column", md: "row" }} align="center" gap={4}>
-          <HStack spacing={2}>
-            <Text fontSize="sm" color="gray.600">
-              {totalItems === 0
-                ? "0–0"
-                : `${page * pageSize + 1}–${Math.min((page + 1) * pageSize, totalItems)}`}{" "}
-              de {totalItems}
-            </Text>
-
-            <IconButton
-              aria-label="Primera página"
-              size="sm"
-              variant="ghost"
-              onClick={() => goto(0)}
-              isDisabled={page === 0 || isLoading || totalItems === 0}
-              icon={<FiChevronsLeft />}
-            />
-            <IconButton
-              aria-label="Anterior"
-              size="sm"
-              variant="ghost"
-              onClick={() => goto(page - 1)}
-              isDisabled={page === 0 || isLoading || totalItems === 0}
-              icon={<FiChevronLeft />}
-            />
-            <Button size="sm" variant="outline" isDisabled>
-              {totalItems === 0 ? 0 : page + 1} /{" "}
-              {totalItems === 0 ? 0 : totalPages}
-            </Button>
-            <IconButton
-              aria-label="Siguiente"
-              size="sm"
-              variant="ghost"
-              onClick={() => goto(page + 1)}
-              isDisabled={
-                page >= totalPages - 1 || isLoading || totalItems === 0
-              }
-              icon={<FiChevronRight />}
-            />
-            <IconButton
-              aria-label="Última página"
-              size="sm"
-              variant="ghost"
-              onClick={() => goto(totalPages - 1)}
-              isDisabled={
-                page >= totalPages - 1 || isLoading || totalItems === 0
-              }
-              icon={<FiChevronsRight />}
-            />
-          </HStack>
-
-          <Spacer />
-
-          <HStack spacing={2}>
-            <Text fontSize="sm" color="gray.600">
-              Filas por página
-            </Text>
-            <Select
-              value={pageSize}
-              onChange={(event) => setPageSize(Number(event.target.value))}
-              isDisabled={isLoading}
-              size="sm"
-              maxW="80px"
-            >
-              {pageSizeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </Select>
-          </HStack>
-        </Flex>
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          pageSizeOptions={pageSizeOptions}
+          totalItems={totalItems}
+          totalPages={totalPages}
+          onPageChange={goto}
+          onPageSizeChange={setPageSize}
+          isLoading={isLoading}
+        />
       </Stack>
 
       <GenericModal
@@ -880,7 +665,7 @@ const PermisosList: React.FC = () => {
         title="Crear Rol"
         fields={rolFields}
         onSave={async (values) => {
-          await createRolMutation.mutateAsync({
+          await createRol({
             nombre: values.nombre ?? "",
             descripcion: values.descripcion ?? "",
           });
@@ -992,7 +777,7 @@ const PermisosList: React.FC = () => {
           if (selectedItem) {
             const [firstPermiso, ...extraPermisos] = uniquePermisosIds;
 
-            await updatePermisoMutation.mutateAsync({
+            await updateAsignacion({
               id: selectedItem.id,
               payload: {
                 ...basePayload,
@@ -1003,7 +788,7 @@ const PermisosList: React.FC = () => {
             if (extraPermisos.length > 0) {
               await Promise.all(
                 extraPermisos.map((permisoId) =>
-                  createPermisoMutation.mutateAsync({
+                  createAsignacion({
                     ...basePayload,
                     permiso: { id: permisoId },
                   }),
@@ -1013,7 +798,7 @@ const PermisosList: React.FC = () => {
           } else {
             await Promise.all(
               uniquePermisosIds.map((permisoId) =>
-                createPermisoMutation.mutateAsync({
+                createAsignacion({
                   ...basePayload,
                   permiso: { id: permisoId },
                 }),
@@ -1026,7 +811,7 @@ const PermisosList: React.FC = () => {
             });
           }
 
-          await queryClient.invalidateQueries({ queryKey: permisosKeys.all });
+          invalidateAsignaciones();
           handleClosePermisoModal();
         }}
       />
@@ -1034,12 +819,12 @@ const PermisosList: React.FC = () => {
       <Modal
         isOpen={editarRolModal.isOpen}
         onClose={handleCloseEditarRol}
-        closeOnOverlayClick={!updateRolMutation.isPending}
+        closeOnOverlayClick={!updateRolPending}
       >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Editar rol</ModalHeader>
-          <ModalCloseButton isDisabled={updateRolMutation.isPending} />
+          <ModalCloseButton isDisabled={updateRolPending} />
           <ModalBody>
             <Stack spacing={4}>
               <FormControl isRequired>
@@ -1088,7 +873,7 @@ const PermisosList: React.FC = () => {
               variant="ghost"
               mr={3}
               onClick={handleCloseEditarRol}
-              isDisabled={updateRolMutation.isPending}
+              isDisabled={updateRolPending}
             >
               Cancelar
             </Button>
@@ -1104,7 +889,7 @@ const PermisosList: React.FC = () => {
                   return;
                 }
                 try {
-                  await updateRolMutation.mutateAsync({
+                  await updateRol({
                     id: selectedRolId,
                     nombre: editRolNombre,
                     descripcion: editRolDescripcion,
@@ -1114,7 +899,7 @@ const PermisosList: React.FC = () => {
                   console.error("Error actualizando rol", err);
                 }
               }}
-              isLoading={updateRolMutation.isPending}
+              isLoading={updateRolPending}
             >
               Guardar cambios
             </Button>
@@ -1158,7 +943,7 @@ const PermisosList: React.FC = () => {
               ml={3}
               onClick={async () => {
                 if (!confirmData) return;
-                await toggleEstadoMutation.mutateAsync({
+                await toggleEstado({
                   id: confirmData.item.id,
                   nextState: confirmData.nextState,
                 });

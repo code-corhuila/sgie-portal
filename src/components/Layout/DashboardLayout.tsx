@@ -26,6 +26,7 @@ import {
   FiCpu,
   FiFileText,
   FiHelpCircle,
+  FiHome,
   FiLogOut,
   FiMapPin,
   FiMenu,
@@ -45,6 +46,11 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
+  {
+    path: "/dashboard",
+    label: "Inicio",
+    icon: FiHome,
+  },
   {
     path: "/permisos",
     label: "Permisos",

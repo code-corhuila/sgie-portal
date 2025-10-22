@@ -181,6 +181,7 @@ const GenericModal = <T extends Record<string, any>>({
       if (!error) {
         if (prevErrors[key]) {
           const { [key]: _removed, ...rest } = prevErrors;
+          void _removed;
           return rest;
         }
         return prevErrors;
@@ -317,12 +318,6 @@ const GenericModal = <T extends Record<string, any>>({
       if (result === false) {
         return;
       }
-      toast({
-        title: "Guardado correctamente",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
       onClose();
     } catch (error: any) {
       toast({

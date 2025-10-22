@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "../modules/auth/pages/Login";
 import DashboardLayout from "../components/Layout/DashboardLayout";
+import DashboardHome from "../modules/dashboard/pages/DashboardHome";
 import PermisosList from "../modules/permisos/pages/PermisosList";
 import PersonaList from "../modules/persona/pages/PersonaList";
 import UbicacionList from "../modules/ubicacion/pages/UbicacionList";
@@ -33,6 +34,7 @@ function AppRouter() {
       {role ? (
         <Route path="/" element={<DashboardLayout />}>
           <Route index element={<Navigate to="/dashboard" />} />
+          <Route path="dashboard" element={<DashboardHome />} />
           <Route path="permisos" element={<PermisosList />} />
           <Route path="persona" element={<PersonaList />} />
           <Route path="ubicacion" element={<UbicacionList />} />
