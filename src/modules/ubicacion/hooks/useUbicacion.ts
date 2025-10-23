@@ -478,6 +478,8 @@ export function useUbicacion() {
         }),
         credentials: "include",
       });
+      cacheCampus.current.clear();
+      pendingCampus.current.clear();
       toast({ title: "Campus creado", status: "success", duration: 2000 });
       await getCampus();
     },
@@ -498,6 +500,8 @@ export function useUbicacion() {
         }),
         credentials: "include",
       });
+      cacheCampus.current.clear();
+      pendingCampus.current.clear();
       toast({ title: "Campus actualizado", status: "success", duration: 2000 });
       await getCampus();
     },

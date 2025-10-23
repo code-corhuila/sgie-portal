@@ -605,15 +605,41 @@ const UbicacionList: React.FC = () => {
       name: "campusId",
       label: "Campus",
       type: "select",
-      options: () =>
-        campusCascada.map((campus) => ({
+      options: (currentValues) => {
+        const baseOptions = campusCascada.map((campus) => ({
           value: campus.id,
           label: campus.nombre,
-        })),
-      required: campusCascada.length > 0,
-      disabled: campusCascada.length === 0,
+        }));
+        const selectedRaw = currentValues?.campusId;
+        const selectedId =
+          typeof selectedRaw === "number"
+            ? selectedRaw
+            : Number(selectedRaw);
+        const hasSelected =
+          selectedRaw !== undefined &&
+          selectedRaw !== null &&
+          selectedRaw !== "" &&
+          !Number.isNaN(selectedId);
+        if (
+          hasSelected &&
+          !campusCascada.some((campus) => campus.id === selectedId)
+        ) {
+          const fallbackLabel =
+            typeof currentValues?.nombre === "string" &&
+            currentValues.nombre.trim().length > 0
+              ? currentValues.nombre
+              : String(selectedRaw);
+          baseOptions.push({
+            value: selectedRaw,
+            label: fallbackLabel,
+          });
+        }
+        return baseOptions;
+      },
+      required: campusCascada.length > 0 || editingCampusId != null,
+      disabled: campusCascada.length === 0 && editingCampusId == null,
       placeholder:
-        campusCascada.length === 0
+        campusCascada.length === 0 && editingCampusId == null
           ? "Selecciona municipio para listar campus"
           : "Selecciona un campus",
     };
@@ -1534,6 +1560,22 @@ const UbicacionList: React.FC = () => {
             return Number.isNaN(n) ? undefined : n;
           };
 
+          const campusRaw =
+            nextValues.campusId ?? prev?.campusId ?? "";
+          const hasCampusSelected =
+            campusRaw !== undefined &&
+            campusRaw !== null &&
+            (typeof campusRaw !== "string" || campusRaw.trim() !== "");
+          const campusIdNumeric = hasCampusSelected
+            ? normalize(campusRaw as number | string) ?? null
+            : null;
+          const nombreValue = nextValues.nombre ?? prev?.nombre ?? "";
+          const descripcionValue =
+            nextValues.descripcion ?? prev?.descripcion ?? "";
+          const preservedCampusId = hasCampusSelected
+            ? (campusRaw as number | string)
+            : "";
+
           if (nextValues.continenteId !== prev?.continenteId) {
             const newCont = normalize(nextValues.continenteId);
             clearFrom("continente");
@@ -1542,11 +1584,11 @@ const UbicacionList: React.FC = () => {
               paisId: "",
               departamentoId: "",
               municipioId: "",
-              campusId: "",
-              nombre: "",
-              descripcion: "",
+              campusId: preservedCampusId,
+              nombre: nombreValue,
+              descripcion: descripcionValue,
             };
-            setEditingCampusId(null);
+            setEditingCampusId(campusIdNumeric);
             setEditCampusInitialValues(init);
             prevEditCampus.current = init;
             setEditCampusKey((k) => k + 1);
@@ -1558,15 +1600,15 @@ const UbicacionList: React.FC = () => {
             const newPais = normalize(nextValues.paisId);
             clearFrom("pais");
             const init: CampusEditFormValues = {
-              ...nextValues,
+              continenteId: nextValues.continenteId ?? "",
               paisId: nextValues.paisId ?? "",
               departamentoId: "",
               municipioId: "",
-              campusId: "",
-              nombre: "",
-              descripcion: "",
+              campusId: preservedCampusId,
+              nombre: nombreValue,
+              descripcion: descripcionValue,
             };
-            setEditingCampusId(null);
+            setEditingCampusId(campusIdNumeric);
             setEditCampusInitialValues(init);
             prevEditCampus.current = init;
             setEditCampusKey((k) => k + 1);
@@ -1578,14 +1620,15 @@ const UbicacionList: React.FC = () => {
             const newDep = normalize(nextValues.departamentoId);
             clearFrom("departamento");
             const init: CampusEditFormValues = {
-              ...nextValues,
+              continenteId: nextValues.continenteId ?? "",
+              paisId: nextValues.paisId ?? "",
               departamentoId: nextValues.departamentoId ?? "",
               municipioId: "",
-              campusId: "",
-              nombre: "",
-              descripcion: "",
+              campusId: preservedCampusId,
+              nombre: nombreValue,
+              descripcion: descripcionValue,
             };
-            setEditingCampusId(null);
+            setEditingCampusId(campusIdNumeric);
             setEditCampusInitialValues(init);
             prevEditCampus.current = init;
             setEditCampusKey((k) => k + 1);
@@ -1597,13 +1640,15 @@ const UbicacionList: React.FC = () => {
             const newMun = normalize(nextValues.municipioId);
             clearFrom("municipio");
             const init: CampusEditFormValues = {
-              ...nextValues,
+              continenteId: nextValues.continenteId ?? "",
+              paisId: nextValues.paisId ?? "",
+              departamentoId: nextValues.departamentoId ?? "",
               municipioId: nextValues.municipioId ?? "",
-              campusId: "",
-              nombre: "",
-              descripcion: "",
+              campusId: preservedCampusId,
+              nombre: nombreValue,
+              descripcion: descripcionValue,
             };
-            setEditingCampusId(null);
+            setEditingCampusId(campusIdNumeric);
             setEditCampusInitialValues(init);
             prevEditCampus.current = init;
             setEditCampusKey((k) => k + 1);
@@ -1619,8 +1664,8 @@ const UbicacionList: React.FC = () => {
             const init: CampusEditFormValues = {
               ...nextValues,
               campusId: campusId ?? "",
-              nombre: campusInfo?.nombre ?? "",
-              descripcion: campusInfo?.descripcion ?? "",
+              nombre: campusInfo?.nombre ?? nombreValue,
+              descripcion: campusInfo?.descripcion ?? descripcionValue,
             };
             setEditingCampusId(campusId ?? null);
             setEditCampusInitialValues(init);
@@ -1775,8 +1820,36 @@ const UbicacionList: React.FC = () => {
           },
           {
             ...instalacionFieldsForEdit[4],
-            options: () =>
-              campusCascada.map((c) => ({ value: c.id, label: c.nombre })),
+            options: (currentValues) => {
+              const baseOptions = campusCascada.map((c) => ({
+                value: c.id,
+                label: c.nombre,
+              }));
+              const selectedRaw = currentValues?.campusId;
+              const isEmptySelection =
+                selectedRaw === undefined ||
+                selectedRaw === null ||
+                (typeof selectedRaw === "string" &&
+                  selectedRaw.trim() === "");
+              if (!isEmptySelection) {
+                const selectedId =
+                  typeof selectedRaw === "number"
+                    ? selectedRaw
+                    : Number(selectedRaw);
+                if (
+                  !Number.isNaN(selectedId) &&
+                  !campusCascada.some((c) => c.id === selectedId)
+                ) {
+                  const fallbackLabel =
+                    campusNameById.get(selectedId) ?? String(selectedRaw);
+                  baseOptions.push({
+                    value: selectedRaw,
+                    label: fallbackLabel,
+                  });
+                }
+              }
+              return baseOptions;
+            },
           },
           {
             ...instalacionFieldsForEdit[5],
@@ -1791,61 +1864,98 @@ const UbicacionList: React.FC = () => {
         ]}
         initialValues={editInstalacionInitialValues ?? initialInstalacionValues}
         onValuesChange={(next) => {
-          const prev = prevEditInst.current;
+          const nextValues = next as InstalacionFormValues;
+          const prev = prevEditInst.current ?? initialInstalacionValues;
 
-          if (next.continenteId !== prev?.continenteId) {
-            const newCont = Number(next.continenteId);
+          const categoriaValue =
+            nextValues.categoriaInstalacionId ??
+            prev?.categoriaInstalacionId ??
+            "";
+          const nombreValue = nextValues.nombre ?? prev?.nombre ?? "";
+          const descripcionValue =
+            nextValues.descripcion ?? prev?.descripcion ?? "";
+
+          if (nextValues.continenteId !== prev?.continenteId) {
+            const newCont = Number(nextValues.continenteId);
             clearFrom("continente");
-            setEditInstalacionInitialValues((p) => ({
-              ...(p ?? initialInstalacionValues),
-              continenteId: newCont,
+            const init: InstalacionFormValues = {
+              continenteId: nextValues.continenteId ?? "",
               paisId: "",
               departamentoId: "",
               municipioId: "",
               campusId: "",
-              categoriaInstalacionId: "",
-            }));
+              categoriaInstalacionId: categoriaValue,
+              nombre: nombreValue,
+              descripcion: descripcionValue,
+            };
+            setEditInstalacionInitialValues(init);
+            prevEditInst.current = init;
             setEditInstalacionKey((k) => k + 1);
             if (newCont) void fetchPaisesByContinente(newCont);
-          } else if (next.paisId !== prev?.paisId) {
-            const newPais = Number(next.paisId);
+            return;
+          }
+
+          if (nextValues.paisId !== prev?.paisId) {
+            const newPais = Number(nextValues.paisId);
             clearFrom("pais");
-            setEditInstalacionInitialValues((p) => ({
-              ...(p ?? initialInstalacionValues),
-              paisId: newPais,
+            const init: InstalacionFormValues = {
+              continenteId: nextValues.continenteId ?? "",
+              paisId: nextValues.paisId ?? "",
               departamentoId: "",
               municipioId: "",
               campusId: "",
-              categoriaInstalacionId: "",
-            }));
+              categoriaInstalacionId: categoriaValue,
+              nombre: nombreValue,
+              descripcion: descripcionValue,
+            };
+            setEditInstalacionInitialValues(init);
+            prevEditInst.current = init;
             setEditInstalacionKey((k) => k + 1);
             if (newPais) void fetchDepartamentosByPais(newPais);
-          } else if (next.departamentoId !== prev?.departamentoId) {
-            const newDep = Number(next.departamentoId);
-            clearFrom("departamento");
-            setEditInstalacionInitialValues((p) => ({
-              ...(p ?? initialInstalacionValues),
-              departamentoId: newDep,
-              municipioId: "",
-              campusId: "",
-              categoriaInstalacionId: "",
-            }));
-            setEditInstalacionKey((k) => k + 1);
-            if (newDep) void fetchMunicipiosByDepartamento(newDep);
-          } else if (next.municipioId !== prev?.municipioId) {
-            const newMun = Number(next.municipioId);
-            clearFrom("municipio");
-            setEditInstalacionInitialValues((p) => ({
-              ...(p ?? initialInstalacionValues),
-              municipioId: newMun,
-              campusId: "",
-              categoriaInstalacionId: "",
-            }));
-            setEditInstalacionKey((k) => k + 1);
-            if (newMun) void fetchCampusByMunicipio(newMun);
+            return;
           }
 
-          prevEditInst.current = next as InstalacionFormValues;
+          if (nextValues.departamentoId !== prev?.departamentoId) {
+            const newDep = Number(nextValues.departamentoId);
+            clearFrom("departamento");
+            const init: InstalacionFormValues = {
+              continenteId: nextValues.continenteId ?? "",
+              paisId: nextValues.paisId ?? "",
+              departamentoId: nextValues.departamentoId ?? "",
+              municipioId: "",
+              campusId: "",
+              categoriaInstalacionId: categoriaValue,
+              nombre: nombreValue,
+              descripcion: descripcionValue,
+            };
+            setEditInstalacionInitialValues(init);
+            prevEditInst.current = init;
+            setEditInstalacionKey((k) => k + 1);
+            if (newDep) void fetchMunicipiosByDepartamento(newDep);
+            return;
+          }
+
+          if (nextValues.municipioId !== prev?.municipioId) {
+            const newMun = Number(nextValues.municipioId);
+            clearFrom("municipio");
+            const init: InstalacionFormValues = {
+              continenteId: nextValues.continenteId ?? "",
+              paisId: nextValues.paisId ?? "",
+              departamentoId: nextValues.departamentoId ?? "",
+              municipioId: nextValues.municipioId ?? "",
+              campusId: "",
+              categoriaInstalacionId: categoriaValue,
+              nombre: nombreValue,
+              descripcion: descripcionValue,
+            };
+            setEditInstalacionInitialValues(init);
+            prevEditInst.current = init;
+            setEditInstalacionKey((k) => k + 1);
+            if (newMun) void fetchCampusByMunicipio(newMun);
+            return;
+          }
+
+          prevEditInst.current = nextValues;
         }}
         onSave={handleEditInstalacion}
       />
