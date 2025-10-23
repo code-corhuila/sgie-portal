@@ -20,7 +20,12 @@ import type { Persona } from "../../persona/types";
 import type { EquipoSummary } from "../../equipo/types";
 import type { ReservaGeneral } from "../../reserva/types";
 
-type SummaryKey = "personas" | "equipos" | "reservas" | "instalaciones";
+type SummaryKey =
+  | "personas"
+  | "equipos"
+  | "reservas"
+  | "reservasVencidas"
+  | "instalaciones";
 
 interface SummaryCard {
   key: SummaryKey;
@@ -43,6 +48,11 @@ const summaryCards: SummaryCard[] = [
     key: "reservas",
     label: "Reservas hoy",
     helper: "Solicitudes agendadas para la fecha actual",
+  },
+  {
+    key: "reservasVencidas",
+    label: "Reservas activas vencidas",
+    helper: "Reservas que deberían haberse cerrado pero siguen activas",
   },
   {
     key: "instalaciones",
@@ -85,10 +95,15 @@ function DashboardHome() {
   const [personasQuery, equiposQuery, reservasQuery, instalacionesQuery] =
     queries;
 
-  const todayIso = useMemo(
-    () => new Date().toISOString().slice(0, 10),
-    [],
-  );
+  const todayIso = useMemo(() => {
+    const now = new Date();
+    const localMidnight = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
+    return localMidnight.toISOString().slice(0, 10);
+  }, []);
 
   const personasActivas = useMemo(() => {
     if (!personasQuery.data) return null;
@@ -107,6 +122,33 @@ function DashboardHome() {
       return fecha === todayIso;
     }).length;
   }, [reservasQuery.data, todayIso]);
+
+  const reservasVencidas = useMemo(() => {
+    if (!reservasQuery.data) return null;
+    const now = new Date();
+
+    const normalizeHora = (hora?: string) => {
+      if (!hora) return "00:00:00";
+      const trimmed = hora.trim();
+      if (trimmed.length === 5) return `${trimmed}:00`;
+      return trimmed.length === 8 ? trimmed : `${trimmed}:00`;
+    };
+
+    return reservasQuery.data.filter((reserva) => {
+      const isActiva =
+        String(reserva.estadoReserva).toLowerCase() !== "false";
+      if (!isActiva) return false;
+
+      const fecha = reserva.fechaReserva?.slice(0, 10);
+      if (!fecha) return false;
+
+      const horaFin = normalizeHora(reserva.horaFinReserva);
+      const fechaFin = new Date(`${fecha}T${horaFin}`);
+      if (Number.isNaN(fechaFin.getTime())) return false;
+
+      return fechaFin.getTime() < now.getTime();
+    }).length;
+  }, [reservasQuery.data]);
 
   const instalacionesOperativas = useMemo(() => {
     if (!instalacionesQuery.data) return null;
@@ -140,6 +182,13 @@ function DashboardHome() {
               error: reservasQuery.isError,
               value: reservasHoy,
             };
+          case "reservasVencidas":
+            return {
+              ...card,
+              loading: reservasQuery.isLoading,
+              error: reservasQuery.isError,
+              value: reservasVencidas,
+            };
           case "instalaciones":
           default:
             return {
@@ -161,6 +210,7 @@ function DashboardHome() {
       personasQuery.isError,
       personasQuery.isLoading,
       reservasHoy,
+      reservasVencidas,
       reservasQuery.isError,
       reservasQuery.isLoading,
     ],
