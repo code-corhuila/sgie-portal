@@ -299,7 +299,7 @@ const PersonaList: React.FC = () => {
       }
       const payload: UpdateUsuarioPayload = {
         email,
-        persona: { id: selectedPersona.idPersona },
+        personaId: selectedPersona.idPersona,
       };
       if (values.password && values.password.trim() !== "") {
         payload.password = values.password.trim();
@@ -338,7 +338,7 @@ const PersonaList: React.FC = () => {
       await createUsuario({
         email,
         password: (values.password ?? "").trim(),
-        persona: { id: personaId },
+        personaId: personaId ,
       });
       usuarioModal.onClose();
     },

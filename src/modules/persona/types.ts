@@ -37,11 +37,11 @@ export type UpdatePersonaPayload = CreatePersonaPayload;
 export interface CreateUsuarioPayload {
   email: string;
   password: string;
-  persona: { id: number };
+  personaId: number ;
 }
 
 export interface UpdateUsuarioPayload {
   email: string;
   password?: string;
-  persona: { id: number };
+  personaId: number;
 }

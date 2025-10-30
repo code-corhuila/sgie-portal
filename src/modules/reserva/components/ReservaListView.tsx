@@ -1,6 +1,5 @@
 import {
   Badge,
-  Box,
   Button,
   ButtonGroup,
   Flex,
@@ -15,7 +14,6 @@ import {
   Spacer,
   Stack,
   Text,
-  VStack,
 } from "@chakra-ui/react";
 import {
   FiChevronsLeft,
@@ -27,7 +25,6 @@ import {
   FiSearch,
 } from "react-icons/fi";
 import { DataTable, type Column } from "../../../components/UI/DataTable";
-import TablePagination from "../../../components/UI/TablePagination";
 import GenericModal from "../../../components/UI/GenericModal";
 import GenericMultiStepModal from "../../../components/UI/GenericMultiStepModal";
 import type { Field } from "../../../components/UI/GenericModal";

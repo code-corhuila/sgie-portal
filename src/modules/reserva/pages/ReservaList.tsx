@@ -236,8 +236,8 @@ const ReservaList: React.FC = () => {
         nombreReserva: reserva.nombreReserva,
         descripcionReserva: reserva.descripcionReserva || "",
         fechaReserva: reserva.fechaReserva,
-        horaInicio: reserva.horaInicioReserva,
-        horaFin: reserva.horaFinReserva,
+        horaInicio: reserva.horaInicio,
+        horaFin: reserva.horaFin,
       };
 
       // Precargar recurso según el tipo
@@ -1078,10 +1078,94 @@ const ReservaList: React.FC = () => {
           throw new Error("Persona requerida");
         }
 
+        // Validar que la reserva conserve fecha y rango horario
+        // Normalizar horario (validación unificada vendrá después)
+        const fechaReserva = mergedPaso1.fechaReserva?.trim();
+        const horaInicio = mergedPaso1.horaInicio?.trim();
+        const horaFin = mergedPaso1.horaFin?.trim();
+
+        const sanitizedPaso1: Paso1Values = {
+          ...mergedPaso1,
+          fechaReserva,
+          horaInicio,
+          horaFin,
+        };
+
+                // === Validaciones equivalentes a "Crear Reserva" ===
+        // Determinar grupo según tipo seleccionado
+        const tipoSel = tipoReservaOptions.find(
+          (t) => t.value === sanitizedPaso1.tipoReservaId
+        );
+        const grupo = tipoSel ? resolveGrupo(tipoSel.label) : null;
+
+        // Reglas del PASO 1 (obligatorios)
+        const paso1Errors: string[] = [];
+        if (!sanitizedPaso1.tipoReservaId) paso1Errors.push("Tipo de reserva");
+        if (!sanitizedPaso1.nombreReserva?.trim())
+          paso1Errors.push("Nombre de la reserva");
+        if (!sanitizedPaso1.fechaReserva?.trim())
+          paso1Errors.push("Fecha de la reserva");
+        if (!sanitizedPaso1.horaInicio?.trim() || !sanitizedPaso1.horaFin?.trim())
+          paso1Errors.push("Horas de inicio y fin");
+
+        if (grupo === "RESERVA_EQUIPO" || grupo === "MANTENIMIENTO_EQUIPO") {
+          if (!sanitizedPaso1.idEquipo) paso1Errors.push("Equipo");
+        } else if (
+          grupo === "RESERVA_INSTALACION" ||
+          grupo === "MANTENIMIENTO_INSTALACION"
+        ) {
+          if (!sanitizedPaso1.idInstalacion) paso1Errors.push("Instalación");
+        }
+
+        if (paso1Errors.length > 0) {
+          toast({
+            title: "Campos requeridos del paso 1",
+            description: `Completa: ${paso1Errors.join(", ")}`,
+            status: "warning",
+          });
+          throw new Error("Campos del paso 1 requeridos");
+        }
+
+        // Normalización + Reglas del PASO 2 (obligatorios)
+        const sanitizedPaso2: Paso2Values = { ...(paso2Values as Paso2Values) };
+        if (Object.prototype.hasOwnProperty.call(sanitizedPaso2, "numeroEstudiantes")) {
+          sanitizedPaso2.numeroEstudiantes = parseNumeroEstudiantesValue(
+            (sanitizedPaso2 as Record<string, any>).numeroEstudiantes as any
+          );
+        }
+
+        const paso2Errors: string[] = [];
+        if (grupo === "RESERVA_INSTALACION" || grupo === "RESERVA_EQUIPO") {
+          if (!sanitizedPaso2.programaAcademico?.trim())
+            paso2Errors.push("Programa académico");
+          if (
+            !sanitizedPaso2.numeroEstudiantes ||
+            (sanitizedPaso2.numeroEstudiantes as number) <= 0
+          ) {
+            paso2Errors.push("Número de estudiantes");
+          }
+        } else if (grupo === "MANTENIMIENTO_INSTALACION") {
+          if (!sanitizedPaso2.categoriaMantenimientoInstalacionId)
+            paso2Errors.push("Categoría de mantenimiento");
+        } else if (grupo === "MANTENIMIENTO_EQUIPO") {
+          if (!sanitizedPaso2.categoriaMantenimientoEquipoId)
+            paso2Errors.push("Categoría de mantenimiento");
+        }
+
+        if (paso2Errors.length > 0) {
+          toast({
+            title: "Campos requeridos del paso 2",
+            description: `Completa: ${paso2Errors.join(", ")}`,
+            status: "warning",
+          });
+          throw new Error("Campos del paso 2 requeridos");
+        }
+
+
         // Actualizar reserva core
         await updateReservaCore(
           selectedRow.idReserva,
-          mergedPaso1,
+          sanitizedPaso1,
           editingSelectedPersonaId,
         );
 
@@ -1114,27 +1198,31 @@ const ReservaList: React.FC = () => {
             !tipoReserva.includes("mantenimiento")
           ) {
             await updateDetalleReservaInstalacion(idAsociado, {
-              ...mergedPaso1,
-              ...paso2Values,
+              ...sanitizedPaso1,
+              //...paso2Values,
+              ...sanitizedPaso2,
             });
           } else if (
             tipoReserva.includes("equipo") &&
             !tipoReserva.includes("mantenimiento")
           ) {
             await updateDetalleReservaEquipo(idAsociado, {
-              ...mergedPaso1,
-              ...paso2Values,
+              ...sanitizedPaso1,
+              //paso2Values,
+              ...sanitizedPaso2,
             });
           } else if (tipoReserva.includes("mantenimiento")) {
             if (tipoReserva.includes("instalacion")) {
               await updateMantenimientoInstalacion(idAsociado, {
                 ...paso1Values,
-                ...paso2Values,
+                //...paso2Values,
+                ...sanitizedPaso2,
               });
             } else {
               await updateMantenimientoEquipo(idAsociado, {
                 ...paso1Values,
-                ...paso2Values,
+                //...paso2Values,
+                ...sanitizedPaso2,
               });
             }
           }
@@ -1153,6 +1241,7 @@ const ReservaList: React.FC = () => {
           description: error?.message || "Ocurrió un error inesperado",
           status: "error",
         });
+        throw error; 
       }
     },
     [

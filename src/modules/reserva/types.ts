@@ -24,8 +24,8 @@ export interface ReservaGeneral {
   nombreReserva: string;
   descripcionReserva?: string | null;
   fechaReserva: string;
-  horaInicioReserva: string;
-  horaFinReserva: string;
+  horaInicio: string;
+  horaFin: string;
   idTipoReserva?: number | null;
   idPersona: number;
   nombrePersona: string;
