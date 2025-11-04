@@ -53,7 +53,6 @@ const PersonaList: React.FC = () => {
     personas,
     personasBase,
     personasQuery,
-    personasBusquedaQuery,
     rolesQuery,
     isLoading,
     isSearchLoading,
@@ -64,6 +63,7 @@ const PersonaList: React.FC = () => {
     updatePersona,
     createUsuario,
     updateUsuario,
+    clearBusquedaPersonas,
   } = usePersonaManagement({
     documentoBusqueda,
     enableRoles: personaModal.isOpen || editPersonaModal.isOpen,
@@ -208,7 +208,7 @@ const PersonaList: React.FC = () => {
   };
 
   const handleLimpiarDocumento = () => {
-    personasBusquedaQuery.remove();
+    clearBusquedaPersonas();
     setFilter("documento", "");
   };
 

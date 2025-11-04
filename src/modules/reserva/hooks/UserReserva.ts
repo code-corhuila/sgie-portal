@@ -68,7 +68,7 @@ export function userReserva() {
 
   const catMtoEquipoQuery = useQuery<SimpleItem[]>({
     queryKey: reservaKeys.categoriasEquipo,
-    queryFn: ReservaApi.getCategoriaMantenimientoEquipo,
+    queryFn: ReservaApi.getCategoriaMantenimientoEquipoId,
     staleTime: 300_000,
   });
 
@@ -142,7 +142,12 @@ export function userReserva() {
   );
 
   const getHorasDisponiblesInstalacion = useCallback(
-    async (fechaISO: string, idInstalacion: number, idDetalle?: number) => {
+    async (
+      fechaISO: string,
+      idInstalacion: number,
+      idDetalle?: number,
+      origen: "RESERVA" | "MANTENIMIENTO" = "RESERVA",
+    ) => {
       if (!fechaISO || !idInstalacion) {
         setHorasDisponibles([]);
         return;
@@ -152,6 +157,7 @@ export function userReserva() {
           fecha: fechaISO,
           idInstalacion,
           idDetalle,
+          origen,
         });
         setHorasDisponibles(list.map((item: HoraDisponible) => item.hora));
       } catch (err) {
@@ -167,7 +173,12 @@ export function userReserva() {
   );
 
   const getHorasDisponiblesEquipo = useCallback(
-    async (fechaISO: string, idEquipo: number, idDetalle?: number) => {
+    async (
+      fechaISO: string,
+      idEquipo: number,
+      idDetalle?: number,
+      origen: "RESERVA" | "MANTENIMIENTO" = "RESERVA",
+    ) => {
       if (!fechaISO || !idEquipo) {
         setHorasDisponibles([]);
         return;
@@ -177,6 +188,7 @@ export function userReserva() {
           fecha: fechaISO,
           idEquipo,
           idDetalle,
+          origen,
         });
         setHorasDisponibles(list.map((item: HoraDisponible) => item.hora));
       } catch (err) {
@@ -357,7 +369,7 @@ export function userReserva() {
   const updateMantenimientoInstalacion = useCallback(
     async (idMantenimiento: number, values: any) => {
       const payload: UpdateMantenimientoPayload = {
-        descripcion: values.descripcionMantenimiento,
+        descripcion: values.descripcionMantenimiento ?? values.descripcion,
         fechaProximaMantenimiento: values.fechaProximaMantenimiento,
         resultadoMantenimiento: values.resultadoMantenimiento,
         nombreReserva: values.nombreReserva,
@@ -365,7 +377,18 @@ export function userReserva() {
         fechaReserva: values.fechaReserva,
         horaInicio: values.horaInicio,
         horaFin: values.horaFin,
+        idInstalacion: values.idInstalacion,
       };
+
+      const categoriaInstId =
+        typeof values.categoriaMantenimientoInstalacionId === "object"
+          ? values.categoriaMantenimientoInstalacionId?.id
+          : values.categoriaMantenimientoInstalacionId;
+
+      if (categoriaInstId != null && categoriaInstId !== "") {
+        payload.categoriaMantenimientoInstalacionId = Number(categoriaInstId);
+      }
+
       await ReservaApi.updateMantenimientoInstalacion(idMantenimiento, payload);
       invalidateReservas();
     },
@@ -375,7 +398,7 @@ export function userReserva() {
   const updateMantenimientoEquipo = useCallback(
     async (idMantenimiento: number, values: any) => {
       const payload: UpdateMantenimientoPayload = {
-        descripcion: values.descripcionMantenimiento,
+        descripcion: values.descripcionMantenimiento ?? values.descripcion,
         fechaProximaMantenimiento: values.fechaProximaMantenimiento,
         resultadoMantenimiento: values.resultadoMantenimiento,
         nombreReserva: values.nombreReserva,
@@ -383,7 +406,18 @@ export function userReserva() {
         fechaReserva: values.fechaReserva,
         horaInicio: values.horaInicio,
         horaFin: values.horaFin,
+        idEquipo: values.idEquipo,
       };
+
+      const categoriaEqId =
+        typeof values.categoriaMantenimientoEquipoId === "object"
+          ? values.categoriaMantenimientoEquipoId?.id
+          : values.categoriaMantenimientoEquipoId;
+
+      if (categoriaEqId != null && categoriaEqId !== "") {
+        payload.categoriaMantenimientoEquipoId = Number(categoriaEqId);
+      }
+
       await ReservaApi.updateMantenimientoEquipo(idMantenimiento, payload);
       invalidateReservas();
     },

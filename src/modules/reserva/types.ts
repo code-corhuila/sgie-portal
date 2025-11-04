@@ -130,7 +130,12 @@ export interface UpdateMantenimientoPayload {
   fechaReserva?: string;
   horaInicio?: string;
   horaFin?: string;
+  idInstalacion?: number;
+  idEquipo?: number;
+  categoriaMantenimientoInstalacionId?: number;
+  categoriaMantenimientoEquipoId?: number;
 }
+
 
 export interface CerrarReservaPayload {
   entregaInstalacion?: string;

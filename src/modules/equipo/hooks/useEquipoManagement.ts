@@ -263,6 +263,16 @@ export const useEquipoManagement = ({
     return payload;
   }, [codigoBusqueda, searchQuery, toast]);
 
+  const clearBusquedaEquipos = useCallback(() => {
+    if (!codigoBusqueda) {
+      return;
+    }
+    queryClient.removeQueries({
+      queryKey: equipoKeys.search(codigoBusqueda),
+      exact: true,
+    });
+  }, [codigoBusqueda, queryClient]);
+
   useEffect(() => {
     if (searchQuery.error && codigoBusqueda) {
       toast({
@@ -292,6 +302,7 @@ export const useEquipoManagement = ({
     createEquipo: createEquipoMutation.mutateAsync,
     updateEquipo: updateEquipoMutation.mutateAsync,
     toggleEstado: toggleEstadoMutation.mutate,
+    clearBusquedaEquipos,
   };
 };
 

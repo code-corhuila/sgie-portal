@@ -35,7 +35,12 @@ import {
 import { apiCall, type ApiEnvelope } from "../../../api/base";
 type ApiResponse<T> = ApiEnvelope<T>;
 import { userReserva } from "../hooks/UserReserva";
-import type { ReservaGeneral, Paso1Values, Paso2Values } from "../types";
+import type {
+  ReservaGeneral,
+  Paso1Values,
+  Paso2Values,
+  UpdateMantenimientoPayload,
+} from "../types";
 import {
   FiCheckCircle,
   FiEdit2,
@@ -327,6 +332,9 @@ const ReservaList: React.FC = () => {
 
       // Consultar disponibilidad automáticamente para cargar las horas
       try {
+        const origen = grupo.includes("MANTENIMIENTO")
+          ? "MANTENIMIENTO"
+          : "RESERVA";
         if (grupo === "RESERVA_EQUIPO" || grupo === "MANTENIMIENTO_EQUIPO") {
           if (paso1Data.idEquipo && paso1Data.fechaReserva) {
             const idDetalle =
@@ -337,6 +345,7 @@ const ReservaList: React.FC = () => {
               paso1Data.fechaReserva,
               paso1Data.idEquipo,
               idDetalle || undefined,
+              origen,
             );
           }
         } else {
@@ -349,6 +358,7 @@ const ReservaList: React.FC = () => {
               paso1Data.fechaReserva,
               paso1Data.idInstalacion,
               idDetalle || undefined,
+              origen,
             );
           }
         }
@@ -873,12 +883,20 @@ const ReservaList: React.FC = () => {
       }
 
       const grupo = resolveGrupo(tipoSel.label);
+      const origen = grupo.includes("MANTENIMIENTO")
+        ? "MANTENIMIENTO"
+        : "RESERVA";
       if (grupo === "RESERVA_EQUIPO" || grupo === "MANTENIMIENTO_EQUIPO") {
         if (!paso1.idEquipo) {
           toast({ title: "Selecciona equipo", status: "warning" });
           return;
         }
-        await getHorasDisponiblesEquipo(paso1.fechaReserva, paso1.idEquipo);
+        await getHorasDisponiblesEquipo(
+          paso1.fechaReserva,
+          paso1.idEquipo,
+          undefined,
+          origen,
+        );
       } else {
         if (!paso1.idInstalacion) {
           toast({ title: "Selecciona instalación", status: "warning" });
@@ -887,6 +905,8 @@ const ReservaList: React.FC = () => {
         await getHorasDisponiblesInstalacion(
           paso1.fechaReserva,
           paso1.idInstalacion,
+          undefined,
+          origen,
         );
       }
 
@@ -938,6 +958,9 @@ const ReservaList: React.FC = () => {
         }
 
         const grupo = resolveGrupo(tipoSel.label);
+        const origen = grupo.includes("MANTENIMIENTO")
+          ? "MANTENIMIENTO"
+          : "RESERVA";
         if (grupo === "RESERVA_EQUIPO" || grupo === "MANTENIMIENTO_EQUIPO") {
           if (!editingReservaPaso1.idEquipo) {
             toast({ title: "Selecciona equipo", status: "warning" });
@@ -947,6 +970,7 @@ const ReservaList: React.FC = () => {
             editingReservaPaso1.fechaReserva,
             editingReservaPaso1.idEquipo,
             idDetalle,
+            origen,
           );
         } else {
           if (!editingReservaPaso1.idInstalacion) {
@@ -957,6 +981,7 @@ const ReservaList: React.FC = () => {
             editingReservaPaso1.fechaReserva,
             editingReservaPaso1.idInstalacion,
             idDetalle,
+            origen,
           );
         }
 
@@ -1213,17 +1238,58 @@ const ReservaList: React.FC = () => {
             });
           } else if (tipoReserva.includes("mantenimiento")) {
             if (tipoReserva.includes("instalacion")) {
-              await updateMantenimientoInstalacion(idAsociado, {
-                ...paso1Values,
-                //...paso2Values,
-                ...sanitizedPaso2,
-              });
+              const mantenimientoPayload: UpdateMantenimientoPayload = {
+                descripcion: sanitizedPaso2.descripcionMantenimiento,
+                fechaProximaMantenimiento:
+                  sanitizedPaso2.fechaProximaMantenimiento,
+                resultadoMantenimiento: sanitizedPaso2.resultadoMantenimiento,
+                nombreReserva: sanitizedPaso1.nombreReserva,
+                descripcionReserva: sanitizedPaso1.descripcionReserva,
+                fechaReserva: sanitizedPaso1.fechaReserva,
+                horaInicio: sanitizedPaso1.horaInicio,
+                horaFin: sanitizedPaso1.horaFin,
+              };
+
+              if (sanitizedPaso1.idInstalacion) {
+                mantenimientoPayload.idInstalacion = sanitizedPaso1.idInstalacion;
+              }
+
+              if (sanitizedPaso2.categoriaMantenimientoInstalacionId) {
+                mantenimientoPayload.categoriaMantenimientoInstalacionId =
+                  sanitizedPaso2.categoriaMantenimientoInstalacionId;
+              }
+
+              await updateMantenimientoInstalacion(
+                idAsociado,
+                mantenimientoPayload,
+              );
             } else {
-              await updateMantenimientoEquipo(idAsociado, {
-                ...paso1Values,
-                //...paso2Values,
-                ...sanitizedPaso2,
-              });
+              const mantenimientoPayload: UpdateMantenimientoPayload = {
+                descripcion: sanitizedPaso2.descripcionMantenimiento,
+                fechaProximaMantenimiento:
+                  sanitizedPaso2.fechaProximaMantenimiento,
+                resultadoMantenimiento: sanitizedPaso2.resultadoMantenimiento,
+                nombreReserva: sanitizedPaso1.nombreReserva,
+                descripcionReserva: sanitizedPaso1.descripcionReserva,
+                fechaReserva: sanitizedPaso1.fechaReserva,
+                horaInicio: sanitizedPaso1.horaInicio,
+                horaFin: sanitizedPaso1.horaFin,
+
+              };
+
+              if (sanitizedPaso1.idEquipo) {
+                mantenimientoPayload.idEquipo = sanitizedPaso1.idEquipo;
+              }
+
+              if (sanitizedPaso2.categoriaMantenimientoEquipoId) {
+                mantenimientoPayload.categoriaMantenimientoEquipoId =
+                  sanitizedPaso2.categoriaMantenimientoEquipoId;
+              }
+
+              await updateMantenimientoEquipo(
+                idAsociado,
+                mantenimientoPayload,
+              );
             }
           }
         }
@@ -1246,6 +1312,7 @@ const ReservaList: React.FC = () => {
     },
     [
       selectedRow,
+      editingReservaPaso1,
       editingSelectedPersonaId,
       updateReservaCore,
       updateDetalleReservaInstalacion,
@@ -1254,6 +1321,9 @@ const ReservaList: React.FC = () => {
       updateMantenimientoEquipo,
       editarReservaModal,
       fetchAll,
+      parseNumeroEstudiantesValue,
+      resolveGrupo,
+      tipoReservaOptions,
       toast,
     ],
   );

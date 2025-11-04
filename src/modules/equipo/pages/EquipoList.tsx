@@ -47,7 +47,6 @@ const EquipoList: React.FC = () => {
     equipos,
     equiposBase,
     equiposQuery,
-    searchQuery,
     categoriasQuery,
     tiposQuery,
     instalacionesQuery,
@@ -60,6 +59,7 @@ const EquipoList: React.FC = () => {
     createEquipo,
     updateEquipo,
     toggleEstado,
+    clearBusquedaEquipos,
   } = useEquipoManagement({
     codigoBusqueda,
     enableCategorias: categoriaModal.isOpen || tipoModal.isOpen,
@@ -419,7 +419,7 @@ const EquipoList: React.FC = () => {
   };
 
   const handleClearCodigo = () => {
-    searchQuery.remove();
+    clearBusquedaEquipos();
     setFilter("codigo", "");
   };
 

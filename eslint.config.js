@@ -24,6 +24,7 @@ export default defineConfig([
       },
       globals: {
         ...globals.browser,
+        ...globals.vitest,
       },
     },
     plugins: {

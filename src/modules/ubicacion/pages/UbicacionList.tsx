@@ -53,6 +53,7 @@ type CampusFormValues = {
 type InstalacionFormValues = CampusFormValues & {
   campusId?: number | string;
   categoriaInstalacionId?: number | string;
+  descripcionInstalacion?: string;
 };
 
 type CampusEditFormValues = CampusFormValues & {
@@ -423,10 +424,11 @@ const UbicacionList: React.FC = () => {
         validate: (value) => validateInstalacionName(value, ignoreInstalacionId),
       },
       {
-        name: "descripcion",
-        label: "Descripción",
+        name: "descripcionInstalacion",
+        label: "Descripción de la instalación",
         type: "textarea",
         required: false,
+        placeholder: "Escribe detalles relevantes de la instalación",
       },
     ],
     [categoriaInstalacion, continentes, validateInstalacionName],
@@ -668,7 +670,7 @@ const UbicacionList: React.FC = () => {
       { key: "nombreMunicipio", label: "Municipio" },
       { key: "nombreCampus", label: "Campus" },
       { key: "nombreInstalacion", label: "Instalación" },
-      { key: "descripcionInstalacion", label: "descripcion" },
+      { key: "descripcionInstalacion", label: "Descripción" },
       {
         key: "estadoInstalacion",
         label: "Estado",
@@ -704,7 +706,7 @@ const UbicacionList: React.FC = () => {
                       campusId: r.idCampus,
                       categoriaInstalacionId: r.idCategoriaInstalacion,
                       nombre: r.nombreInstalacion,
-                      descripcion: r.descripcionInstalacion,
+                      descripcionInstalacion: r.descripcionInstalacion,
                     };
                     setEditInstalacionInitialValues(init);
                     prevEditInst.current = init;
@@ -832,7 +834,7 @@ const UbicacionList: React.FC = () => {
 
       await createInstalacion({
         nombre: normalizeTextValue(values.nombre ?? ""),
-        descripcion: values.descripcion,
+        descripcion: values.descripcionInstalacion,
         campusId,
         categoriaInstalacionId,
       });
@@ -959,7 +961,7 @@ const UbicacionList: React.FC = () => {
       }
       await updateInstalacion(selectedRow.idInstalacion, {
         nombre: normalizeTextValue(values.nombre ?? ""),
-        descripcion: values.descripcion,
+        descripcion: values.descripcionInstalacion,
         campusId,
         categoriaInstalacionId,
       });
@@ -1001,7 +1003,7 @@ const UbicacionList: React.FC = () => {
           campusId: selectedRow.idCampus,
           categoriaInstalacionId: selectedRow.idCategoriaInstalacion,
           nombre: selectedRow.nombreInstalacion,
-          descripcion: selectedRow.descripcionInstalacion,
+          descripcionInstalacion: selectedRow.descripcionInstalacion,
         }
       : undefined;
 
@@ -1070,6 +1072,7 @@ const UbicacionList: React.FC = () => {
                 categoriaInstalacionId: "",
                 nombre: "",
                 descripcion: "",
+                descripcionInstalacion: "",
               };
               setCreateInstInitial(init);
               prevCreateInst.current = init;
@@ -1571,7 +1574,9 @@ const UbicacionList: React.FC = () => {
             : null;
           const nombreValue = nextValues.nombre ?? prev?.nombre ?? "";
           const descripcionValue =
-            nextValues.descripcion ?? prev?.descripcion ?? "";
+            nextValues.descripcion ??
+            prev?.descripcion ??
+            "";
           const preservedCampusId = hasCampusSelected
             ? (campusRaw as number | string)
             : "";
@@ -1719,6 +1724,7 @@ const UbicacionList: React.FC = () => {
               })),
           },
           instalacionFields[6],
+          instalacionFields[7],
         ]}
         initialValues={createInstInitial}
         onValuesChange={(next) => {
@@ -1886,7 +1892,7 @@ const UbicacionList: React.FC = () => {
               campusId: "",
               categoriaInstalacionId: categoriaValue,
               nombre: nombreValue,
-              descripcion: descripcionValue,
+              descripcionInstalacion: descripcionValue,
             };
             setEditInstalacionInitialValues(init);
             prevEditInst.current = init;
@@ -1906,7 +1912,7 @@ const UbicacionList: React.FC = () => {
               campusId: "",
               categoriaInstalacionId: categoriaValue,
               nombre: nombreValue,
-              descripcion: descripcionValue,
+              descripcionInstalacion: descripcionValue,
             };
             setEditInstalacionInitialValues(init);
             prevEditInst.current = init;
@@ -1926,7 +1932,7 @@ const UbicacionList: React.FC = () => {
               campusId: "",
               categoriaInstalacionId: categoriaValue,
               nombre: nombreValue,
-              descripcion: descripcionValue,
+              descripcionInstalacion: descripcionValue,
             };
             setEditInstalacionInitialValues(init);
             prevEditInst.current = init;
@@ -1946,7 +1952,7 @@ const UbicacionList: React.FC = () => {
               campusId: "",
               categoriaInstalacionId: categoriaValue,
               nombre: nombreValue,
-              descripcion: descripcionValue,
+              descripcionInstalacion: descripcionValue,
             };
             setEditInstalacionInitialValues(init);
             prevEditInst.current = init;

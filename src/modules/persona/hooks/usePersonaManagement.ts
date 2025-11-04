@@ -215,6 +215,16 @@ export const usePersonaManagement = ({
     return payload;
   }, [documentoBusqueda, personasBusquedaQuery, toast]);
 
+  const clearBusquedaPersonas = useCallback(() => {
+    if (!documentoBusqueda) {
+      return;
+    }
+    queryClient.removeQueries({
+      queryKey: personaKeys.search(documentoBusqueda),
+      exact: true,
+    });
+  }, [documentoBusqueda, queryClient]);
+
   useEffect(() => {
     if (personasBusquedaQuery.error && documentoBusqueda) {
       toast({
@@ -243,6 +253,7 @@ export const usePersonaManagement = ({
     updatePersona: updatePersonaMutation.mutateAsync,
     createUsuario: createUsuarioMutation.mutateAsync,
     updateUsuario: updateUsuarioMutation.mutateAsync,
+    clearBusquedaPersonas,
   };
 };
 

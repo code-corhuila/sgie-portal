@@ -52,7 +52,7 @@ export const ReservaApi = {
     return asArray(response);
   },
 
-  async getCategoriaMantenimientoEquipo(): Promise<SimpleItem[]> {
+  async getCategoriaMantenimientoEquipoId(): Promise<SimpleItem[]> {
     const response = await apiCall<ApiEnvelope<SimpleItem[]> | SimpleItem[]>(
       "/categoria-mantenimiento-equipo",
     );
@@ -70,6 +70,7 @@ export const ReservaApi = {
     fecha: string;
     idInstalacion: number;
     idDetalle?: number;
+    origen?: string;
   }): Promise<HoraDisponible[]> {
     const search = new URLSearchParams({
       fecha: params.fecha,
@@ -77,6 +78,9 @@ export const ReservaApi = {
     });
     if (params.idDetalle) {
       search.set("idDetalle", String(params.idDetalle));
+    }
+    if (params.origen) {
+      search.set("origen", params.origen);
     }
 
     const response = await apiCall<
@@ -89,6 +93,7 @@ export const ReservaApi = {
     fecha: string;
     idEquipo: number;
     idDetalle?: number;
+    origen?: string;
   }): Promise<HoraDisponible[]> {
     const search = new URLSearchParams({
       fecha: params.fecha,
@@ -96,6 +101,9 @@ export const ReservaApi = {
     });
     if (params.idDetalle) {
       search.set("idDetalle", String(params.idDetalle));
+    }
+    if (params.origen) {
+      search.set("origen", params.origen);
     }
 
     const response = await apiCall<
