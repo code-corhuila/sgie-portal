@@ -62,6 +62,15 @@ const add1h = (t: string) => {
   return d.toTimeString().slice(0, 8); // "HH:mm:ss"
 };
 
+const buildReservaTimestamp = (reserva: ReservaGeneral): number => {
+  if (!reserva?.fechaReserva) return 0;
+  const horaInicio =
+    (reserva as any).horaInicioReserva ?? reserva.horaInicio ?? "00:00";
+  const horaNormalizada = normalize(horaInicio ?? "00:00");
+  const timestamp = Date.parse(`${reserva.fechaReserva}T${horaNormalizada}`);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+};
+
 // ---- Tipo local de Persona (búsqueda) ----
 type Persona = {
   idPersona: number;
@@ -836,7 +845,14 @@ const ReservaList: React.FC = () => {
     [cerrarReservaModal, editarReservaModal, precargarDatosEdicion],
   );
 
-  const totalElements = data?.length ?? 0;
+  const sortedData = useMemo(() => {
+    if (!data) return [];
+    return [...data].sort(
+      (a, b) => buildReservaTimestamp(b) - buildReservaTimestamp(a),
+    );
+  }, [data]);
+
+  const totalElements = sortedData.length;
   const totalPages = totalElements === 0 ? 1 : Math.ceil(totalElements / size);
 
   useEffect(() => {
@@ -852,8 +868,8 @@ const ReservaList: React.FC = () => {
   const paginatedData = useMemo(() => {
     if (totalElements === 0) return [];
     const start = page * size;
-    return (data ?? []).slice(start, start + size);
-  }, [data, page, size, totalElements]);
+    return sortedData.slice(start, start + size);
+  }, [sortedData, page, size, totalElements]);
 
   const goto = useCallback(
     (target: number) => {
