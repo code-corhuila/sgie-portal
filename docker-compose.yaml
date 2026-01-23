@@ -1,0 +1,15 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sgie-frontend
+    ports:
+      - "3000:80"
+    networks:
+      - db_sgie-network  # Misma red que el backend
+    restart: unless-stopped
+
+networks:
+  db_sgie-network:
+    external: true  # Usa la red existente del backend
