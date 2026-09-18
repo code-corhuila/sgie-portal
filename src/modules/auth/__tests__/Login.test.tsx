@@ -14,6 +14,7 @@ vi.mock("react-router-dom", async () => {
 import { renderWithProviders } from "../../../test-utils/renderWithProviders";
 import Login from "../pages/Login";
 import { AuthContext, type AuthContextValue } from "../context/context";
+import { ApiError } from "../../../api/base";
 
 const buildContextValue = (
   overrides?: Partial<AuthContextValue>,
@@ -52,7 +53,7 @@ describe("Login page", () => {
 
   it("navega al dashboard cuando login es exitoso", async () => {
     const user = userEvent.setup();
-    const loginMock = vi.fn().mockResolvedValue(true);
+    const loginMock = vi.fn().mockResolvedValue(undefined);
     const contextValue = buildContextValue({ login: loginMock });
 
     const { getByPlaceholderText, getByRole } = renderWithProviders(
@@ -77,7 +78,9 @@ describe("Login page", () => {
 
   it("muestra mensaje de error si las credenciales son inválidas", async () => {
     const user = userEvent.setup();
-    const loginMock = vi.fn().mockResolvedValue(false);
+    const loginMock = vi
+      .fn()
+      .mockRejectedValue(new ApiError(401, "Bad credentials"));
     const contextValue = buildContextValue({ login: loginMock });
 
     const { getByPlaceholderText, getByRole, findByText } =
@@ -98,5 +101,37 @@ describe("Login page", () => {
     await user.click(getByRole("button", { name: "Iniciar sesión" }));
 
     expect(await findByText(/Credenciales inválidas/)).toBeInTheDocument();
+  });
+
+  it("muestra el mensaje de rate limit (429) en vez de 'credenciales inválidas'", async () => {
+    const user = userEvent.setup();
+    const loginMock = vi
+      .fn()
+      .mockRejectedValue(
+        new ApiError(
+          429,
+          "Demasiados intentos de inicio de sesión. Intente de nuevo en 42 segundos.",
+        ),
+      );
+    const contextValue = buildContextValue({ login: loginMock });
+
+    const { getByPlaceholderText, getByRole, findByText, queryByText } =
+      renderWithProviders(
+        <AuthContext.Provider value={contextValue}>
+          <Login />
+        </AuthContext.Provider>,
+      );
+
+    await user.type(
+      getByPlaceholderText("usuario@corhuila.edu.co"),
+      "user@example.com",
+    );
+    await user.type(getByPlaceholderText("Ingresa tu contraseña"), "Secret123!");
+    await user.click(getByRole("button", { name: "Iniciar sesión" }));
+
+    expect(
+      await findByText(/Demasiados intentos de inicio de sesión/),
+    ).toBeInTheDocument();
+    expect(queryByText(/Credenciales inválidas/)).not.toBeInTheDocument();
   });
 });

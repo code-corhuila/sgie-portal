@@ -1,6 +1,29 @@
+import type { ReactElement } from "react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import DashboardHome from "../pages/DashboardHome";
 import { renderWithProviders } from "../../../test-utils/renderWithProviders";
+import { AuthContext, type AuthContextValue } from "../../auth/context/context";
+
+const buildAuthValue = (
+  overrides?: Partial<AuthContextValue>,
+): AuthContextValue => ({
+  role: null,
+  permissions: [],
+  email: null,
+  userId: null,
+  login: vi.fn(),
+  logout: vi.fn(),
+  checkingAuth: false,
+  isAuthenticated: false,
+  ...overrides,
+});
+
+const renderDashboard = (role: string | null, ui: ReactElement = <DashboardHome />) =>
+  renderWithProviders(
+    <AuthContext.Provider value={buildAuthValue({ role })}>
+      {ui}
+    </AuthContext.Provider>,
+  );
 
 const useQueriesMock = vi.fn();
 
@@ -76,7 +99,7 @@ describe("DashboardHome", () => {
       },
     ]);
 
-    const { container, queryByRole } = renderWithProviders(<DashboardHome />);
+    const { container, queryByRole } = renderDashboard("ADMINISTRADOR");
 
     const numbers = Array.from(
       container.querySelectorAll(".chakra-stat__number"),
@@ -94,12 +117,42 @@ describe("DashboardHome", () => {
       { data: [], isLoading: false, isError: false },
     ]);
 
-    const { getByText } = renderWithProviders(<DashboardHome />);
+    const { getByText } = renderDashboard("ADMINISTRADOR");
 
     expect(
       getByText(
         /No se pudieron cargar todas las métricas/i,
       ),
     ).toBeInTheDocument();
+  });
+
+  it("usa etiquetas 'Mis reservas...' para roles sin acceso global (alineado con AuthenticatedPersonaResolver del backend)", () => {
+    useQueriesMock.mockReturnValue([
+      { data: [], isLoading: false, isError: false },
+      { data: [], isLoading: false, isError: false },
+      { data: [], isLoading: false, isError: false },
+      { data: [], isLoading: false, isError: false },
+    ]);
+
+    const { getByText, queryByText } = renderDashboard("ESTUDIANTE");
+
+    expect(getByText("Mis reservas hoy")).toBeInTheDocument();
+    expect(getByText("Mis reservas vencidas")).toBeInTheDocument();
+    expect(queryByText("Reservas hoy")).not.toBeInTheDocument();
+    expect(queryByText("Reservas activas vencidas")).not.toBeInTheDocument();
+  });
+
+  it("usa las etiquetas globales para ADMINISTRADOR y COORDINADOR_RESERVAS", () => {
+    useQueriesMock.mockReturnValue([
+      { data: [], isLoading: false, isError: false },
+      { data: [], isLoading: false, isError: false },
+      { data: [], isLoading: false, isError: false },
+      { data: [], isLoading: false, isError: false },
+    ]);
+
+    const { getByText } = renderDashboard("COORDINADOR_RESERVAS");
+
+    expect(getByText("Reservas hoy")).toBeInTheDocument();
+    expect(getByText("Reservas activas vencidas")).toBeInTheDocument();
   });
 });

@@ -16,9 +16,16 @@ import { useMemo } from "react";
 import { useQueries, type UseQueryResult } from "@tanstack/react-query";
 import { dashboardKeys } from "../queryKeys";
 import { DashboardApi, type InstalacionDashboardRow } from "../api";
+import { useAuth } from "../../auth/context/useAuth";
 import type { Persona } from "../../persona/types";
 import type { EquipoSummary } from "../../equipo/types";
 import type { ReservaGeneral } from "../../reserva/types";
+
+// Debe coincidir con AuthenticatedPersonaResolver.ROLES_CONSULTA_GLOBAL en el
+// backend: para esos roles /reserva/reservas-mantenimientos devuelve el dato
+// de toda la institución; para el resto, el backend ya limita la respuesta a
+// las propias reservas del usuario autenticado.
+const ROLES_CONSULTA_GLOBAL = new Set(["ADMINISTRADOR", "COORDINADOR_RESERVAS"]);
 
 type SummaryKey =
   | "personas"
@@ -62,6 +69,9 @@ const summaryCards: SummaryCard[] = [
 ];
 
 function DashboardHome() {
+  const { role } = useAuth();
+  const isElevado = !!role && ROLES_CONSULTA_GLOBAL.has(role);
+
   const queries = useQueries({
     queries: [
       {
@@ -178,6 +188,10 @@ function DashboardHome() {
           case "reservas":
             return {
               ...card,
+              label: isElevado ? card.label : "Mis reservas hoy",
+              helper: isElevado
+                ? card.helper
+                : "Tus solicitudes agendadas para la fecha actual",
               loading: reservasQuery.isLoading,
               error: reservasQuery.isError,
               value: reservasHoy,
@@ -185,6 +199,10 @@ function DashboardHome() {
           case "reservasVencidas":
             return {
               ...card,
+              label: isElevado ? card.label : "Mis reservas vencidas",
+              helper: isElevado
+                ? card.helper
+                : "Tus reservas que deberían haberse cerrado pero siguen activas",
               loading: reservasQuery.isLoading,
               error: reservasQuery.isError,
               value: reservasVencidas,
@@ -206,6 +224,7 @@ function DashboardHome() {
       instalacionesOperativas,
       instalacionesQuery.isError,
       instalacionesQuery.isLoading,
+      isElevado,
       personasActivas,
       personasQuery.isError,
       personasQuery.isLoading,

@@ -18,6 +18,7 @@ import {
 import { FiArrowRight, FiShield } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
+import { ApiError } from "../../../api/base";
 
 function Login() {
   const { login } = useAuth();
@@ -32,9 +33,14 @@ function Login() {
     setIsSubmitting(true);
 
     try {
-      const success = await login(username, password);
-      if (success) {
-        navigate("/");
+      await login(username, password);
+      navigate("/");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 429) {
+        setError(
+          err.message ||
+            "Demasiados intentos de inicio de sesión. Intenta de nuevo en unos minutos.",
+        );
       } else {
         setError("Credenciales inválidas. Intenta nuevamente.");
       }

@@ -48,18 +48,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, [resetSession]);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      const data = await AuthApi.login({ email, password });
-      setRole(data.roles?.[0] ?? null);
-      setPermissions(data.permisos ?? []);
-      setEmail(data.email ?? null);
-      setUserId(data.idUsuario ?? null);
-
-      return true;
-    } catch {
-      return false;
-    }
+  const login = async (email: string, password: string): Promise<void> => {
+    // No se atrapa el error aquí a propósito: el backend distingue
+    // credenciales inválidas (401) de bloqueo por rate limiting (429), y
+    // Login.tsx necesita ese detalle para mostrar el mensaje correcto.
+    const data = await AuthApi.login({ email, password });
+    setRole(data.roles?.[0] ?? null);
+    setPermissions(data.permisos ?? []);
+    setEmail(data.email ?? null);
+    setUserId(data.idUsuario ?? null);
   };
 
   const logout = async () => {

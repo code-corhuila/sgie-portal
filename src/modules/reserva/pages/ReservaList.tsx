@@ -35,6 +35,12 @@ import {
 import { apiCall, type ApiEnvelope } from "../../../api/base";
 type ApiResponse<T> = ApiEnvelope<T>;
 import { userReserva } from "../hooks/UserReserva";
+import { useAuth } from "../../auth/context/useAuth";
+// Debe coincidir con AuthenticatedPersonaResolver.ROLES_CONSULTA_GLOBAL en el backend:
+// esos son los únicos roles a los que el servidor les respeta el numeroIdentificacion
+// que envían; para el resto, el backend siempre devuelve sus propias reservas sin
+// importar qué se busque, así que mostrarles el buscador sería engañoso.
+const ROLES_CONSULTA_GLOBAL = new Set(["ADMINISTRADOR", "COORDINADOR_RESERVAS"]);
 import type {
   ReservaGeneral,
   Paso1Values,
@@ -81,6 +87,8 @@ type Persona = {
 
 const ReservaList: React.FC = () => {
   const toast = useToast();
+  const { role } = useAuth();
+  const puedeBuscarOtraPersona = !!role && ROLES_CONSULTA_GLOBAL.has(role);
 
   const {
     data,
@@ -1519,43 +1527,49 @@ const ReservaList: React.FC = () => {
         boxShadow="md"
         p={6}
       >
-        <Flex
-          direction={{ base: "column", md: "row" }}
-          gap={4}
-          align={{ base: "stretch", md: "flex-end" }}
-        >
-          <InputGroup maxW={{ base: "100%", md: "320px" }}>
-            <InputLeftElement pointerEvents="none">
-              <Icon as={FiSearch} color="neutral.400" />
-            </InputLeftElement>
-            <Input
-              placeholder="Filtrar por número de identificación"
-              value={filtroNI}
-              onChange={(e) => setFiltroNI(e.target.value)}
-              maxW="320px"
-              onKeyDown={(e) => e.key === "Enter" && onBuscar()}
-            />
-          </InputGroup>
-          <ButtonGroup size="sm">
-            <Button
-              onClick={onBuscar}
-              isLoading={loading}
-              leftIcon={<Icon as={FiSearch} />}
-            >
-              Buscar
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setFiltroNI("");
-                setPage(0);
-                void fetchAll();
-              }}
-            >
-              Limpiar
-            </Button>
-          </ButtonGroup>
-        </Flex>
+        {puedeBuscarOtraPersona ? (
+          <Flex
+            direction={{ base: "column", md: "row" }}
+            gap={4}
+            align={{ base: "stretch", md: "flex-end" }}
+          >
+            <InputGroup maxW={{ base: "100%", md: "320px" }}>
+              <InputLeftElement pointerEvents="none">
+                <Icon as={FiSearch} color="neutral.400" />
+              </InputLeftElement>
+              <Input
+                placeholder="Filtrar por número de identificación"
+                value={filtroNI}
+                onChange={(e) => setFiltroNI(e.target.value)}
+                maxW="320px"
+                onKeyDown={(e) => e.key === "Enter" && onBuscar()}
+              />
+            </InputGroup>
+            <ButtonGroup size="sm">
+              <Button
+                onClick={onBuscar}
+                isLoading={loading}
+                leftIcon={<Icon as={FiSearch} />}
+              >
+                Buscar
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setFiltroNI("");
+                  setPage(0);
+                  void fetchAll();
+                }}
+              >
+                Limpiar
+              </Button>
+            </ButtonGroup>
+          </Flex>
+        ) : (
+          <Text fontSize="sm" color="neutral.500">
+            Mostrando tus propias reservas y mantenimientos.
+          </Text>
+        )}
         <Badge variant="neutral" w="fit-content">
           Mostrando {paginatedData.length} de {totalElements}
         </Badge>

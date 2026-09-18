@@ -92,8 +92,9 @@ describe("AuthProvider", () => {
     await waitFor(() => expect(result.current.checkingAuth).toBe(false));
 
     await act(async () => {
-      const success = await result.current.login("gestor@example.com", "pwd");
-      expect(success).toBe(true);
+      await expect(
+        result.current.login("gestor@example.com", "pwd"),
+      ).resolves.toBeUndefined();
     });
 
     expect(result.current.role).toBe("GESTOR");
@@ -101,14 +102,16 @@ describe("AuthProvider", () => {
     expect(result.current.email).toBe("gestor@example.com");
   });
 
-  it("login devuelve false cuando AuthApi.login lanza error", async () => {
+  it("login propaga el error cuando AuthApi.login lanza (para que Login.tsx distinga 401 de 429)", async () => {
     authApiMocks.currentSession.mockResolvedValueOnce({
       roles: null,
       permisos: [],
       email: null,
       idUsuario: null,
     });
-    authApiMocks.login.mockRejectedValueOnce(new Error("Bad credentials"));
+    const rateLimitError = new Error("Demasiados intentos");
+    (rateLimitError as any).status = 429;
+    authApiMocks.login.mockRejectedValueOnce(rateLimitError);
 
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <AuthProvider>{children}</AuthProvider>
@@ -118,9 +121,13 @@ describe("AuthProvider", () => {
     await waitFor(() => expect(result.current.checkingAuth).toBe(false));
 
     await act(async () => {
-      const success = await result.current.login("a", "b");
-      expect(success).toBe(false);
+      await expect(result.current.login("a", "b")).rejects.toMatchObject({
+        status: 429,
+      });
     });
+
+    // el estado de sesión no debe alterarse ante un intento fallido
+    expect(result.current.role).toBeNull();
   });
 
   it("logout invoca API y limpia estado", async () => {

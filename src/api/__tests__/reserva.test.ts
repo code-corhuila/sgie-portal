@@ -38,7 +38,7 @@ describe("ReservaApi", () => {
     await ReservaApi.getTiposReserva();
     await ReservaApi.getEquipos();
     await ReservaApi.getInstalaciones();
-    await ReservaApi.getCategoriaMantenimientoEquipo();
+    await ReservaApi.getCategoriaMantenimientoEquipoId();
     await ReservaApi.getCategoriaMantenimientoInstalacion();
 
     const urls = apiCallMock.mock.calls.map(([url]) => url);
