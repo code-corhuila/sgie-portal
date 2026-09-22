@@ -66,25 +66,25 @@ const navItems: NavItem[] = [
   {
     path: "/ubicacion",
     label: "Ubicaciones",
-    roles: ["ADMINISTRADOR", "ADMINISTRATIVO"],
+    roles: ["ADMINISTRADOR", "ADMINISTRADOR"],
     icon: FiMapPin,
   },
   {
     path: "/equipo",
     label: "Equipos",
-    roles: ["ADMINISTRADOR", "ADMINISTRATIVO"],
+    roles: ["ADMINISTRADOR", "ADMINISTRADOR"],
     icon: FiCpu,
   },
   {
     path: "/reserva",
     label: "Reservas",
-    roles: ["ADMINISTRADOR", "ADMINISTRATIVO"],
+    roles: ["ADMINISTRADOR", "ADMINISTRADOR"],
     icon: FiCalendar,
   },
   {
     path: "/reportes",
     label: "Reportes",
-    roles: ["ADMINISTRADOR", "ADMINISTRATIVO"],
+    roles: ["ADMINISTRADOR", "ADMINISTRADOR"],
     icon: FiFileText,
   },
 ];
